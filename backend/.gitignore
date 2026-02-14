@@ -34,3 +34,6 @@ build/
 
 ### Variables de entorno (NO SUBIR) ###
 .env
+
+### Documentación local de desarrollo ###
+dev.md
