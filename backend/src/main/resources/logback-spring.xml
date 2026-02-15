@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- ============================================ -->
+    <!-- PROPIEDADES DE CONFIGURACIÓN                 -->
+    <!-- ============================================ -->
+
+    <!-- Carpeta donde se guardarán los logs -->
+    <property name="LOG_PATH" value="./logs"/>
+
+    <!-- Nombre base del archivo de log -->
+    <property name="LOG_FILE" value="ecos-backend"/>
+
+    <!-- Patrón de formato para logs en consola -->
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %5p --- [%15.15t] %-40.40logger{39} : %m%n"/>
+
+    <!-- Patrón de formato para logs en archivo -->
+    <property name="FILE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %5p --- [%t] %-40.40logger{39} : %m%n%ex"/>
+
+    <!-- ============================================ -->
+    <!-- APPENDER: CONSOLA                            -->
+    <!-- ============================================ -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ============================================ -->
+    <!-- APPENDER: ARCHIVO GENERAL                    -->
+    <!-- ============================================ -->
+    <!-- Logs de nivel INFO y superior -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE}.log</file>
+
+        <!-- Política de rotación -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- Patrón del nombre de archivo archivado: ecos-backend.2024-02-15.0.log -->
+            <fileNamePattern>${LOG_PATH}/archive/${LOG_FILE}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+
+            <!-- Tamaño máximo de cada archivo antes de rotar -->
+            <maxFileSize>10MB</maxFileSize>
+
+            <!-- Mantener logs de los últimos 30 días -->
+            <maxHistory>30</maxHistory>
+
+            <!-- Tamaño total máximo de todos los archivos de log -->
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+
+        <!-- Solo logs de nivel INFO y superior -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+    </appender>
+
+    <!-- ============================================ -->
+    <!-- APPENDER: ARCHIVO DE ERRORES                 -->
+    <!-- ============================================ -->
+    <!-- Archivo separado solo para errores (ERROR y WARN) -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE}-error.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archive/${LOG_FILE}-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+
+        <!-- Solo logs de nivel WARN y ERROR -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+    </appender>
+
+    <!-- ============================================ -->
+    <!-- APPENDER: ARCHIVO DEBUG (solo desarrollo)    -->
+    <!-- ============================================ -->
+    <appender name="DEBUG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE}-debug.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archive/${LOG_FILE}-debug.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>20MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ============================================ -->
+    <!-- LOGGERS ESPECÍFICOS                          -->
+    <!-- ============================================ -->
+
+    <!-- Logs de tu aplicación -->
+    <logger name="es.wara.ecos" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+        <appender-ref ref="DEBUG_FILE"/>
+    </logger>
+
+    <!-- Logs de Spotify Client específicamente -->
+    <logger name="es.wara.ecos.backend.infrastructure.adapter.spotify" level="DEBUG"/>
+
+    <!-- Reducir verbosidad de Spring -->
+    <logger name="org.springframework" level="INFO"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.springframework.boot" level="INFO"/>
+
+    <!-- Reducir verbosidad de Hibernate/JPA (cuando lo actives) -->
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="org.hibernate.SQL" level="DEBUG"/>
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+
+    <!-- Reducir verbosidad de Tomcat -->
+    <logger name="org.apache.catalina" level="INFO"/>
+    <logger name="org.apache.tomcat" level="INFO"/>
+
+    <!-- ============================================ -->
+    <!-- LOGGER ROOT (por defecto)                    -->
+    <!-- ============================================ -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </root>
+
+    <!-- ============================================ -->
+    <!-- PROFILES DE SPRING                           -->
+    <!-- ============================================ -->
+
+    <!-- Configuración para entorno de DESARROLLO -->
+    <springProfile name="dev">
+        <logger name="es.wara.ecos" level="DEBUG"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="DEBUG_FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- Configuración para entorno de PRODUCCIÓN -->
+    <springProfile name="prod">
+        <logger name="es.wara.ecos" level="INFO"/>
+        <root level="WARN">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>

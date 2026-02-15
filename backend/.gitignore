@@ -35,5 +35,9 @@ build/
 ### Variables de entorno (NO SUBIR) ###
 .env
 
+### Archivos de log (NO SUBIR) ###
+logs/
+*.log
+
 ### Documentación local de desarrollo ###
 dev.md

@@ -24,7 +24,6 @@ public class TestController {
             try {
                 String token = spotifyClient.getAccessToken();
                 response.put("status", "success");
-                response.put("token", token.substring(0, 20) + "...");
                 response.put("message", "Conexión exitosa con Spotify API");
             } catch (Exception e) {
                 response.put("status", "error");
