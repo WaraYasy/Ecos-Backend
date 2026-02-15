@@ -34,6 +34,8 @@ package es.wara.ecos.backend.infrastructure.exception;
  * Estos errores suelen ser temporales y están fuera del control de la aplicación.
  * </p>
  *
+ * @author Wara Pacheco
+ * @version 1.0
  * @see ExternalApiException
  * @since 1.0.0
  */

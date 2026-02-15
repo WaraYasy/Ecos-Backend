@@ -12,7 +12,8 @@ package es.wara.ecos.backend.infrastructure.exception;
  * el error y opcionalmente el código de estado HTTP si el error proviene de una
  * respuesta HTTP.
  * </p>
- *
+ * @author Wara Pacheco
+ * @version 1.0
  * @see ApiAuthenticationException
  * @see ApiRateLimitException
  * @see ApiServerException

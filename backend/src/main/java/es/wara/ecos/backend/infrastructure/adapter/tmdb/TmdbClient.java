@@ -19,12 +19,54 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.util.Map;
 
 /**
- * Cliente para interactuar con la API de TMDB (The Movie Database)
- * Proporciona métodos para consultar información de películas y series:
- * - Búsqueda de películas y series
- * - Detalles de películas/series
- * - Trending (contenido popular)
- * - Géneros
+ * Cliente para interactuar con la API de TMDB (The Movie Database).
+ * <p>
+ * TMDB es una de las bases de datos de películas y series más completas
+ * del mundo, proporcionando información detallada sobre contenido audiovisual,
+ * incluyendo metadatos, imágenes, calificaciones y más.
+ * </p>
+ * <p>
+ * <b>Características principales:</b>
+ * <ul>
+ *   <li>Búsqueda de películas y series de TV por título</li>
+ *   <li>Obtención de detalles completos de películas y series</li>
+ *   <li>Consulta de contenido trending (popular del día)</li>
+ *   <li>Listado de géneros disponibles</li>
+ *   <li>Autenticación con Bearer Token (método preferido por TMDB)</li>
+ *   <li>Paginación de resultados</li>
+ * </ul>
+ * </p>
+ * <p>
+ * <b>Configuración requerida:</b><br>
+ * Las siguientes variables deben estar configuradas en el archivo .env:
+ * <ul>
+ *   <li><b>TMDB_API_KEY</b>: API Key de TMDB</li>
+ *   <li><b>TMDB_API_TOKEN</b>: API Token (Bearer) de TMDB</li>
+ * </ul>
+ * </p>
+ * <p>
+ * <b>Ejemplo de uso:</b>
+ * <pre>{@code
+ * @Autowired
+ * private TmdbClient tmdbClient;
+ *
+ * public void ejemplo() {
+ *     // Buscar películas
+ *     Map<String, Object> results = tmdbClient.searchMovies("Inception", 1);
+ *
+ *     // Obtener detalles de una película
+ *     Map<String, Object> movie = tmdbClient.getMovieDetails(27205L);
+ *
+ *     // Ver trending del día
+ *     Map<String, Object> trending = tmdbClient.getTrending("movie");
+ * }
+ * }</pre>
+ * </p>
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @see <a href="https://www.themoviedb.org/documentation/api">TMDB API Documentation</a>
+ * @since 1.0.0
  */
 @Slf4j
 @Component
@@ -46,7 +88,13 @@ public class TmdbClient {
     }
 
     /**
-     * Valida que las credenciales estén configuradas correctamente
+     * Valida que las credenciales de TMDB estén configuradas correctamente.
+     * <p>
+     * Este método verifica tanto la API Key como el API Token.
+     * Se ejecuta automáticamente después de la construcción del bean.
+     * </p>
+     *
+     * @throws IllegalStateException si las credenciales no están configuradas
      */
     @PostConstruct
     private void validateCredentials() {
@@ -56,16 +104,29 @@ public class TmdbClient {
                 "Las credenciales de TMDB (TMDB_API_KEY y TMDB_API_TOKEN) deben estar configuradas en el archivo .env"
             );
         }
-        log.info("✓ Credenciales de {} configuradas correctamente", API_NAME);
+        log.info("Credenciales de {} configuradas correctamente", API_NAME);
     }
 
     /**
-     * Busca películas por título
+     * Busca películas por título.
+     * <p>
+     * Realiza una búsqueda textual en la base de datos de TMDB, retornando
+     * las películas que coincidan con el término de búsqueda. Los resultados
+     * están paginados (20 resultados por página).
+     * </p>
      *
-     * @param query Término de búsqueda
-     * @param page Número de página (opcional, default: 1)
-     * @return Resultados de búsqueda en formato JSON (Map)
-     * @throws ExternalApiException si hay error al consultar la API
+     * @param query Término de búsqueda (título o parte del título)
+     * @param page Número de página (1-based, default: 1)
+     * @return Map con resultados de búsqueda incluyendo:
+     *         <ul>
+     *           <li>page: Número de página actual</li>
+     *           <li>results: Array de películas encontradas</li>
+     *           <li>total_pages: Total de páginas disponibles</li>
+     *           <li>total_results: Total de resultados</li>
+     *         </ul>
+     * @throws IllegalArgumentException si query es null o vacío
+     * @throws ApiAuthenticationException si las credenciales son inválidas
+     * @throws ExternalApiException para otros errores de la API
      */
     public Map<String, Object> searchMovies(String query, Integer page) {
         log.info("Buscando películas con query '{}' en {} API...", query, API_NAME);
@@ -232,7 +293,7 @@ public class TmdbClient {
             log.error("✗ Error de conexión con {} API: {}", API_NAME, e.getMessage());
             throw new ExternalApiException(API_NAME, "Error de conexión: timeout o servidor no disponible", e);
         } catch (ExternalApiException e) {
-            throw e; // Re-lanzar excepciones de API ya manejadas
+            throw e; // Relanzar excepciones de API ya manejadas
         } catch (Exception e) {
             log.error("✗ Error inesperado al consultar {} API: {}", API_NAME, e.getMessage(), e);
             throw new ExternalApiException(API_NAME, "Error inesperado: " + e.getMessage(), e);

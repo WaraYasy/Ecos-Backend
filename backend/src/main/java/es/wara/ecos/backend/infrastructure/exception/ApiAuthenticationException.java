@@ -19,6 +19,8 @@ package es.wara.ecos.backend.infrastructure.exception;
  * </ul>
  * </p>
  *
+ * @author Wara Pacheco
+ * @version 1.0
  * @see ExternalApiException
  * @since 1.0.0
  */

@@ -150,6 +150,74 @@
 					</excludes>
 				</configuration>
 			</plugin>
+
+			<!-- Plugin para generar documentación JavaDoc -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>3.6.3</version>
+				<configuration>
+					<!-- Configuración general -->
+					<show>public</show>
+					<charset>UTF-8</charset>
+					<encoding>UTF-8</encoding>
+					<docencoding>UTF-8</docencoding>
+
+					<!-- Información del proyecto -->
+					<doctitle>Ecos Backend - API Documentation</doctitle>
+					<windowtitle>Ecos Backend API</windowtitle>
+					<bottom>
+						<![CDATA[
+							Copyright &#169; 2026 Wara Pacheco. All Rights Reserved.
+						]]>
+					</bottom>
+
+					<!-- Opciones de generación -->
+					<author>true</author>
+					<version>true</version>
+					<use>true</use>
+
+					<!-- Deshabilitar doclint estricto (Java 8+) -->
+					<doclint>none</doclint>
+
+					<!-- Enlaces a JavaDoc externos -->
+					<links>
+						<link>https://docs.oracle.com/en/java/javase/21/docs/api/</link>
+					</links>
+
+					<!-- Configuración de enlaces offline (evita errores de red) -->
+					<detectOfflineLinks>false</detectOfflineLinks>
+
+					<!-- Grupos de paquetes -->
+					<groups>
+						<group>
+							<title>Controllers (REST API)</title>
+							<packages>es.wara.ecos.backend.interfaces.rest.controller</packages>
+						</group>
+						<group>
+							<title>External API Clients</title>
+							<packages>es.wara.ecos.backend.infrastructure.adapter*</packages>
+						</group>
+						<group>
+							<title>Exception Handling</title>
+							<packages>es.wara.ecos.backend.infrastructure.exception</packages>
+						</group>
+						<group>
+							<title>Configuration</title>
+							<packages>es.wara.ecos.backend.config</packages>
+						</group>
+					</groups>
+				</configuration>
+				<executions>
+					<!-- Generar JavaDoc durante la fase package -->
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 

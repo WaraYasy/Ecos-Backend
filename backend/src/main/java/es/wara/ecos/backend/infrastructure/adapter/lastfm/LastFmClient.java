@@ -20,12 +20,50 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.util.Map;
 
 /**
- * Cliente para interactuar con la API de Last.fm
- * Proporciona métodos para consultar información musical:
- * - Información de artistas
- * - Información de canciones (tracks)
- * - Álbumes
- * - Scrobbles de usuarios
+ * Cliente para interactuar con la API de Last.fm.
+ * <p>
+ * Last.fm es una base de datos musical que proporciona información detallada
+ * sobre artistas, canciones, álbumes y estadísticas de escucha. Este cliente
+ * facilita la consulta de esta información mediante métodos simples y tipados.
+ * </p>
+ * <p>
+ * <b>Características principales:</b>
+ * <ul>
+ *   <li>Consulta de información de artistas</li>
+ *   <li>Búsqueda de canciones (tracks) con detalles completos</li>
+ *   <li>Obtención de top tracks de artistas</li>
+ *   <li>Manejo automático de errores específicos de Last.fm</li>
+ *   <li>Sanitización de API keys en logs</li>
+ *   <li>Validación de credenciales al inicio</li>
+ * </ul>
+ * </p>
+ * <p>
+ * <b>Configuración requerida:</b><br>
+ * La siguiente variable debe estar configurada en el archivo .env:
+ * <ul>
+ *   <li><b>LASTFM_API_KEY</b>: API Key de Last.fm</li>
+ * </ul>
+ * </p>
+ * <p>
+ * <b>Ejemplo de uso:</b>
+ * <pre>{@code
+ * @Autowired
+ * private LastFmClient lastFmClient;
+ *
+ * public void ejemplo() {
+ *     // Obtener información de un artista
+ *     Map<String, Object> artistInfo = lastFmClient.getArtistInfo("Radiohead");
+ *
+ *     // Obtener top tracks de un artista
+ *     Map<String, Object> topTracks = lastFmClient.getArtistTopTracks("The Beatles", 10);
+ * }
+ * }</pre>
+ * </p>
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @see <a href="https://www.last.fm/api">Last.fm API Documentation</a>
+ * @since 1.0.0
  */
 @Slf4j
 @Component
@@ -44,7 +82,12 @@ public class LastFmClient {
     }
 
     /**
-     * Valida que la API key esté configurada correctamente
+     * Valida que la API Key de Last.fm esté configurada correctamente.
+     * <p>
+     * Este método se ejecuta automáticamente después de la construcción del bean.
+     * </p>
+     *
+     * @throws IllegalStateException si la API Key no está configurada
      */
     @PostConstruct
     private void validateCredentials() {
@@ -58,11 +101,26 @@ public class LastFmClient {
     }
 
     /**
-     * Obtiene información de un artista por nombre
+     * Obtiene información detallada de un artista por nombre.
+     * <p>
+     * Consulta el método {@code artist.getInfo} de la API de Last.fm para
+     * obtener información completa sobre un artista, incluyendo biografía,
+     * estadísticas, imágenes y tags.
+     * </p>
      *
-     * @param artistName Nombre del artista a buscar
-     * @return Información del artista en formato JSON (Map)
-     * @throws ExternalApiException si hay error al consultar la API
+     * @param artistName Nombre del artista a buscar (no puede estar vacío)
+     * @return Map con información del artista en formato JSON, incluyendo:
+     *         <ul>
+     *           <li>artist: Objeto con datos del artista</li>
+     *           <li>bio: Biografía del artista</li>
+     *           <li>stats: Estadísticas (listeners, playcount)</li>
+     *           <li>similar: Artistas similares</li>
+     *           <li>tags: Tags/géneros asociados</li>
+     *         </ul>
+     * @throws IllegalArgumentException si artistName es null o vacío
+     * @throws ApiAuthenticationException si la API Key es inválida (códigos 10, 26)
+     * @throws ApiRateLimitException si se excede el límite de peticiones (código 29)
+     * @throws ExternalApiException para otros errores de la API
      */
     public Map<String, Object> getArtistInfo(String artistName) {
         log.info("Consultando información del artista '{}' en {} API...", artistName, API_NAME);
@@ -101,7 +159,7 @@ public class LastFmClient {
     }
 
     /**
-     * Obtiene los top tracks (canciones más populares) de un artista
+     * Obtiene los tracks (canciones más populares) de un artista
      *
      * @param artistName Nombre del artista
      * @param limit Número máximo de resultados (opcional, default: 10)
@@ -177,7 +235,7 @@ public class LastFmClient {
             log.error("✗ Error de conexión con {} API: {}", API_NAME, e.getMessage());
             throw new ExternalApiException(API_NAME, "Error de conexión: timeout o servidor no disponible", e);
         } catch (ExternalApiException e) {
-            throw e; // Re-lanzar excepciones de API ya manejadas
+            throw e; // Relanzar excepciones de API ya manejadas
         } catch (Exception e) {
             log.error("✗ Error inesperado al consultar {} API: {}", API_NAME, e.getMessage(), e);
             throw new ExternalApiException(API_NAME, "Error inesperado: " + e.getMessage(), e);

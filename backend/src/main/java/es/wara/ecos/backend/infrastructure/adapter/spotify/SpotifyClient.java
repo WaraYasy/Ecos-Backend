@@ -20,9 +20,48 @@ import java.util.Base64;
 import java.util.Map;
 
 /**
- * Cliente para interactuar con la API de Spotify
- * Maneja autenticación mediante Client Credentials Flow
- * y cachea el token para evitar peticiones innecesarias
+ * Cliente para interactuar con la API de Spotify.
+ * <p>
+ * Este cliente implementa el flujo de autenticación Client Credentials de OAuth2
+ * para obtener tokens de acceso que permiten consultar la API de Spotify sin
+ * necesidad de autenticación de usuario final.
+ * </p>
+ * <p>
+ * <b>Características principales:</b>
+ * <ul>
+ *   <li>Autenticación automática mediante Client Credentials Flow</li>
+ *   <li>Caché inteligente de tokens (1 hora con margen de 5 minutos)</li>
+ *   <li>Validación de credenciales al inicio de la aplicación</li>
+ *   <li>Manejo robusto de errores HTTP (401, 403, 429, 5xx)</li>
+ *   <li>Logging detallado de todas las operaciones</li>
+ *   <li>Timeouts configurados (5s conexión, 10s lectura)</li>
+ * </ul>
+ * </p>
+ * <p>
+ * <b>Configuración requerida:</b><br>
+ * Las siguientes variables deben estar configuradas en el archivo .env:
+ * <ul>
+ *   <li><b>SPOTIFY_CLIENT_ID</b>: ID de cliente de Spotify</li>
+ *   <li><b>SPOTIFY_CLIENT_SECRET</b>: Secret de cliente de Spotify</li>
+ * </ul>
+ * </p>
+ * <p>
+ * <b>Ejemplo de uso:</b>
+ * <pre>{@code
+ * @Autowired
+ * private SpotifyClient spotifyClient;
+ *
+ * public void ejemplo() {
+ *     String token = spotifyClient.getAccessToken();
+ *     // Usar el token para llamadas a la API de Spotify
+ * }
+ * }</pre>
+ * </p>
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @see <a href="https://developer.spotify.com/documentation/web-api">Spotify Web API</a>
+ * @since 1.0.0
  */
 @Slf4j
 @Component
@@ -49,7 +88,13 @@ public class SpotifyClient {
     }
 
     /**
-     * Valida que las credenciales estén configuradas correctamente
+     * Valida que las credenciales de Spotify estén configuradas correctamente.
+     * <p>
+     * Este método se ejecuta automáticamente después de la construcción del bean
+     * para garantizar que la aplicación no inicie sin las credenciales necesarias.
+     * </p>
+     *
+     * @throws IllegalStateException si las credenciales no están configuradas
      */
     @PostConstruct
     private void validateCredentials() {
@@ -63,11 +108,36 @@ public class SpotifyClient {
     }
 
     /**
-     * Obtiene un access token válido de Spotify
-     * Usa token cacheado si aún es válido, de lo contrario solicita uno nuevo
+     * Obtiene un access token válido de Spotify.
+     * <p>
+     * Este método implementa una estrategia de caché para optimizar las peticiones:
+     * <ol>
+     *   <li>Verifica si existe un token en caché válido</li>
+     *   <li>Si el token es válido (no expira en los próximos 5 minutos), lo retorna</li>
+     *   <li>Si no hay token o está próximo a expirar, solicita uno nuevo</li>
+     *   <li>Cachea el nuevo token con su tiempo de expiración</li>
+     * </ol>
+     * </p>
+     * <p>
+     * Los tokens de Spotify tienen una duración de 1 hora. Este método mantiene
+     * un margen de seguridad de 5 minutos para evitar usar tokens a punto de expirar.
+     * </p>
+     * <p>
+     * <b>Manejo de errores:</b><br>
+     * Lanza excepciones específicas según el tipo de error:
+     * <ul>
+     *   <li>{@link ApiAuthenticationException} - Credenciales inválidas (401, 403)</li>
+     *   <li>{@link ApiRateLimitException} - Límite de peticiones excedido (429)</li>
+     *   <li>{@link ApiServerException} - Error del servidor de Spotify (5xx)</li>
+     *   <li>{@link ExternalApiException} - Otros errores (timeout, red, etc.)</li>
+     * </ul>
+     * </p>
      *
-     * @return Access token válido
-     * @throws ExternalApiException si hay error al obtener el token
+     * @return Access token válido de Spotify (cadena de ~139 caracteres)
+     * @throws ApiAuthenticationException si las credenciales son inválidas
+     * @throws ApiRateLimitException si se excede el límite de peticiones
+     * @throws ApiServerException si hay problemas en el servidor de Spotify
+     * @throws ExternalApiException para otros errores de comunicación
      */
     public String getAccessToken() {
         // Verificar si tenemos un token cacheado válido
@@ -130,7 +200,7 @@ public class SpotifyClient {
             log.error("✗ Error de conexión con {} API: {}", API_NAME, e.getMessage());
             throw new ExternalApiException(API_NAME, "Error de conexión: timeout o servidor no disponible", e);
         } catch (ExternalApiException e) {
-            throw e; // Re-lanzar excepciones de API ya manejadas
+            throw e; // Relanzar excepciones de API ya manejadas
         } catch (Exception e) {
             log.error("✗ Error inesperado al obtener access token de {}: {}", API_NAME, e.getMessage(), e);
             throw new ExternalApiException(API_NAME, "Error inesperado: " + e.getMessage(), e);
@@ -198,8 +268,20 @@ public class SpotifyClient {
     }
 
     /**
-     * Invalida el token en caché
-     * Útil para forzar la obtención de un nuevo token
+     * Invalida el token en caché forzando la obtención de uno nuevo.
+     * <p>
+     * Este método limpia el token almacenado en caché, lo que provocará que
+     * la próxima llamada a {@link #getAccessToken()} solicite un token nuevo
+     * a la API de Spotify en lugar de usar el cacheado.
+     * </p>
+     * <p>
+     * <b>Casos de uso:</b>
+     * <ul>
+     *   <li>Renovar el token después de errores de autenticación inesperados</li>
+     *   <li>Testing y desarrollo (forzar nueva autenticación)</li>
+     *   <li>Actualización de credenciales en tiempo de ejecución</li>
+     * </ul>
+     * </p>
      */
     public void invalidateToken() {
         log.debug("Invalidando token en caché");

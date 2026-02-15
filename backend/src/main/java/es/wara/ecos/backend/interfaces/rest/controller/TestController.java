@@ -14,12 +14,29 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Controlador de prueba para verificar la conectividad con APIs externas
- * Endpoints disponibles:
- * - GET /api/test/spotify - Prueba conexión con Spotify
- * - GET /api/test/lastfm - Prueba conexión con Last.fm
- * - GET /api/test/tmdb - Prueba conexión con TMDB
- * - GET /api/test/all - Prueba todas las APIs
+ * Controlador REST de prueba para verificar la conectividad con API externas.
+ * <p>
+ * Este controlador proporciona endpoints de diagnóstico para verificar que
+ * las integraciones con las API externas (Spotify, Last.fm, TMDB) están
+ * configuradas correctamente y funcionando.
+ * </p>
+ * <p>
+ * <b>Endpoints disponibles:</b>
+ * <ul>
+ *   <li><b>GET /api/test/spotify</b> - Prueba conexión con Spotify API</li>
+ *   <li><b>GET /api/test/lastfm</b> - Prueba conexión con Last.fm API</li>
+ *   <li><b>GET /api/test/tmdb</b> - Prueba conexión con TMDB API</li>
+ *   <li><b>GET /api/test/all</b> - Prueba todas las API simultáneamente</li>
+ * </ul>
+ * </p>
+ * <p>
+ * <b>Nota:</b> Este controlador está diseñado para propósitos de desarrollo
+ * y testing. En producción, considere deshabilitarlo o protegerlo con autenticación.
+ * </p>
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
  */
 @Slf4j
 @RestController
@@ -36,8 +53,22 @@ public class TestController {
     private TmdbClient tmdbClient;
 
     /**
-     * Prueba la conexión con Spotify API
-     * Obtiene un access token para verificar que las credenciales funcionan
+     * Prueba la conexión con Spotify API.
+     * <p>
+     * Obtiene un access token de Spotify para verificar que las credenciales
+     * (SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET) están correctamente configuradas
+     * y que la aplicación puede autenticarse exitosamente.
+     * </p>
+     *
+     * @return Map con información del resultado:
+     *         <ul>
+     *           <li><b>status</b>: "success" o "error"</li>
+     *           <li><b>api</b>: "Spotify"</li>
+     *           <li><b>message</b>: Mensaje descriptivo del resultado</li>
+     *           <li><b>tokenLength</b>: Longitud del token obtenido (solo en caso de éxito)</li>
+     *           <li><b>tokenPreview</b>: Primeros 20 caracteres del token (solo en caso de éxito)</li>
+     *           <li><b>errorType</b>: Tipo de excepción (solo en caso de error)</li>
+     *         </ul>
      */
     @GetMapping("/spotify")
     public Map<String, Object> testSpotify() {
@@ -62,8 +93,23 @@ public class TestController {
     }
 
     /**
-     * Prueba la conexión con Last.fm API
-     * Busca información de un artista de prueba
+     * Prueba la conexión con Last.fm API.
+     * <p>
+     * Busca información de un artista para verificar que la API Key de Last.fm
+     * está correctamente configurada y que la aplicación puede consultar datos.
+     * </p>
+     *
+     * @param artist Nombre del artista a buscar (por defecto: "Radiohead")
+     * @return Map con información del resultado:
+     *         <ul>
+     *           <li><b>status</b>: "success" o "error"</li>
+     *           <li><b>api</b>: "Last.fm"</li>
+     *           <li><b>message</b>: Mensaje descriptivo del resultado</li>
+     *           <li><b>testedArtist</b>: Nombre del artista buscado (solo en caso de éxito)</li>
+     *           <li><b>dataFields</b>: Número de campos en la respuesta (solo en caso de éxito)</li>
+     *           <li><b>hasArtistData</b>: Sí se obtuvo información del artista (solo en caso de éxito)</li>
+     *           <li><b>errorType</b>: Tipo de excepción (solo en caso de error)</li>
+     *         </ul>
      */
     @GetMapping("/lastfm")
     public Map<String, Object> testLastFm(
@@ -91,8 +137,24 @@ public class TestController {
     }
 
     /**
-     * Prueba la conexión con TMDB API
-     * Busca una película de prueba
+     * Prueba la conexión con TMDB (The Movie Database) API.
+     * <p>
+     * Busca una película para verificar que las credenciales de TMDB
+     * (TMDB_API_KEY y TMDB_API_TOKEN) están correctamente configuradas
+     * y que la aplicación puede consultar datos de películas.
+     * </p>
+     *
+     * @param movie Título de la película a buscar (por defecto: "Inception")
+     * @return Map con información del resultado:
+     *         <ul>
+     *           <li><b>status</b>: "success" o "error"</li>
+     *           <li><b>api</b>: "TMDB"</li>
+     *           <li><b>message</b>: Mensaje descriptivo del resultado</li>
+     *           <li><b>searchQuery</b>: Término de búsqueda utilizado (solo en caso de éxito)</li>
+     *           <li><b>dataFields</b>: Número de campos en la respuesta (solo en caso de éxito)</li>
+     *           <li><b>hasResults</b>: Si se obtuvieron resultados (solo en caso de éxito)</li>
+     *           <li><b>errorType</b>: Tipo de excepción (solo en caso de error)</li>
+     *         </ul>
      */
     @GetMapping("/tmdb")
     public Map<String, Object> testTmdb(
@@ -120,8 +182,34 @@ public class TestController {
     }
 
     /**
-     * Prueba todas las APIs de una vez
-     * Útil para verificar que todas las integraciones funcionan correctamente
+     * Prueba todas las API externas simultáneamente.
+     * <p>
+     * Ejecuta pruebas de conectividad contra Spotify, Last.fm y TMDB
+     * en paralelo, proporcionando un resumen del estado de todas las
+     * integraciones en una sola petición.
+     * </p>
+     * <p>
+     * Este endpoint es útil para:
+     * <ul>
+     *   <li>Verificación rápida de todas las integraciones</li>
+     *   <li>Health checks completos del sistema</li>
+     *   <li>Diagnóstico inicial de problemas de conectividad</li>
+     * </ul>
+     * </p>
+     *
+     * @return Map con información consolidada:
+     *         <ul>
+     *           <li><b>overallStatus</b>: "success" si todas funcionan, "partial" si alguna falla</li>
+     *           <li><b>totalApis</b>: Número total de API probadas (3)</li>
+     *           <li><b>successfulApis</b>: Número de API que respondieron correctamente</li>
+     *           <li><b>results</b>: Map con resultados individuales de cada API:
+     *             <ul>
+     *               <li><b>Spotify</b>: Resultado de Spotify API</li>
+     *               <li><b>Lastfm</b>: Resultado de Last.fm API</li>
+     *               <li><b>Tmdb</b>: Resultado de TMDB API</li>
+     *             </ul>
+     *           </li>
+     *         </ul>
      */
     @GetMapping("/all")
     public Map<String, Object> testAllApis() {

@@ -1,7 +1,7 @@
 package es.wara.ecos.backend.infrastructure.exception;
 
 /**
- * Excepción específica para errores de límite de tasa (Rate Limit) de APIs externas.
+ * Excepción específica para errores de límite de tasa (Rate Limit) de API externas.
  * <p>
  * Esta excepción se lanza cuando:
  * <ul>
@@ -24,6 +24,8 @@ package es.wara.ecos.backend.infrastructure.exception;
  * reintentar la petición (campo {@code retryAfterSeconds}).
  * </p>
  *
+ * @author Wara Pacheco
+ * @version 1.0
  * @see ExternalApiException
  * @since 1.0.0
  */
