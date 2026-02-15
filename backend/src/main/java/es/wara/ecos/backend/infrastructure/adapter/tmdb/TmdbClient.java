@@ -32,7 +32,7 @@ import java.util.Map;
  *   <li>Obtención de detalles completos de películas y series</li>
  *   <li>Consulta de contenido trending (popular del día)</li>
  *   <li>Listado de géneros disponibles</li>
- *   <li>Autenticación con Bearer Token (método preferido por TMDB)</li>
+ *   <li>Autenticación con Bearer Token (función preferida por TMDB)</li>
  *   <li>Paginación de resultados</li>
  * </ul>
  * </p>
@@ -90,7 +90,7 @@ public class TmdbClient {
     /**
      * Valida que las credenciales de TMDB estén configuradas correctamente.
      * <p>
-     * Este método verifica tanto la API Key como el API Token.
+     * Esta función verifica tanto la API Key como el Token.
      * Se ejecuta automáticamente después de la construcción del bean.
      * </p>
      *

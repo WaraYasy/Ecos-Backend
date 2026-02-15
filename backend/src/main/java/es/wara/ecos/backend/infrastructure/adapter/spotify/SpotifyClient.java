@@ -90,7 +90,7 @@ public class SpotifyClient {
     /**
      * Valida que las credenciales de Spotify estén configuradas correctamente.
      * <p>
-     * Este método se ejecuta automáticamente después de la construcción del bean
+     * Esta función se ejecuta automáticamente después de la construcción del bean
      * para garantizar que la aplicación no inicie sin las credenciales necesarias.
      * </p>
      *
@@ -110,7 +110,7 @@ public class SpotifyClient {
     /**
      * Obtiene un access token válido de Spotify.
      * <p>
-     * Este método implementa una estrategia de caché para optimizar las peticiones:
+     * Esta función implementa una estrategia de caché para optimizar las peticiones:
      * <ol>
      *   <li>Verifica si existe un token en caché válido</li>
      *   <li>Si el token es válido (no expira en los próximos 5 minutos), lo retorna</li>
@@ -119,7 +119,7 @@ public class SpotifyClient {
      * </ol>
      * </p>
      * <p>
-     * Los tokens de Spotify tienen una duración de 1 hora. Este método mantiene
+     * Los tokens de Spotify tienen una duración de 1 hora. Esta función mantiene
      * un margen de seguridad de 5 minutos para evitar usar tokens a punto de expirar.
      * </p>
      * <p>
@@ -136,7 +136,7 @@ public class SpotifyClient {
      * @return Access token válido de Spotify (cadena de ~139 caracteres)
      * @throws ApiAuthenticationException si las credenciales son inválidas
      * @throws ApiRateLimitException si se excede el límite de peticiones
-     * @throws ApiServerException si hay problemas en el servidor de Spotify
+     * @throws ApiServerException sí hay problemas en el servidor de Spotify
      * @throws ExternalApiException para otros errores de comunicación
      */
     public String getAccessToken() {
@@ -270,7 +270,7 @@ public class SpotifyClient {
     /**
      * Invalida el token en caché forzando la obtención de uno nuevo.
      * <p>
-     * Este método limpia el token almacenado en caché, lo que provocará que
+     * Esta función limpia el token almacenado en caché, lo que provocará que
      * la próxima llamada a {@link #getAccessToken()} solicite un token nuevo
      * a la API de Spotify en lugar de usar el cacheado.
      * </p>

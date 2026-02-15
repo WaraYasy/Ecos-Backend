@@ -33,7 +33,7 @@ import java.util.Map;
  *   <li>Búsqueda de canciones (tracks) con detalles completos</li>
  *   <li>Obtención de top tracks de artistas</li>
  *   <li>Manejo automático de errores específicos de Last.fm</li>
- *   <li>Sanitización de API keys en logs</li>
+ *   <li>Limpieza de API keys en logs</li>
  *   <li>Validación de credenciales al inicio</li>
  * </ul>
  * </p>
@@ -84,7 +84,7 @@ public class LastFmClient {
     /**
      * Valida que la API Key de Last.fm esté configurada correctamente.
      * <p>
-     * Este método se ejecuta automáticamente después de la construcción del bean.
+     * Esta función se ejecuta automáticamente después de la construcción del bean.
      * </p>
      *
      * @throws IllegalStateException si la API Key no está configurada
@@ -103,7 +103,7 @@ public class LastFmClient {
     /**
      * Obtiene información detallada de un artista por nombre.
      * <p>
-     * Consulta el método {@code artist.getInfo} de la API de Last.fm para
+     * Consulta la función {@code artist.getInfo} de la API de Last.fm para
      * obtener información completa sobre un artista, incluyendo biografía,
      * estadísticas, imágenes y tags.
      * </p>
