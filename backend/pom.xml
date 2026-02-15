@@ -30,57 +30,93 @@
 		<java.version>21</java.version>
 	</properties>
 	<dependencies>
-		<!-- Comentado hasta tener Docker/PostgreSQL -->
+		<!-- ============================================ -->
+		<!-- DEPENDENCIAS DE PERSISTENCIA (DATABASE)      -->
+		<!-- ============================================ -->
+		<!-- Comentado hasta tener Docker/PostgreSQL configurado -->
 		<!--
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
+			Descripción: JPA/Hibernate para persistencia de datos con PostgreSQL
 		</dependency>
 		-->
+
+		<!-- ============================================ -->
+		<!-- DEPENDENCIAS WEB Y VALIDACIÓN                -->
+		<!-- ============================================ -->
+		<!-- Validación de beans con anotaciones como @NotNull, @Valid, etc. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
+
+		<!-- Starter de Spring MVC para crear APIs REST -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 
+		<!-- ============================================ -->
+		<!-- HERRAMIENTAS DE DESARROLLO                   -->
+		<!-- ============================================ -->
+		<!-- Hot reload y live reload durante el desarrollo -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
 			<scope>runtime</scope>
 			<optional>true</optional>
 		</dependency>
+
+		<!-- Carga automática de variables desde archivo .env -->
 		<dependency>
-			<groupId>me.paulschwarz</groupId>
-			<artifactId>spring-dotenv</artifactId>
-			<version>4.0.0</version>
+			<groupId>io.github.cdimascio</groupId>
+			<artifactId>dotenv-java</artifactId>
+			<version>3.0.0</version>
 		</dependency>
-<!--
-		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
-		</dependency>
--->	
+
+		<!-- Reduce código boilerplate con anotaciones (@Getter, @Setter, etc.) -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
+
+		<!-- ============================================ -->
+		<!-- DRIVERS DE BASE DE DATOS                     -->
+		<!-- ============================================ -->
+		<!-- Comentado hasta tener PostgreSQL en Docker -->
+		<!--
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+			Descripción: Driver JDBC para conectar con PostgreSQL
+		</dependency>
+		-->
+
+		<!-- ============================================ -->
+		<!-- DEPENDENCIAS DE TESTING                      -->
+		<!-- ============================================ -->
+		<!-- Testing para JPA - comentado hasta configurar DB -->
 		<!--
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
 			<scope>test</scope>
+			Descripción: Utilidades para testear repositorios JPA
 		</dependency>
 		-->
+
+		<!-- Testing para validaciones de beans -->
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Testing para controladores REST y MVC -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
