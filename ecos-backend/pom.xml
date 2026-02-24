@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.0.2</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>es.wara.ecos</groupId>
+	<artifactId>ecos-backend</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>ecos-backend</name>
+	<description>Demo project for Spring Boot</description>
+	<url/>
+	<licenses>
+		<license/>
+	</licenses>
+	<developers>
+		<developer/>
+	</developers>
+	<scm>
+		<connection/>
+		<developerConnection/>
+		<tag/>
+		<url/>
+	</scm>
+	<properties>
+		<java.version>21</java.version>
+		<testcontainers.version>1.20.4</testcontainers.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- Gestiona la versión de todos los módulos de Testcontainers -->
+			<dependency>
+				<groupId>org.testcontainers</groupId>
+				<artifactId>testcontainers-bom</artifactId>
+				<version>${testcontainers.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<!-- ============================================ -->
+		<!-- DEPENDENCIAS WEB Y VALIDACIÓN                -->
+		<!-- ============================================ -->
+		<!-- Validación de beans con anotaciones como @NotNull, @Valid, etc. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+
+		<!-- Starter de Spring MVC para crear APIs REST -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+
+		<!-- ============================================ -->
+		<!-- HERRAMIENTAS DE DESARROLLO                   -->
+		<!-- ============================================ -->
+		<!-- Hot reload y live reload durante el desarrollo -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<scope>runtime</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Carga automática de variables desde archivo .env -->
+		<dependency>
+			<groupId>io.github.cdimascio</groupId>
+			<artifactId>dotenv-java</artifactId>
+			<version>3.0.0</version>
+		</dependency>
+
+		<!-- Reduce código boilerplate con anotaciones (@Getter, @Setter, etc.) -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- ============================================ -->
+		<!-- DEPENDENCIAS DE PERSISTENCIA (DATABASE)      -->
+		<!-- ============================================ -->
+		<!-- JPA/Hibernate para persistencia de datos con PostgreSQL -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<!-- Driver JDBC para conectar con PostgreSQL -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Migraciones versionadas de base de datos -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
+		<!-- ============================================ -->
+		<!-- MONITOREO                                    -->
+		<!-- ============================================ -->
+		<!-- Endpoints de salud y métricas: /actuator/health -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+		<!-- ============================================ -->
+		<!-- TESTING                                      -->
+		<!-- ============================================ -->
+		<!-- JUnit 5, Mockito, MockMvc -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Testcontainers: levanta contenedores Docker reales durante los tests -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Módulo PostgreSQL: imagen pgvector/pgvector:pg16 -->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</path>
+					</annotationProcessorPaths>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+
+			<!-- Plugin para generar documentación JavaDoc -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>3.6.3</version>
+				<configuration>
+					<!-- Configuración general -->
+					<show>public</show>
+					<charset>UTF-8</charset>
+					<encoding>UTF-8</encoding>
+					<docencoding>UTF-8</docencoding>
+
+					<!-- Información del proyecto -->
+					<doctitle>Ecos Backend - API Documentation</doctitle>
+					<windowtitle>Ecos Backend API</windowtitle>
+					<bottom>
+						<![CDATA[
+							Copyright &#169; 2026 Wara Pacheco. All Rights Reserved.
+						]]>
+					</bottom>
+
+					<!-- Opciones de generación -->
+					<author>true</author>
+					<version>true</version>
+					<use>true</use>
+
+					<!-- Deshabilitar doclint estricto (Java 8+) -->
+					<doclint>none</doclint>
+
+					<!-- Enlaces a JavaDoc externos -->
+					<links>
+						<link>https://docs.oracle.com/en/java/javase/21/docs/api/</link>
+					</links>
+
+					<!-- Configuración de enlaces offline (evita errores de red) -->
+					<detectOfflineLinks>false</detectOfflineLinks>
+
+					<!-- Grupos de paquetes -->
+					<groups>
+						<group>
+							<title>Controllers (REST API)</title>
+							<packages>es.wara.ecos.backend.interfaces.rest.controller</packages>
+						</group>
+						<group>
+							<title>External API Clients</title>
+							<packages>es.wara.ecos.backend.infrastructure.adapter*</packages>
+						</group>
+						<group>
+							<title>Exception Handling</title>
+							<packages>es.wara.ecos.backend.infrastructure.exception</packages>
+						</group>
+						<group>
+							<title>Configuration</title>
+							<packages>es.wara.ecos.backend.config</packages>
+						</group>
+					</groups>
+				</configuration>
+				<executions>
+					<!-- Generar JavaDoc durante la fase package -->
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
