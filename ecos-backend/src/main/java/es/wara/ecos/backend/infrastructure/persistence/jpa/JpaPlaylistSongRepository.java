@@ -6,6 +6,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
+/**
+ * Repositorio Spring Data JPA para PlaylistSongEntity; permite obtener las canciones de una playlist ordenadas por posición.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 public interface JpaPlaylistSongRepository extends JpaRepository<PlaylistSongEntity, PlaylistSongId> {
 
     List<PlaylistSongEntity> findById_PlaylistIdOrderByPosition(Long playlistId);

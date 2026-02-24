@@ -7,6 +7,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Componente interno de infraestructura para la gestión de audio_features; no implementa un puerto de dominio directamente.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Repository
 public class AudioFeaturesRepositoryImpl {
 

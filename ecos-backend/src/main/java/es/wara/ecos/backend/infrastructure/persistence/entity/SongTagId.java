@@ -9,6 +9,13 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
+/**
+ * Clave primaria compuesta (song_id, tag) para la tabla song_tags.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Embeddable
 @Getter
 @NoArgsConstructor

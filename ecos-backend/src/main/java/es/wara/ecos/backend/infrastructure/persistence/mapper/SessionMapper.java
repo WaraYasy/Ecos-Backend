@@ -4,6 +4,13 @@ import es.wara.ecos.backend.domain.model.ExplorationSession;
 import es.wara.ecos.backend.infrastructure.persistence.entity.ExplorationSessionEntity;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper que convierte entre ExplorationSessionEntity y el modelo de dominio ExplorationSession.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Component
 public class SessionMapper {
 

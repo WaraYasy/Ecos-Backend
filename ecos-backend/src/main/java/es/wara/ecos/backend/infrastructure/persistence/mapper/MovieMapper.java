@@ -4,6 +4,13 @@ import es.wara.ecos.backend.domain.model.Movie;
 import es.wara.ecos.backend.infrastructure.persistence.entity.MovieEntity;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper que convierte entre MovieEntity y el modelo de dominio Movie.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Component
 public class MovieMapper {
 

@@ -7,6 +7,13 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+/**
+ * Entidad JPA que mapea la tabla user_interactions; el campo action es un VARCHAR que representa el ENUM PostgreSQL interaction_action.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Entity
 @Table(name = "user_interactions")
 @Getter

@@ -8,6 +8,13 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Entidad JPA que mapea la tabla session_nodes.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Entity
 @Table(name = "session_nodes")
 @Getter

@@ -6,6 +6,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
+/**
+ * Repositorio Spring Data JPA para SongTagEntity con clave compuesta SongTagId; permite buscar tags por canción.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 public interface JpaSongTagRepository extends JpaRepository<SongTagEntity, SongTagId> {
 
     List<SongTagEntity> findById_SongId(Long songId);

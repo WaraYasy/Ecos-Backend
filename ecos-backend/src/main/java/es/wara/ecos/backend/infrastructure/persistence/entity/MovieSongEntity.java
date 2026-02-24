@@ -9,6 +9,13 @@ import lombok.Setter;
 
 import java.io.Serializable;
 
+/**
+ * Entidad JPA que mapea la tabla song_movies (tabla de unión entre songs y movies).
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Entity
 @Table(name = "song_movies")
 @Getter

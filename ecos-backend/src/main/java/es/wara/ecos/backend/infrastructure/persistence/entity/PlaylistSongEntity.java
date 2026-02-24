@@ -9,6 +9,13 @@ import lombok.Setter;
 
 import java.io.Serializable;
 
+/**
+ * Entidad JPA que mapea la tabla playlist_songs, incluyendo el campo position para el orden de las canciones.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Entity
 @Table(name = "playlist_songs")
 @Getter

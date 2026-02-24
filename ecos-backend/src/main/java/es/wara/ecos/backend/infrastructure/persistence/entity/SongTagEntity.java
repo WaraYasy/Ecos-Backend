@@ -7,6 +7,13 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
+/**
+ * Entidad JPA que mapea la tabla song_tags.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Entity
 @Table(name = "song_tags")
 @Getter

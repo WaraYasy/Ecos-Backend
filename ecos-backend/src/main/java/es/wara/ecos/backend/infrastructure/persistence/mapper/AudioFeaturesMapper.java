@@ -4,6 +4,13 @@ import es.wara.ecos.backend.domain.model.AudioFeatures;
 import es.wara.ecos.backend.infrastructure.persistence.entity.AudioFeaturesEntity;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper que convierte entre AudioFeaturesEntity y el modelo de dominio AudioFeatures.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Component
 public class AudioFeaturesMapper {
 

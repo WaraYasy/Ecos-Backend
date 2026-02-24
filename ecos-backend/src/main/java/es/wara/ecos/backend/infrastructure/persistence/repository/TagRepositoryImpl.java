@@ -7,6 +7,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * Componente interno de infraestructura para consultas de song_tags agrupadas por canción.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Repository
 public class TagRepositoryImpl {
 

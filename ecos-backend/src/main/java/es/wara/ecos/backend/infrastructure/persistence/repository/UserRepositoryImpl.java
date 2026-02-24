@@ -8,6 +8,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Implementación del puerto de dominio UserRepository usando JPA.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Repository
 public class UserRepositoryImpl implements UserRepository {
 

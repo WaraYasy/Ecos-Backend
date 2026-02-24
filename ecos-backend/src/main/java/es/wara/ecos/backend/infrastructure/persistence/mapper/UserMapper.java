@@ -4,6 +4,13 @@ import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.infrastructure.persistence.entity.UserEntity;
 import org.springframework.stereotype.Component;
 
+/**
+ * Mapper que convierte entre UserEntity y el modelo de dominio User.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Component
 public class UserMapper {
 

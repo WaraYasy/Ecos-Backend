@@ -7,6 +7,14 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Representa un nodo dentro de una sesión de exploración, indicando la canción
+ * visitada y su posición en el grafo de descubrimiento.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -15,9 +23,12 @@ public class SessionNode {
     private Long id;
     private Long sessionId;
     private Song song;
+    /** Coordenada X del nodo en el grafo visual. */
     private BigDecimal xPosition;
+    /** Coordenada Y del nodo en el grafo visual. */
     private BigDecimal yPosition;
     private LocalDateTime visitedAt;
+    /** Orden de visita dentro de la sesión, comenzando en 1. */
     private Integer sequenceOrder;
 
 }

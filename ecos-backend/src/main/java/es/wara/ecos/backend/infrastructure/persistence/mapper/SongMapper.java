@@ -11,6 +11,13 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Mapper que convierte entre SongEntity y el modelo de dominio Song, incluyendo Album, Artist, AudioFeatures y Tags.
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Component
 public class SongMapper {
 

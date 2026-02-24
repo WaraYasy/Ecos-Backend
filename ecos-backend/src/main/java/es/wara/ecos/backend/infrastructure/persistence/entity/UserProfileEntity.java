@@ -9,6 +9,13 @@ import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 
+/**
+ * Entidad JPA que mapea la tabla user_profiles, con clave primaria compartida con users (relación 1:1).
+ *
+ * @author Wara Pacheco
+ * @version 1.0
+ * @since 1.0.0
+ */
 @Entity
 @Table(name = "user_profiles")
 @Getter
