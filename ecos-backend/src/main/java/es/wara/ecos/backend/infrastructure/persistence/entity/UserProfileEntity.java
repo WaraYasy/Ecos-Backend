@@ -1,0 +1,44 @@
+package es.wara.ecos.backend.infrastructure.persistence.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "user_profiles")
+@Getter
+@Setter
+@NoArgsConstructor
+public class UserProfileEntity {
+
+    @Id
+    private Long userId;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = "user_id")
+    private UserEntity user;
+
+    @Column(name = "avg_energy", precision = 4, scale = 3)
+    private BigDecimal avgEnergy;
+
+    @Column(name = "harmonic_richness", precision = 4, scale = 3)
+    private BigDecimal harmonicRichness;
+
+    @Column(precision = 4, scale = 3)
+    private BigDecimal eclecticity;
+
+    @Column(name = "favorite_eras", columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String favoriteEras;
+
+    @Column(name = "top_genres", columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String topGenres;
+
+}
