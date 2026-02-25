@@ -1,5 +1,8 @@
 package es.wara.ecos.backend.infrastructure.adapter.lastfm;
 
+import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmSimilarTracksDTO;
+import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTagDTO;
+import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTrackInfoDTO;
 import es.wara.ecos.backend.infrastructure.exception.ApiAuthenticationException;
 import es.wara.ecos.backend.infrastructure.exception.ApiRateLimitException;
 import es.wara.ecos.backend.infrastructure.exception.ApiServerException;
@@ -9,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
@@ -17,47 +22,20 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Cliente para interactuar con la API de Last.fm.
  * <p>
- * Last.fm es una base de datos musical que proporciona información detallada
- * sobre artistas, canciones, álbumes y estadísticas de escucha. Este cliente
- * facilita la consulta de esta información mediante métodos simples y tipados.
+ * Proporciona información sobre canciones (tags, similares) y artistas.
+ * Last.fm devuelve errores de negocio en el body con HTTP 200, por lo que
+ * cada respuesta se comprueba antes de devolver los datos.
  * </p>
  * <p>
- * <b>Características principales:</b>
- * <ul>
- *   <li>Consulta de información de artistas</li>
- *   <li>Búsqueda de canciones (tracks) con detalles completos</li>
- *   <li>Obtención de top tracks de artistas</li>
- *   <li>Manejo automático de errores específicos de Last.fm</li>
- *   <li>Limpieza de API keys en logs</li>
- *   <li>Validación de credenciales al inicio</li>
- * </ul>
- * </p>
- * <p>
- * <b>Configuración requerida:</b><br>
- * La siguiente variable debe estar configurada en el archivo .env:
- * <ul>
- *   <li><b>LASTFM_API_KEY</b>: API Key de Last.fm</li>
- * </ul>
- * </p>
- * <p>
- * <b>Ejemplo de uso:</b>
- * <pre>{@code
- * @Autowired
- * private LastFmClient lastFmClient;
- *
- * public void ejemplo() {
- *     // Obtener información de un artista
- *     Map<String, Object> artistInfo = lastFmClient.getArtistInfo("Radiohead");
- *
- *     // Obtener top tracks de un artista
- *     Map<String, Object> topTracks = lastFmClient.getArtistTopTracks("The Beatles", 10);
- * }
- * }</pre>
+ * <b>Variable de entorno requerida:</b> {@code LASTFM_API_KEY}
  * </p>
  *
  * @author Wara Pacheco
@@ -82,12 +60,9 @@ public class LastFmClient {
     }
 
     /**
-     * Valida que la API Key de Last.fm esté configurada correctamente.
-     * <p>
-     * Esta función se ejecuta automáticamente después de la construcción del bean.
-     * </p>
+     * Valida que la API Key de Last.fm esté configurada al arrancar la aplicación.
      *
-     * @throws IllegalStateException si la API Key no está configurada
+     * @throws IllegalStateException si LASTFM_API_KEY no está definida
      */
     @PostConstruct
     private void validateCredentials() {
@@ -100,27 +75,95 @@ public class LastFmClient {
         log.info("✓ API Key de {} configurada correctamente", API_NAME);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // MÉTODOS PRINCIPALES — TAGS Y SIMILARES
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
-     * Obtiene información detallada de un artista por nombre.
+     * Obtiene los top tags (géneros, moods, estéticas) de una canción.
      * <p>
-     * Consulta la función {@code artist.getInfo} de la API de Last.fm para
-     * obtener información completa sobre un artista, incluyendo biografía,
-     * estadísticas, imágenes y tags.
+     * Llama a {@code track.getTopTags} de Last.fm. Los tags representan
+     * géneros comunitarios como "rock", "dreamy", "cyberpunk", "cottagecore", etc.
+     * Si la canción no existe en Last.fm devuelve un DTO con listas vacías.
      * </p>
      *
-     * @param artistName Nombre del artista a buscar (no puede estar vacío)
-     * @return Map con información del artista en formato JSON, incluyendo:
-     *         <ul>
-     *           <li>artist: Objeto con datos del artista</li>
-     *           <li>bio: Biografía del artista</li>
-     *           <li>stats: Estadísticas (listeners, playcount)</li>
-     *           <li>similar: Artistas similares</li>
-     *           <li>tags: Tags/géneros asociados</li>
-     *         </ul>
-     * @throws IllegalArgumentException si artistName es null o vacío
-     * @throws ApiAuthenticationException si la API Key es inválida (códigos 10, 26)
-     * @throws ApiRateLimitException si se excede el límite de peticiones (código 29)
-     * @throws ExternalApiException para otros errores de la API
+     * @param artist nombre del artista
+     * @param title  título de la canción
+     * @return DTO con los top tags; vacío si no hay datos
+     * @throws ApiRateLimitException si se excede el límite de peticiones
+     * @throws ApiServerException    si el servidor de Last.fm falla
+     */
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
+    public LastFmTrackInfoDTO getTrackTags(String artist, String title) {
+        if (!StringUtils.hasText(artist) || !StringUtils.hasText(title)) {
+            throw new IllegalArgumentException("El artista y título no pueden estar vacíos");
+        }
+
+        log.info("Obteniendo tags de '{} - {}' en {} API", artist, title, API_NAME);
+
+        String url = buildUrl("track.getTopTags", Map.of(
+            "artist", artist,
+            "track", title,
+            "autocorrect", "1"
+        ));
+
+        Map<String, Object> response = executeRequest(url, "tags del track");
+        return parseTrackTags(response);
+    }
+
+    /**
+     * Obtiene tracks similares a la canción indicada según Last.fm.
+     * <p>
+     * Llama a {@code track.getSimilar}. La puntuación de similitud ({@code match})
+     * va de 0.0 a 1.0. Si la canción no existe devuelve un DTO vacío.
+     * </p>
+     *
+     * @param artist nombre del artista de referencia
+     * @param title  título de la canción de referencia
+     * @param limit  número máximo de similares a devolver (máx. 100)
+     * @return DTO con la lista de tracks similares; vacío si no hay datos
+     * @throws ApiRateLimitException si se excede el límite de peticiones
+     * @throws ApiServerException    si el servidor de Last.fm falla
+     */
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
+    public LastFmSimilarTracksDTO getSimilarTracks(String artist, String title, int limit) {
+        if (!StringUtils.hasText(artist) || !StringUtils.hasText(title)) {
+            throw new IllegalArgumentException("El artista y título no pueden estar vacíos");
+        }
+
+        log.info("Obteniendo tracks similares a '{} - {}' en {} API", artist, title, API_NAME);
+
+        Map<String, String> params = new HashMap<>(Map.of(
+            "artist", artist,
+            "track", title,
+            "autocorrect", "1"
+        ));
+        if (limit > 0) {
+            params.put("limit", String.valueOf(Math.min(limit, 100)));
+        }
+
+        String url = buildUrl("track.getSimilar", params);
+        Map<String, Object> response = executeRequest(url, "tracks similares");
+        return parseSimilarTracks(response);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MÉTODOS AUXILIARES
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Obtiene información detallada de un artista (bio, estadísticas, tags).
+     *
+     * @param artistName nombre del artista
+     * @return mapa con la información del artista en formato JSON
      */
     public Map<String, Object> getArtistInfo(String artistName) {
         log.info("Consultando información del artista '{}' en {} API...", artistName, API_NAME);
@@ -130,21 +173,18 @@ public class LastFmClient {
         }
 
         String url = buildUrl("artist.getInfo", Map.of("artist", artistName));
-
         return executeRequest(url, "información del artista");
     }
 
     /**
-     * Busca información de una canción (track)
+     * Obtiene información de una canción por artista y título.
      *
-     * @param trackName Nombre de la canción
-     * @param artistName Nombre del artista
-     * @return Información de la canción en formato JSON (Map)
-     * @throws ExternalApiException si hay error al consultar la API
+     * @param trackName  nombre de la canción
+     * @param artistName nombre del artista
+     * @return mapa con la información de la canción en formato JSON
      */
     public Map<String, Object> getTrackInfo(String trackName, String artistName) {
-        log.info("Consultando información del track '{}' de '{}' en {} API...",
-                trackName, artistName, API_NAME);
+        log.info("Consultando información del track '{} - {}' en {} API...", trackName, artistName, API_NAME);
 
         if (!StringUtils.hasText(trackName) || !StringUtils.hasText(artistName)) {
             throw new IllegalArgumentException("El nombre del track y artista no pueden estar vacíos");
@@ -154,17 +194,15 @@ public class LastFmClient {
             "track", trackName,
             "artist", artistName
         ));
-
         return executeRequest(url, "información del track");
     }
 
     /**
-     * Obtiene los tracks (canciones más populares) de un artista
+     * Obtiene los top tracks de un artista.
      *
-     * @param artistName Nombre del artista
-     * @param limit Número máximo de resultados (opcional, default: 10)
-     * @return Lista de top tracks en formato JSON (Map)
-     * @throws ExternalApiException si hay error al consultar la API
+     * @param artistName nombre del artista
+     * @param limit      número máximo de resultados (null = default de Last.fm)
+     * @return mapa con los top tracks del artista
      */
     public Map<String, Object> getArtistTopTracks(String artistName, Integer limit) {
         log.info("Consultando top tracks del artista '{}' en {} API...", artistName, API_NAME);
@@ -173,26 +211,127 @@ public class LastFmClient {
             throw new IllegalArgumentException("El nombre del artista no puede estar vacío");
         }
 
-        Map<String, String> params = new java.util.HashMap<>(Map.of("artist", artistName));
+        Map<String, String> params = new HashMap<>(Map.of("artist", artistName));
         if (limit != null && limit > 0) {
             params.put("limit", String.valueOf(limit));
         }
 
         String url = buildUrl("artist.getTopTracks", params);
-
         return executeRequest(url, "top tracks del artista");
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // PARSERS — Map → DTO
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
-     * Construye la URL completa con los parámetros necesarios
+     * Convierte la respuesta de {@code track.getTopTags} (Map) al DTO tipado.
+     * Estructura esperada: {@code { "toptags": { "tag": [...] } }}
      */
+    @SuppressWarnings("unchecked")
+    private LastFmTrackInfoDTO parseTrackTags(Map<String, Object> response) {
+        LastFmTrackInfoDTO result = new LastFmTrackInfoDTO();
+
+        Object toptagsObj = response.get("toptags");
+        if (!(toptagsObj instanceof Map)) {
+            return result;
+        }
+
+        Map<String, Object> toptags = (Map<String, Object>) toptagsObj;
+        Object tagListObj = toptags.get("tag");
+        if (!(tagListObj instanceof List)) {
+            return result;
+        }
+
+        List<Map<String, Object>> tagList = (List<Map<String, Object>>) tagListObj;
+        List<LastFmTagDTO> tags = new ArrayList<>();
+        for (Map<String, Object> t : tagList) {
+            LastFmTagDTO dto = new LastFmTagDTO();
+            dto.setName(t.get("name") instanceof String name ? name : null);
+            dto.setCount(parseCount(t.get("count")));
+            dto.setUrl(t.get("url") instanceof String url ? url : null);
+            tags.add(dto);
+        }
+
+        LastFmTrackInfoDTO.TopTagsWrapper wrapper = new LastFmTrackInfoDTO.TopTagsWrapper();
+        wrapper.setTag(tags);
+        result.setToptags(wrapper);
+        return result;
+    }
+
+    /**
+     * Convierte la respuesta de {@code track.getSimilar} (Map) al DTO tipado.
+     * Estructura esperada: {@code { "similartracks": { "track": [...] } }}
+     */
+    @SuppressWarnings("unchecked")
+    private LastFmSimilarTracksDTO parseSimilarTracks(Map<String, Object> response) {
+        LastFmSimilarTracksDTO result = new LastFmSimilarTracksDTO();
+
+        Object similarObj = response.get("similartracks");
+        if (!(similarObj instanceof Map)) {
+            return result;
+        }
+
+        Map<String, Object> similartracks = (Map<String, Object>) similarObj;
+        Object trackListObj = similartracks.get("track");
+        if (!(trackListObj instanceof List)) {
+            return result;
+        }
+
+        List<Map<String, Object>> trackList = (List<Map<String, Object>>) trackListObj;
+        List<LastFmSimilarTracksDTO.SimilarTrack> tracks = new ArrayList<>();
+        for (Map<String, Object> t : trackList) {
+            LastFmSimilarTracksDTO.SimilarTrack track = new LastFmSimilarTracksDTO.SimilarTrack();
+            track.setName(t.get("name") instanceof String name ? name : null);
+            track.setMatch(parseDouble(t.get("match")));
+            track.setUrl(t.get("url") instanceof String url ? url : null);
+
+            // El artista es un objeto anidado: { "name": "..." }
+            if (t.get("artist") instanceof Map<?, ?> artistMap) {
+                LastFmSimilarTracksDTO.SimilarArtist artist = new LastFmSimilarTracksDTO.SimilarArtist();
+                artist.setName(artistMap.get("name") instanceof String name ? name : null);
+                track.setArtist(artist);
+            }
+
+            tracks.add(track);
+        }
+
+        LastFmSimilarTracksDTO.SimilarTracksWrapper wrapper = new LastFmSimilarTracksDTO.SimilarTracksWrapper();
+        wrapper.setTrack(tracks);
+        result.setSimilartracks(wrapper);
+        return result;
+    }
+
+    /** Parsea un valor numérico de count desde el Map de Last.fm (puede ser Integer o String). */
+    private Integer parseCount(Object value) {
+        if (value instanceof Integer i) return i;
+        if (value instanceof String s) {
+            try { return Integer.parseInt(s); } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    /** Parsea un valor double del Map de Last.fm. */
+    private Double parseDouble(Object value) {
+        if (value instanceof Double d) return d;
+        if (value instanceof Number n) return n.doubleValue();
+        if (value instanceof String s) {
+            try { return Double.parseDouble(s); } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MÉTODOS PRIVADOS — HTTP
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Construye la URL de la API de Last.fm con el método y parámetros indicados. */
     private String buildUrl(String method, Map<String, String> additionalParams) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(API_BASE_URL)
                 .queryParam("method", method)
                 .queryParam("api_key", apiKey)
                 .queryParam("format", "json");
 
-        // Agregar parámetros adicionales
         if (additionalParams != null) {
             additionalParams.forEach(builder::queryParam);
         }
@@ -201,7 +340,8 @@ public class LastFmClient {
     }
 
     /**
-     * Ejecuta la petición HTTP y maneja los errores
+     * Ejecuta la petición HTTP y maneja errores HTTP y errores de negocio de Last.fm.
+     * Last.fm devuelve errores con HTTP 200 pero con un campo {@code error} en el body.
      */
     private Map<String, Object> executeRequest(String url, String operationDescription) {
         try {
@@ -212,65 +352,57 @@ public class LastFmClient {
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 Map<String, Object> body = response.getBody();
 
-                // Last.fm devuelve errores en el body con código 200
+                // Last.fm devuelve errores en el body con HTTP 200
                 if (body.containsKey("error")) {
                     handleLastFmError(body);
                 }
 
                 log.info("✓ {} obtenida exitosamente de {} API", operationDescription, API_NAME);
-                log.debug("Respuesta: {} campos en el JSON", body.size());
                 return body;
             } else {
-                log.error("✗ Respuesta inesperada de {} API. Status: {}", API_NAME, response.getStatusCode());
                 throw new ExternalApiException(API_NAME, "Respuesta inválida del servidor");
             }
 
         } catch (HttpClientErrorException e) {
             handleClientError(e);
-            throw new ExternalApiException(API_NAME, "Error inesperado"); // Nunca se alcanza
+            throw new ExternalApiException(API_NAME, "Error inesperado");
         } catch (HttpServerErrorException e) {
             handleServerError(e);
-            throw new ExternalApiException(API_NAME, "Error inesperado"); // Nunca se alcanza
+            throw new ExternalApiException(API_NAME, "Error inesperado");
         } catch (ResourceAccessException e) {
             log.error("✗ Error de conexión con {} API: {}", API_NAME, e.getMessage());
             throw new ExternalApiException(API_NAME, "Error de conexión: timeout o servidor no disponible", e);
         } catch (ExternalApiException e) {
-            throw e; // Relanzar excepciones de API ya manejadas
+            throw e;
         } catch (Exception e) {
             log.error("✗ Error inesperado al consultar {} API: {}", API_NAME, e.getMessage(), e);
             throw new ExternalApiException(API_NAME, "Error inesperado: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Maneja errores específicos de Last.fm que vienen en el body
-     */
+    /** Maneja errores de negocio de Last.fm (vienen en el body con HTTP 200). */
     private void handleLastFmError(Map<String, Object> body) {
         Integer errorCode = (Integer) body.get("error");
         String errorMessage = (String) body.get("message");
 
         log.error("✗ Error de {} API - Código: {}, Mensaje: {}", API_NAME, errorCode, errorMessage);
 
-        // Códigos de error de Last.fm: https://www.last.fm/api/errorcodes
         switch (errorCode) {
-            case 10: // Invalid API key
-            case 26: // Suspended API key
-                throw new ApiAuthenticationException(API_NAME, errorMessage);
-            case 29: // Rate limit exceeded
-                throw new ApiRateLimitException(API_NAME, errorMessage);
-            default:
+            case 6 -> {
+                // Track/artist not found — no es un error grave
+                log.warn("Track no encontrado en {}: {}", API_NAME, errorMessage);
                 throw new ExternalApiException(API_NAME, errorCode, errorMessage);
+            }
+            case 10, 26 -> throw new ApiAuthenticationException(API_NAME, errorMessage);
+            case 29 -> throw new ApiRateLimitException(API_NAME, errorMessage);
+            default -> throw new ExternalApiException(API_NAME, errorCode, errorMessage);
         }
     }
 
-    /**
-     * Maneja errores 4xx de la API
-     */
+    /** Maneja errores HTTP 4xx de Last.fm. */
     private void handleClientError(HttpClientErrorException e) {
         int statusCode = e.getStatusCode().value();
-
-        log.error("✗ Error del cliente ({}) al comunicarse con {} API: {}",
-                statusCode, API_NAME, e.getMessage());
+        log.error("✗ Error del cliente ({}) en {} API: {}", statusCode, API_NAME, e.getMessage());
 
         if (statusCode == HttpStatus.UNAUTHORIZED.value() || statusCode == HttpStatus.FORBIDDEN.value()) {
             throw new ApiAuthenticationException(API_NAME, statusCode, "API Key inválida o sin permisos");
@@ -281,15 +413,10 @@ public class LastFmClient {
         }
     }
 
-    /**
-     * Maneja errores 5xx de la API
-     */
+    /** Maneja errores HTTP 5xx de Last.fm. */
     private void handleServerError(HttpServerErrorException e) {
         int statusCode = e.getStatusCode().value();
-
-        log.error("✗ Error del servidor ({}) en {} API: {}",
-                statusCode, API_NAME, e.getMessage());
-
+        log.error("✗ Error del servidor ({}) en {} API: {}", statusCode, API_NAME, e.getMessage());
         throw new ApiServerException(API_NAME, statusCode,
                 "El servidor de la API está experimentando problemas", e);
     }
