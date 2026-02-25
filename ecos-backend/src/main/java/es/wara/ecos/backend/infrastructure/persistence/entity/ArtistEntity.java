@@ -4,6 +4,10 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.List;
 
 /**
  * Entidad JPA que mapea la tabla artists.
@@ -31,5 +35,10 @@ public class ArtistEntity {
 
     @Column(length = 100)
     private String country;
+
+    /** Géneros musicales del artista almacenados como array JSON (fuente: Spotify). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> genres;
 
 }

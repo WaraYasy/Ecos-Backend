@@ -60,4 +60,12 @@ public class SongEntity {
     @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<SongTagEntity> tags = new ArrayList<>();
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "song_movies",
+            joinColumns = @JoinColumn(name = "song_id"),
+            inverseJoinColumns = @JoinColumn(name = "movie_id")
+    )
+    private List<MovieEntity> movies = new ArrayList<>();
+
 }

@@ -4,6 +4,10 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.List;
 
 /**
  * Entidad JPA que mapea la tabla movies.
@@ -34,5 +38,10 @@ public class MovieEntity {
 
     @Column(length = 255)
     private String director;
+
+    /** Géneros cinematográficos de la película almacenados como array JSON (fuente: TMDb). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<String> genres;
 
 }
