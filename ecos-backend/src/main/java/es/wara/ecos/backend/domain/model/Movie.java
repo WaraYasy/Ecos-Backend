@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * Representa una película del catálogo de TMDB, usada para contextualizar
  * recomendaciones musicales por banda sonora o época.
@@ -22,5 +24,7 @@ public class Movie {
     private String title;
     private Integer year;
     private String director;
+    /** Géneros cinematográficos de la película (fuente: TMDb). */
+    private List<String> genres;
 
 }

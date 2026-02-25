@@ -30,6 +30,8 @@ public class Song {
     private List<Artist> artists;
     private AudioFeatures audioFeatures;
     private List<Tag> tags;
+    /** Películas en las que aparece la canción (fuente: TMDb vía MusicBrainz). */
+    private List<Movie> movies;
     private LocalDateTime createdAt;
 
 }

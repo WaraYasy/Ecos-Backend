@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * Representa un artista musical en el dominio de ECOS.
  *
@@ -20,5 +22,7 @@ public class Artist {
     private String spotifyId;
     private String name;
     private String country;
+    /** Géneros musicales del artista (fuente: Spotify). */
+    private List<String> genres;
 
 }
