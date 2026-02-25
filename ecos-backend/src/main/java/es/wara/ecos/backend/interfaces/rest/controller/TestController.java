@@ -163,13 +163,13 @@ public class TestController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            Map<String, Object> searchResults = tmdbClient.searchMovies(movie, 1);
+            var searchResults = tmdbClient.searchMovies(movie, 1);
             response.put("status", "success");
             response.put("api", "TMDB");
             response.put("message", "Conexión exitosa con TMDB API");
             response.put("searchQuery", movie);
-            response.put("dataFields", searchResults.keySet().size());
-            response.put("hasResults", searchResults.containsKey("results"));
+            response.put("totalResults", searchResults.getTotalResults());
+            response.put("hasResults", searchResults.getResults() != null && !searchResults.getResults().isEmpty());
         } catch (Exception e) {
             log.error("Error al probar TMDB API", e);
             response.put("status", "error");
@@ -246,10 +246,10 @@ public class TestController {
 
         // Probar TMDB
         try {
-            Map<String, Object> searchResults = tmdbClient.searchMovies("Matrix", 1);
+            var searchResults = tmdbClient.searchMovies("Matrix", 1);
             results.put("tmdb", Map.of(
                 "status", "success",
-                "dataRetrieved", true
+                "dataRetrieved", searchResults.getResults() != null
             ));
         } catch (Exception e) {
             results.put("tmdb", Map.of(
