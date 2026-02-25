@@ -1,20 +1,26 @@
 package es.wara.ecos.backend.infrastructure.adapter.spotify;
 
+import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifyAudioFeaturesDTO;
+import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifySearchResponseDTO;
+import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifyTrackDTO;
 import es.wara.ecos.backend.infrastructure.exception.ApiAuthenticationException;
 import es.wara.ecos.backend.infrastructure.exception.ApiRateLimitException;
 import es.wara.ecos.backend.infrastructure.exception.ApiServerException;
 import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
@@ -22,40 +28,20 @@ import java.util.Map;
 /**
  * Cliente para interactuar con la API de Spotify.
  * <p>
- * Este cliente implementa el flujo de autenticación Client Credentials de OAuth2
- * para obtener tokens de acceso que permiten consultar la API de Spotify sin
- * necesidad de autenticación de usuario final.
+ * Implementa el flujo de autenticación Client Credentials de OAuth2 y expone
+ * métodos para buscar tracks, obtener audio features y recuperar un track por ID.
  * </p>
  * <p>
- * <b>Características principales:</b>
+ * <b>Características:</b>
  * <ul>
- *   <li>Autenticación automática mediante Client Credentials Flow</li>
- *   <li>Caché inteligente de tokens (1 hora con margen de 5 minutos)</li>
- *   <li>Validación de credenciales al inicio de la aplicación</li>
- *   <li>Manejo robusto de errores HTTP (401, 403, 429, 5xx)</li>
- *   <li>Logging detallado de todas las operaciones</li>
- *   <li>Timeouts configurados (5s conexión, 10s lectura)</li>
+ *   <li>Autenticación automática con caché de token (1 hora, margen 5 min)</li>
+ *   <li>Retry automático (máx. 3) ante errores 429 y 5xx con backoff exponencial</li>
+ *   <li>Renovación de token ante error 401 en llamadas a la API</li>
+ *   <li>Manejo tipado de errores HTTP (401, 403, 429, 5xx)</li>
  * </ul>
  * </p>
  * <p>
- * <b>Configuración requerida:</b><br>
- * Las siguientes variables deben estar configuradas en el archivo .env:
- * <ul>
- *   <li><b>SPOTIFY_CLIENT_ID</b>: ID de cliente de Spotify</li>
- *   <li><b>SPOTIFY_CLIENT_SECRET</b>: Secret de cliente de Spotify</li>
- * </ul>
- * </p>
- * <p>
- * <b>Ejemplo de uso:</b>
- * <pre>{@code
- * @Autowired
- * private SpotifyClient spotifyClient;
- *
- * public void ejemplo() {
- *     String token = spotifyClient.getAccessToken();
- *     // Usar el token para llamadas a la API de Spotify
- * }
- * }</pre>
+ * <b>Variables de entorno requeridas:</b> {@code SPOTIFY_CLIENT_ID}, {@code SPOTIFY_CLIENT_SECRET}
  * </p>
  *
  * @author Wara Pacheco
@@ -69,6 +55,7 @@ public class SpotifyClient {
 
     private static final String API_NAME = "Spotify";
     private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
+    private static final String API_BASE_URL = "https://api.spotify.com/v1";
     private static final long TOKEN_EXPIRY_MARGIN_SECONDS = 300; // 5 minutos de margen
 
     @Value("${spotify.client.id}")
@@ -79,7 +66,7 @@ public class SpotifyClient {
 
     private final RestTemplate restTemplate;
 
-    // Caché del token
+    // Caché del token OAuth2
     private String cachedToken;
     private Instant tokenExpiresAt;
 
@@ -88,13 +75,9 @@ public class SpotifyClient {
     }
 
     /**
-     * Valida que las credenciales de Spotify estén configuradas correctamente.
-     * <p>
-     * Esta función se ejecuta automáticamente después de la construcción del bean
-     * para garantizar que la aplicación no inicie sin las credenciales necesarias.
-     * </p>
+     * Valida que las credenciales de Spotify estén configuradas al arrancar la aplicación.
      *
-     * @throws IllegalStateException si las credenciales no están configuradas
+     * @throws IllegalStateException si SPOTIFY_CLIENT_ID o SPOTIFY_CLIENT_SECRET no están definidos
      */
     @PostConstruct
     private void validateCredentials() {
@@ -107,40 +90,117 @@ public class SpotifyClient {
         log.info("✓ Credenciales de Spotify configuradas correctamente");
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // API PÚBLICA — BÚSQUEDA Y DATOS
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
-     * Obtiene un access token válido de Spotify.
+     * Busca tracks en Spotify que coincidan con la query.
      * <p>
-     * Esta función implementa una estrategia de caché para optimizar las peticiones:
-     * <ol>
-     *   <li>Verifica si existe un token en caché válido</li>
-     *   <li>Si el token es válido (no expira en los próximos 5 minutos), lo retorna</li>
-     *   <li>Si no hay token o está próximo a expirar, solicita uno nuevo</li>
-     *   <li>Cachea el nuevo token con su tiempo de expiración</li>
-     * </ol>
-     * </p>
-     * <p>
-     * Los tokens de Spotify tienen una duración de 1 hora. Esta función mantiene
-     * un margen de seguridad de 5 minutos para evitar usar tokens a punto de expirar.
-     * </p>
-     * <p>
-     * <b>Manejo de errores:</b><br>
-     * Lanza excepciones específicas según el tipo de error:
-     * <ul>
-     *   <li>{@link ApiAuthenticationException} - Credenciales inválidas (401, 403)</li>
-     *   <li>{@link ApiRateLimitException} - Límite de peticiones excedido (429)</li>
-     *   <li>{@link ApiServerException} - Error del servidor de Spotify (5xx)</li>
-     *   <li>{@link ExternalApiException} - Otros errores (timeout, red, etc.)</li>
-     * </ul>
+     * Reintenta automáticamente ante rate limit (429) y errores de servidor (5xx)
+     * con backoff exponencial de 1s, 2s, 4s.
      * </p>
      *
-     * @return Access token válido de Spotify (cadena de ~139 caracteres)
-     * @throws ApiAuthenticationException si las credenciales son inválidas
+     * @param query texto de búsqueda (título, artista, álbum o combinación)
+     * @param limit número máximo de resultados (1-50; Spotify acepta máx. 50)
+     * @return respuesta paginada con los tracks encontrados
      * @throws ApiRateLimitException si se excede el límite de peticiones
-     * @throws ApiServerException sí hay problemas en el servidor de Spotify
-     * @throws ExternalApiException para otros errores de comunicación
+     * @throws ApiServerException    si el servidor de Spotify falla
+     * @throws ExternalApiException  para otros errores de comunicación
+     */
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
+    public SpotifySearchResponseDTO searchTracks(String query, int limit) {
+        if (!StringUtils.hasText(query)) {
+            throw new IllegalArgumentException("La query de búsqueda no puede estar vacía");
+        }
+
+        String url = UriComponentsBuilder.fromUriString(API_BASE_URL + "/search")
+                .queryParam("q", query)
+                .queryParam("type", "track")
+                .queryParam("limit", Math.min(limit, 50))
+                .toUriString();
+
+        log.info("Buscando tracks en {} API: '{}'", API_NAME, query);
+        return executeApiRequest(url, SpotifySearchResponseDTO.class, "búsqueda de tracks");
+    }
+
+    /**
+     * Obtiene las características de audio de un track por su ID de Spotify.
+     * <p>
+     * Reintenta automáticamente ante rate limit (429) y errores de servidor (5xx).
+     * </p>
+     *
+     * @param trackId ID del track en Spotify
+     * @return DTO con las características de audio del track
+     * @throws ApiRateLimitException si se excede el límite de peticiones
+     * @throws ApiServerException    si el servidor de Spotify falla
+     * @throws ExternalApiException  para otros errores de comunicación
+     */
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
+    public SpotifyAudioFeaturesDTO getTrackAudioFeatures(String trackId) {
+        if (!StringUtils.hasText(trackId)) {
+            throw new IllegalArgumentException("El ID del track no puede estar vacío");
+        }
+
+        String url = API_BASE_URL + "/audio-features/" + trackId;
+
+        log.info("Obteniendo audio features de {} para trackId: {}", API_NAME, trackId);
+        return executeApiRequest(url, SpotifyAudioFeaturesDTO.class, "audio features del track");
+    }
+
+    /**
+     * Obtiene los datos completos de un track por su ID de Spotify.
+     * <p>
+     * Reintenta automáticamente ante rate limit (429) y errores de servidor (5xx).
+     * </p>
+     *
+     * @param trackId ID del track en Spotify
+     * @return DTO con los datos del track (título, artistas, álbum, preview URL, etc.)
+     * @throws ApiRateLimitException si se excede el límite de peticiones
+     * @throws ApiServerException    si el servidor de Spotify falla
+     * @throws ExternalApiException  para otros errores de comunicación
+     */
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
+    public SpotifyTrackDTO getTrack(String trackId) {
+        if (!StringUtils.hasText(trackId)) {
+            throw new IllegalArgumentException("El ID del track no puede estar vacío");
+        }
+
+        String url = API_BASE_URL + "/tracks/" + trackId;
+
+        log.info("Obteniendo track de {} con ID: {}", API_NAME, trackId);
+        return executeApiRequest(url, SpotifyTrackDTO.class, "datos del track");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUTENTICACIÓN
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Obtiene un access token válido de Spotify, usando caché cuando es posible.
+     * <p>
+     * Solicita un nuevo token si el cacheado expira en menos de 5 minutos.
+     * Los tokens de Spotify duran 1 hora (3600 segundos).
+     * </p>
+     *
+     * @return access token OAuth2 válido
+     * @throws ApiAuthenticationException si las credenciales son inválidas
+     * @throws ApiRateLimitException      si se excede el límite de peticiones de auth
+     * @throws ApiServerException         si el servidor de auth de Spotify falla
      */
     public String getAccessToken() {
-        // Verificar si tenemos un token cacheado válido
         if (isTokenValid()) {
             log.debug("Usando token cacheado (válido hasta: {})", tokenExpiresAt);
             return cachedToken;
@@ -151,141 +211,157 @@ public class SpotifyClient {
     }
 
     /**
-     * Verifica si el token en caché aún es válido
+     * Invalida el token en caché para forzar la obtención de uno nuevo.
+     * <p>
+     * Usar cuando se recibe un 401 inesperado al llamar a la API.
+     * </p>
      */
+    public void invalidateToken() {
+        log.debug("Invalidando token en caché de {}", API_NAME);
+        cachedToken = null;
+        tokenExpiresAt = null;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MÉTODOS PRIVADOS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Ejecuta una petición GET autenticada a la API de Spotify y devuelve la respuesta tipada.
+     * Renueva el token automáticamente si recibe un 401.
+     */
+    private <T> T executeApiRequest(String url, Class<T> responseType, String operationDescription) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(getAccessToken());
+            HttpEntity<?> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<T> response = restTemplate.exchange(url, HttpMethod.GET, entity, responseType);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                log.info("✓ {} obtenidos exitosamente de {} API", operationDescription, API_NAME);
+                return response.getBody();
+            } else {
+                throw new ExternalApiException(API_NAME, "Respuesta inválida del servidor");
+            }
+
+        } catch (HttpClientErrorException e) {
+            int statusCode = e.getStatusCode().value();
+            // Renovar token y reintentar una vez si es 401
+            if (statusCode == 401) {
+                log.warn("Token inválido (401), renovando y reintentando...");
+                invalidateToken();
+                try {
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setBearerAuth(getAccessToken());
+                    HttpEntity<?> entity = new HttpEntity<>(headers);
+                    ResponseEntity<T> response = restTemplate.exchange(url, HttpMethod.GET, entity, responseType);
+                    if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                        return response.getBody();
+                    }
+                } catch (Exception retryEx) {
+                    log.error("✗ Reintento tras 401 fallido: {}", retryEx.getMessage());
+                }
+            }
+            handleClientError(e);
+            throw new ExternalApiException(API_NAME, "Error inesperado");
+        } catch (HttpServerErrorException e) {
+            handleServerError(e);
+            throw new ExternalApiException(API_NAME, "Error inesperado");
+        } catch (ResourceAccessException e) {
+            log.error("✗ Error de conexión con {} API: {}", API_NAME, e.getMessage());
+            throw new ExternalApiException(API_NAME, "Error de conexión: timeout o servidor no disponible", e);
+        } catch (ExternalApiException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("✗ Error inesperado al llamar a {} API: {}", API_NAME, e.getMessage(), e);
+            throw new ExternalApiException(API_NAME, "Error inesperado: " + e.getMessage(), e);
+        }
+    }
+
+    /** Verifica si el token cacheado sigue siendo válido (no expira en los próximos 5 min). */
     private boolean isTokenValid() {
         if (cachedToken == null || tokenExpiresAt == null) {
             return false;
         }
-
-        // Verificar si el token expira en menos de 5 minutos
         return Instant.now().plusSeconds(TOKEN_EXPIRY_MARGIN_SECONDS).isBefore(tokenExpiresAt);
     }
 
-    /**
-     * Solicita un nuevo token a la API de Spotify
-     */
+    /** Solicita un nuevo token a Spotify usando Client Credentials Flow. */
     private String requestNewToken() {
         try {
-            // Preparar headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-            // Autenticación Basic con credenciales codificadas en Base64
             String auth = clientId + ":" + clientSecret;
             String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
             headers.set("Authorization", "Basic " + encodedAuth);
 
             String body = "grant_type=client_credentials";
+            HttpEntity<String> request = new HttpEntity<>(body, headers);
 
             log.debug("Realizando petición POST a: {}", TOKEN_URL);
-
-            HttpEntity<String> request = new HttpEntity<>(body, headers);
             ResponseEntity<Map> response = restTemplate.postForEntity(TOKEN_URL, request, Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return processTokenResponse(response.getBody());
             } else {
-                log.error("✗ Respuesta inesperada de {} API. Status: {}", API_NAME, response.getStatusCode());
-                throw new ExternalApiException(API_NAME, "Respuesta inválida del servidor");
+                throw new ExternalApiException(API_NAME, "Respuesta inválida del servidor de autenticación");
             }
 
         } catch (HttpClientErrorException e) {
             handleClientError(e);
-            throw new ExternalApiException(API_NAME, "Error inesperado"); // Nunca se alcanza
+            throw new ExternalApiException(API_NAME, "Error inesperado");
         } catch (HttpServerErrorException e) {
             handleServerError(e);
-            throw new ExternalApiException(API_NAME, "Error inesperado"); // Nunca se alcanza
+            throw new ExternalApiException(API_NAME, "Error inesperado");
         } catch (ResourceAccessException e) {
             log.error("✗ Error de conexión con {} API: {}", API_NAME, e.getMessage());
             throw new ExternalApiException(API_NAME, "Error de conexión: timeout o servidor no disponible", e);
         } catch (ExternalApiException e) {
-            throw e; // Relanzar excepciones de API ya manejadas
+            throw e;
         } catch (Exception e) {
             log.error("✗ Error inesperado al obtener access token de {}: {}", API_NAME, e.getMessage(), e);
             throw new ExternalApiException(API_NAME, "Error inesperado: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Procesa la respuesta del token y actualiza la caché
-     */
+    /** Procesa la respuesta del token y actualiza la caché. */
     private String processTokenResponse(Map<String, Object> responseBody) {
         String token = (String) responseBody.get("access_token");
         Integer expiresIn = (Integer) responseBody.get("expires_in");
 
         if (token == null) {
-            log.error("✗ La respuesta de {} API no contiene access_token", API_NAME);
             throw new ExternalApiException(API_NAME, "Respuesta sin token");
         }
 
-        // Actualizar caché
         cachedToken = token;
         tokenExpiresAt = Instant.now().plusSeconds(expiresIn != null ? expiresIn : 3600);
 
-        log.info("✓ Access token obtenido exitosamente (longitud: {} caracteres, expira en: {} segundos)",
+        log.info("✓ Access token obtenido (longitud: {} chars, expira en: {}s)",
                 token.length(), expiresIn);
-        log.debug("Token: {}... (válido hasta: {})",
-                token.substring(0, Math.min(20, token.length())), tokenExpiresAt);
-
         return token;
     }
 
-    /**
-     * Maneja errores 4xx de la API
-     */
+    /** Maneja errores HTTP 4xx de Spotify. */
     private void handleClientError(HttpClientErrorException e) {
         int statusCode = e.getStatusCode().value();
-
-        log.error("✗ Error del cliente ({}) al comunicarse con {} API: {}",
-                statusCode, API_NAME, e.getMessage());
+        log.error("✗ Error del cliente ({}) en {} API: {}", statusCode, API_NAME, e.getMessage());
 
         switch (statusCode) {
-            case 401:
-            case 403:
-                throw new ApiAuthenticationException(API_NAME, statusCode,
-                        "Credenciales inválidas o sin permisos");
-            case 429:
-                throw new ApiRateLimitException(API_NAME,
-                        "Límite de peticiones excedido");
-            default:
-                throw new ExternalApiException(API_NAME, statusCode,
-                        "Error del cliente: " + e.getMessage(), e);
+            case 401, 403 -> throw new ApiAuthenticationException(API_NAME, statusCode,
+                    "Credenciales inválidas o sin permisos");
+            case 429 -> throw new ApiRateLimitException(API_NAME, "Límite de peticiones excedido");
+            default -> throw new ExternalApiException(API_NAME, statusCode,
+                    "Error del cliente: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Maneja errores 5xx de la API
-     */
+    /** Maneja errores HTTP 5xx de Spotify. */
     private void handleServerError(HttpServerErrorException e) {
         int statusCode = e.getStatusCode().value();
-
-        log.error("✗ Error del servidor ({}) en {} API: {}",
-                statusCode, API_NAME, e.getMessage());
-
+        log.error("✗ Error del servidor ({}) en {} API: {}", statusCode, API_NAME, e.getMessage());
         throw new ApiServerException(API_NAME, statusCode,
                 "El servidor de la API está experimentando problemas", e);
-    }
-
-    /**
-     * Invalida el token en caché forzando la obtención de uno nuevo.
-     * <p>
-     * Esta función limpia el token almacenado en caché, lo que provocará que
-     * la próxima llamada a {@link #getAccessToken()} solicite un token nuevo
-     * a la API de Spotify en lugar de usar el cacheado.
-     * </p>
-     * <p>
-     * <b>Casos de uso:</b>
-     * <ul>
-     *   <li>Renovar el token después de errores de autenticación inesperados</li>
-     *   <li>Testing y desarrollo (forzar nueva autenticación)</li>
-     *   <li>Actualización de credenciales en tiempo de ejecución</li>
-     * </ul>
-     * </p>
-     */
-    public void invalidateToken() {
-        log.debug("Invalidando token en caché");
-        cachedToken = null;
-        tokenExpiresAt = null;
     }
 }
