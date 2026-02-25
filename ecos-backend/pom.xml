@@ -112,6 +112,22 @@
 		</dependency>
 
 		<!-- ============================================ -->
+		<!-- HTTP Y RESILIENCIA                           -->
+		<!-- ============================================ -->
+		<!-- Retry automático con @Retryable y backoff exponencial -->
+		<dependency>
+			<groupId>org.springframework.retry</groupId>
+			<artifactId>spring-retry</artifactId>
+			<version>2.0.11</version>
+		</dependency>
+
+		<!-- AOP (aspectjweaver) necesario para que @Retryable funcione -->
+		<dependency>
+			<groupId>org.aspectj</groupId>
+			<artifactId>aspectjweaver</artifactId>
+		</dependency>
+
+		<!-- ============================================ -->
 		<!-- MONITOREO                                    -->
 		<!-- ============================================ -->
 		<!-- Endpoints de salud y métricas: /actuator/health -->
