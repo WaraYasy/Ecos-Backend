@@ -27,6 +27,9 @@ public class SongMapper {
     @Autowired
     private TagMapper tagMapper;
 
+    @Autowired
+    private MovieMapper movieMapper;
+
     public Song toModel(SongEntity entity) {
         if (entity == null) return null;
         Song song = new Song();
@@ -47,6 +50,9 @@ public class SongMapper {
         }
         if (entity.getTags() != null) {
             song.setTags(entity.getTags().stream().map(tagMapper::toModel).toList());
+        }
+        if (entity.getMovies() != null) {
+            song.setMovies(entity.getMovies().stream().map(movieMapper::toModel).toList());
         }
         return song;
     }
@@ -79,7 +85,8 @@ public class SongMapper {
                 entity.getId(),
                 entity.getSpotifyId(),
                 entity.getName(),
-                entity.getCountry()
+                entity.getCountry(),
+                entity.getGenres()
         );
     }
 

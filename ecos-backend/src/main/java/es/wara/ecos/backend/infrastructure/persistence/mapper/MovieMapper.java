@@ -21,7 +21,8 @@ public class MovieMapper {
                 entity.getTmdbId(),
                 entity.getTitle(),
                 entity.getYear() != null ? entity.getYear().intValue() : null,
-                entity.getDirector()
+                entity.getDirector(),
+                entity.getGenres()
         );
     }
 
@@ -33,6 +34,7 @@ public class MovieMapper {
         entity.setTitle(model.getTitle());
         entity.setYear(model.getYear() != null ? model.getYear().shortValue() : null);
         entity.setDirector(model.getDirector());
+        entity.setGenres(model.getGenres());
         return entity;
     }
 
