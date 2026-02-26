@@ -3,6 +3,7 @@ package es.wara.ecos.backend.infrastructure.adapter;
 import es.wara.ecos.backend.domain.model.Album;
 import es.wara.ecos.backend.domain.model.Artist;
 import es.wara.ecos.backend.domain.model.AudioFeatures;
+import es.wara.ecos.backend.domain.model.Movie;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.model.Tag;
 import es.wara.ecos.backend.domain.port.MusicProvider;
@@ -10,10 +11,21 @@ import es.wara.ecos.backend.infrastructure.adapter.lastfm.LastFmClient;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmSimilarTracksDTO;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTagDTO;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTrackInfoDTO;
+import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.MusicBrainzClient;
+import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzArtistCreditDTO;
+import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzMediumDTO;
+import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzReleaseDTO;
+import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzReleaseGroupDTO;
+import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzTrackDTO;
 import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyClient;
 import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifyAudioFeaturesDTO;
 import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifySearchResponseDTO;
 import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifyTrackDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.TmdbClient;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBCreditDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDetailDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBSearchResponseDTO;
 import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -48,10 +60,15 @@ public class MusicProviderAdapter implements MusicProvider {
 
     private final SpotifyClient spotifyClient;
     private final LastFmClient lastFmClient;
+    private final TmdbClient tmdbClient;
+    private final MusicBrainzClient musicBrainzClient;
 
-    public MusicProviderAdapter(SpotifyClient spotifyClient, LastFmClient lastFmClient) {
+    public MusicProviderAdapter(SpotifyClient spotifyClient, LastFmClient lastFmClient,
+                                TmdbClient tmdbClient, MusicBrainzClient musicBrainzClient) {
         this.spotifyClient = spotifyClient;
         this.lastFmClient = lastFmClient;
+        this.tmdbClient = tmdbClient;
+        this.musicBrainzClient = musicBrainzClient;
     }
 
     /**
@@ -203,6 +220,155 @@ public class MusicProviderAdapter implements MusicProvider {
         }
     }
 
+    /**
+     * Obtiene las canciones del soundtrack de una película combinando MusicBrainz y Spotify (Flujo A).
+     * <p>
+     * MusicBrainz proporciona el tracklist del OST; Spotify enriquece cada pista con
+     * spotifyId, previewUrl y audio features. Si Spotify no encuentra una pista, se
+     * añade una canción básica con los datos de MusicBrainz.
+     * </p>
+     *
+     * @param movieTitle título de la película
+     * @return lista de canciones del soundtrack; vacía si no se encontró OST
+     */
+    @Override
+    public List<Song> getSoundtrackSongs(String movieTitle) {
+        try {
+            List<MusicBrainzReleaseGroupDTO> groups = musicBrainzClient.searchSoundtrackByMovie(movieTitle);
+
+            if (groups.isEmpty()) {
+                log.info("No se encontró OST en MusicBrainz para '{}', intentando fallback por tag", movieTitle);
+                return List.of();
+            }
+
+            List<MusicBrainzReleaseDTO> releases = musicBrainzClient.getReleasesByGroup(groups.get(0).getId());
+            if (releases.isEmpty()) return List.of();
+
+            // Preferir edición "Official" si existe
+            MusicBrainzReleaseDTO chosenRelease = releases.stream()
+                    .filter(r -> "Official".equalsIgnoreCase(r.getStatus()))
+                    .findFirst()
+                    .orElse(releases.get(0));
+
+            MusicBrainzReleaseDTO release = musicBrainzClient.getRelease(chosenRelease.getId());
+            if (release == null || release.getMedia() == null) return List.of();
+
+            List<Song> songs = new ArrayList<>();
+            for (MusicBrainzMediumDTO medium : release.getMedia()) {
+                if (medium.getTracks() == null) continue;
+                for (MusicBrainzTrackDTO track : medium.getTracks()) {
+                    String trackTitle = resolveTrackTitle(track);
+                    if (trackTitle == null) continue;
+
+                    String artistName = extractArtistFromTrack(track);
+
+                    try {
+                        String query = trackTitle + (artistName != null ? " " + artistName : "");
+                        SpotifySearchResponseDTO spotifyResult = spotifyClient.searchTracks(query, 1);
+                        if (spotifyResult != null && spotifyResult.getTracks() != null
+                                && spotifyResult.getTracks().getItems() != null
+                                && !spotifyResult.getTracks().getItems().isEmpty()) {
+                            songs.add(mapTrackToSong(spotifyResult.getTracks().getItems().get(0)));
+                        }
+                    } catch (ExternalApiException e) {
+                        log.debug("No se encontró '{}' en Spotify; añadiendo canción básica", trackTitle);
+                        Song basic = new Song();
+                        basic.setTitle(trackTitle);
+                        if (artistName != null) {
+                            Artist a = new Artist();
+                            a.setName(artistName);
+                            basic.setArtists(List.of(a));
+                        }
+                        songs.add(basic);
+                    }
+                }
+            }
+            return songs;
+
+        } catch (ExternalApiException e) {
+            log.warn("Error al obtener soundtrack de '{}', devolviendo vacío: {}", movieTitle, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Obtiene las películas a las que pertenece una canción combinando MusicBrainz y TMDb (Flujo B).
+     * <p>
+     * MusicBrainz localiza los soundtracks que contienen la grabación;
+     * TMDb enriquece cada película con metadatos completos (director, géneros, año).
+     * </p>
+     *
+     * @param artist nombre del artista
+     * @param title  título de la canción
+     * @return lista de películas en las que aparece la canción; vacía si no se encontró ninguna
+     */
+    @Override
+    public List<Movie> getMoviesForSong(String artist, String title) {
+        try {
+            java.util.Optional<String> mbid = musicBrainzClient.searchRecordingByArtistAndTitle(artist, title);
+            if (mbid.isEmpty()) return List.of();
+
+            List<MusicBrainzReleaseGroupDTO> soundtracks = musicBrainzClient.getMoviesForRecording(mbid.get());
+            if (soundtracks.isEmpty()) return List.of();
+
+            List<Movie> movies = new ArrayList<>();
+            for (MusicBrainzReleaseGroupDTO rg : soundtracks) {
+                try {
+                    TMDBSearchResponseDTO search = tmdbClient.searchMovies(rg.getTitle(), 1);
+                    if (search == null || search.getResults() == null || search.getResults().isEmpty()) continue;
+
+                    TMDBMovieDTO movieDTO = search.getResults().get(0);
+
+                    // Géneros con nombre completo desde el endpoint de detalles
+                    List<String> genres = List.of();
+                    try {
+                        TMDBMovieDetailDTO details = tmdbClient.getMovieDetails(movieDTO.getId());
+                        if (details != null && details.getGenres() != null) {
+                            genres = details.getGenres().stream()
+                                    .map(TMDBMovieDetailDTO.GenreDTO::getName)
+                                    .toList();
+                        }
+                    } catch (ExternalApiException ignored) {}
+
+                    // Director desde créditos
+                    String director = null;
+                    try {
+                        TMDBCreditDTO credits = tmdbClient.getMovieCredits(movieDTO.getId());
+                        if (credits != null && credits.getCrew() != null) {
+                            director = credits.getCrew().stream()
+                                    .filter(c -> "Director".equals(c.getJob()))
+                                    .findFirst()
+                                    .map(TMDBCreditDTO.CrewMember::getName)
+                                    .orElse(null);
+                        }
+                    } catch (ExternalApiException ignored) {}
+
+                    Integer year = null;
+                    if (movieDTO.getReleaseDate() != null && movieDTO.getReleaseDate().length() >= 4) {
+                        try { year = Integer.parseInt(movieDTO.getReleaseDate().substring(0, 4)); }
+                        catch (NumberFormatException ignored) {}
+                    }
+
+                    Movie movie = new Movie();
+                    movie.setTmdbId(movieDTO.getId().intValue());
+                    movie.setTitle(movieDTO.getTitle());
+                    movie.setYear(year);
+                    movie.setDirector(director);
+                    movie.setGenres(genres);
+                    movies.add(movie);
+
+                } catch (ExternalApiException e) {
+                    log.debug("No se encontró en TMDb el soundtrack '{}': {}", rg.getTitle(), e.getMessage());
+                }
+            }
+            return movies;
+
+        } catch (ExternalApiException e) {
+            log.warn("Error al obtener películas para '{} - {}', devolviendo vacío: {}", artist, title, e.getMessage());
+            return List.of();
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MAPPERS INTERNOS
     // ─────────────────────────────────────────────────────────────────────────
@@ -288,5 +454,25 @@ public class MusicProviderAdapter implements MusicProvider {
     /** Convierte Double a BigDecimal de forma segura. */
     private BigDecimal toBigDecimal(Double value) {
         return value != null ? BigDecimal.valueOf(value) : null;
+    }
+
+    /** Resuelve el título de una pista: usa el título de la pista o, si es null, el de la grabación. */
+    private String resolveTrackTitle(MusicBrainzTrackDTO track) {
+        if (track.getTitle() != null && !track.getTitle().isBlank()) return track.getTitle();
+        if (track.getRecording() != null && track.getRecording().getTitle() != null) {
+            return track.getRecording().getTitle();
+        }
+        return null;
+    }
+
+    /** Extrae el nombre del artista principal de una pista de MusicBrainz. */
+    private String extractArtistFromTrack(MusicBrainzTrackDTO track) {
+        if (track.getRecording() != null && track.getRecording().getArtistCredit() != null
+                && !track.getRecording().getArtistCredit().isEmpty()) {
+            MusicBrainzArtistCreditDTO credit = track.getRecording().getArtistCredit().get(0);
+            if (credit.getArtist() != null) return credit.getArtist().getName();
+            if (credit.getName() != null) return credit.getName();
+        }
+        return null;
     }
 }
