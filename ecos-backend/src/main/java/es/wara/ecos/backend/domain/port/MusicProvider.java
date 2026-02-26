@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.domain.port;
 
 import es.wara.ecos.backend.domain.model.AudioFeatures;
+import es.wara.ecos.backend.domain.model.Movie;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.model.Tag;
 
@@ -52,5 +53,29 @@ public interface MusicProvider {
      * @return lista de etiquetas con su peso de relevancia
      */
     List<Tag> getSongTags(String artist, String title);
+
+    /**
+     * Obtiene todas las canciones del soundtrack de una película (Flujo A).
+     * <p>
+     * Flujo interno: MusicBrainz (tracklist OST) → Spotify (enriquecer cada pista).
+     * Si no hay OST oficial en MusicBrainz, intenta fallback por tag del título.
+     * </p>
+     *
+     * @param movieTitle título de la película
+     * @return lista de canciones del soundtrack; vacía si no se encontró OST
+     */
+    List<Song> getSoundtrackSongs(String movieTitle);
+
+    /**
+     * Obtiene las películas a las que pertenece una canción (Flujo B).
+     * <p>
+     * Flujo interno: MusicBrainz (grabación → soundtracks) → TMDb (metadatos de película).
+     * </p>
+     *
+     * @param artist nombre del artista
+     * @param title  título de la canción
+     * @return lista de películas en las que aparece la canción; vacía si no se encontró ninguna
+     */
+    List<Movie> getMoviesForSong(String artist, String title);
 
 }
