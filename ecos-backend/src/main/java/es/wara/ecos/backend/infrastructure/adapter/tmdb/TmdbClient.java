@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.infrastructure.adapter.tmdb;
 
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBCreditDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDetailDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBSearchResponseDTO;
 import es.wara.ecos.backend.infrastructure.exception.ApiAuthenticationException;
 import es.wara.ecos.backend.infrastructure.exception.ApiRateLimitException;
@@ -166,18 +167,27 @@ public class TmdbClient {
 
     /**
      * Obtiene los detalles completos de una película por su ID.
+     * <p>
+     * A diferencia de {@code searchMovies}, este endpoint devuelve géneros con nombre
+     * completo (no solo IDs). Usado en el flujo de agregación cinematográfica.
+     * </p>
      *
      * @param movieId ID de la película en TMDb
-     * @return mapa con los detalles de la película
+     * @return DTO con los detalles de la película, incluidos géneros con nombre
      */
-    public Map<String, Object> getMovieDetails(Long movieId) {
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
+    public TMDBMovieDetailDTO getMovieDetails(Long movieId) {
         log.info("Obteniendo detalles de la película ID {} en {} API...", movieId, API_NAME);
 
         if (movieId == null || movieId <= 0) {
             throw new IllegalArgumentException("El ID de la película debe ser un número positivo");
         }
 
-        return executeRequest(buildUrl("/movie/" + movieId, null), "detalles de la película");
+        return executeTypedRequest(buildUrl("/movie/" + movieId, null), TMDBMovieDetailDTO.class, "detalles de la película");
     }
 
     /**
