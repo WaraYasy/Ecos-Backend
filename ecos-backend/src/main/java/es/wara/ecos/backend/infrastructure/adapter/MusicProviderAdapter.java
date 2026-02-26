@@ -37,18 +37,26 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Adaptador que implementa el puerto {@link MusicProvider} combinando Spotify y Last.fm.
- * <p>
- * Responsabilidades por fuente:
+ * Adaptador que implementa el puerto {@link MusicProvider} combinando las cuatro
+ * fuentes externas de ECOS en dos ejes:
+ *
+ * <p><b>Eje musical:</b>
  * <ul>
  *   <li><b>Spotify</b>: búsqueda de tracks, audio features, datos de álbum/artista</li>
  *   <li><b>Last.fm</b>: tags de género/mood/estética, tracks similares</li>
  * </ul>
  * </p>
- * <p>
- * Ante errores de API externa, los métodos devuelven resultados vacíos para
- * garantizar degradación elegante del sistema.
+ *
+ * <p><b>Eje cinematográfico:</b>
+ * <ul>
+ *   <li><b>MusicBrainz</b>: puente bidireccional OST — tracklist de película (Flujo A)
+ *       y películas que contienen una grabación (Flujo B)</li>
+ *   <li><b>TMDb</b>: metadatos de películas — título, año, director, géneros</li>
+ * </ul>
  * </p>
+ *
+ * <p>Ante errores de API externa, todos los métodos devuelven resultados vacíos
+ * para garantizar degradación elegante del sistema.</p>
  *
  * @author Wara Pacheco
  * @version 1.0
