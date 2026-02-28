@@ -10,6 +10,7 @@ import es.wara.ecos.backend.domain.port.MusicProvider;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.LastFmClient;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmSimilarTracksDTO;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTagDTO;
+import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTagTrackDTO;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTrackInfoDTO;
 import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.MusicBrainzClient;
 import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzArtistCreditDTO;
@@ -384,6 +385,60 @@ public class MusicProviderAdapter implements MusicProvider {
 
         } catch (ExternalApiException e) {
             log.warn("Error al obtener películas para '{} - {}', devolviendo vacío: {}", artist, title, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Busca canciones por tag estético en Last.fm y las enriquece con Spotify.
+     * <p>
+     * Flujo: {@code tag.getTopTracks} en Last.fm → por cada track, buscar en Spotify
+     * con "{@code title artist}" para obtener spotifyId, previewUrl y datos de álbum.
+     * Los tracks que Spotify no encuentra se omiten silenciosamente.
+     * </p>
+     *
+     * @param tag   nombre del tag / estética
+     * @param limit número máximo de canciones a devolver
+     * @return lista de canciones enriquecidas; vacía si Last.fm no tiene el tag o hay error
+     */
+    @Override
+    public List<Song> searchSongsByTag(String tag, int limit) {
+        try {
+            LastFmTagTrackDTO tagTrackDTO = lastFmClient.getTopTracksByTag(tag, limit);
+
+            if (tagTrackDTO == null || tagTrackDTO.getTracks() == null
+                    || tagTrackDTO.getTracks().getTrack() == null) {
+                return List.of();
+            }
+
+            List<Song> result = new ArrayList<>();
+
+            for (LastFmTagTrackDTO.TagTrack tagTrack : tagTrackDTO.getTracks().getTrack()) {
+                if (result.size() >= limit) break;
+
+                String trackName = tagTrack.getName();
+                String artistName = tagTrack.getArtist() != null ? tagTrack.getArtist().getName() : null;
+
+                if (trackName == null || trackName.isBlank()) continue;
+
+                try {
+                    String query = trackName + (artistName != null ? " " + artistName : "");
+                    SpotifySearchResponseDTO spotifyResult = spotifyClient.searchTracks(query, 1);
+
+                    if (spotifyResult != null && spotifyResult.getTracks() != null
+                            && spotifyResult.getTracks().getItems() != null
+                            && !spotifyResult.getTracks().getItems().isEmpty()) {
+                        result.add(mapTrackToSong(spotifyResult.getTracks().getItems().get(0)));
+                    }
+                } catch (ExternalApiException e) {
+                    log.debug("No se encontró '{}' en Spotify al buscar por tag '{}'", trackName, tag);
+                }
+            }
+
+            return result;
+
+        } catch (ExternalApiException e) {
+            log.warn("Error al buscar por tag '{}' en Last.fm, devolviendo vacío: {}", tag, e.getMessage());
             return List.of();
         }
     }

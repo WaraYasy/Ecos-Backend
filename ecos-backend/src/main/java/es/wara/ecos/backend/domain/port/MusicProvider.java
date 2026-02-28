@@ -78,4 +78,17 @@ public interface MusicProvider {
      */
     List<Movie> getMoviesForSong(String artist, String title);
 
+    /**
+     * Busca canciones asociadas a una etiqueta estética / género en Last.fm y las enriquece con Spotify.
+     * <p>
+     * Flujo: Last.fm {@code tag.getTopTracks} → por cada track, buscar en Spotify para obtener
+     * spotifyId, previewUrl y datos de álbum/artista. Si Spotify no encuentra el track, se omite.
+     * </p>
+     *
+     * @param tag   etiqueta estética o de género (ej. "cyberpunk", "dreamy", "cottagecore")
+     * @param limit número máximo de canciones a devolver
+     * @return lista de canciones enriquecidas con Spotify; vacía si no hay resultados o hay error
+     */
+    List<Song> searchSongsByTag(String tag, int limit);
+
 }
