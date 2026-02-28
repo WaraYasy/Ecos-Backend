@@ -159,6 +159,12 @@
 			<version>8.0</version>
 		</dependency>
 
+		<!-- Cifrado simétrico AES-256 para tokens OAuth en BD (sin arrastrar Spring Security completo) -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
+		</dependency>
+
 		<!-- Better Stack (Logtail): appender logback para enviar logs a Better Stack -->
 		<dependency>
 			<groupId>com.logtail</groupId>
