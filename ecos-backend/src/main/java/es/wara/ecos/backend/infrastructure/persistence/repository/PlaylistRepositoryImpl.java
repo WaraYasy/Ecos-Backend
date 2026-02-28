@@ -68,4 +68,14 @@ public class PlaylistRepositoryImpl implements PlaylistRepository {
         jpaPlaylistSong.save(entry);
     }
 
+    @Override
+    public void delete(Long id) {
+        jpa.deleteById(id);
+    }
+
+    @Override
+    public void removeSong(Long playlistId, Long songId) {
+        jpaPlaylistSong.deleteById(new PlaylistSongId(playlistId, songId));
+    }
+
 }

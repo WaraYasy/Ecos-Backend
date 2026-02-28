@@ -47,4 +47,19 @@ public interface PlaylistRepository {
      */
     void addSong(Long playlistId, Long songId, int position);
 
+    /**
+     * Elimina una playlist por su identificador.
+     *
+     * @param id identificador de la playlist a eliminar
+     */
+    void delete(Long id);
+
+    /**
+     * Elimina una canción de una playlist.
+     *
+     * @param playlistId identificador de la playlist
+     * @param songId     identificador de la canción a eliminar
+     */
+    void removeSong(Long playlistId, Long songId);
+
 }
