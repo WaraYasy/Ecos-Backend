@@ -185,6 +185,93 @@ public class SpotifyClient {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // API DE USUARIO — EXPORTACIÓN A SPOTIFY
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Obtiene el perfil del usuario autenticado en Spotify y devuelve su Spotify user ID.
+     *
+     * @param userToken access token del usuario (Authorization Code Flow)
+     * @return identificador de usuario en Spotify
+     */
+    @SuppressWarnings("unchecked")
+    public String getCurrentSpotifyUser(String userToken) {
+        String url = API_BASE_URL + "/me";
+        log.info("Obteniendo perfil de usuario de {} API", API_NAME);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(userToken);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        if (body == null || !body.containsKey("id")) {
+            throw new ExternalApiException(API_NAME, "No se pudo obtener el ID de usuario de Spotify");
+        }
+        return (String) body.get("id");
+    }
+
+    /**
+     * Crea una playlist en la cuenta del usuario autenticado en Spotify.
+     *
+     * @param userToken      access token del usuario
+     * @param spotifyUserId  identificador del usuario en Spotify
+     * @param name           nombre de la playlist
+     * @param description    descripción de la playlist
+     * @return identificador de la playlist creada en Spotify
+     */
+    @SuppressWarnings("unchecked")
+    public String createPlaylist(String userToken, String spotifyUserId, String name, String description) {
+        String url = API_BASE_URL + "/users/" + spotifyUserId + "/playlists";
+        log.info("Creando playlist en {} para usuario {}", API_NAME, spotifyUserId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(userToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, String> requestBody = Map.of(
+                "name", name,
+                "description", description != null ? description : "",
+                "public", "false"
+        );
+        HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        if (body == null || !body.containsKey("id")) {
+            throw new ExternalApiException(API_NAME, "No se pudo obtener el ID de la playlist creada en Spotify");
+        }
+        return (String) body.get("id");
+    }
+
+    /**
+     * Añade tracks a una playlist existente en Spotify.
+     *
+     * @param userToken           access token del usuario
+     * @param spotifyPlaylistId   identificador de la playlist en Spotify
+     * @param trackUris           lista de URIs de tracks con formato {@code spotify:track:{id}}
+     */
+    public void addTracksToPlaylist(String userToken, String spotifyPlaylistId, java.util.List<String> trackUris) {
+        if (trackUris == null || trackUris.isEmpty()) {
+            log.warn("No hay tracks para añadir a la playlist de Spotify {}", spotifyPlaylistId);
+            return;
+        }
+        String url = API_BASE_URL + "/playlists/" + spotifyPlaylistId + "/tracks";
+        log.info("Añadiendo {} tracks a playlist {} en {} API", trackUris.size(), spotifyPlaylistId, API_NAME);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(userToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> requestBody = Map.of("uris", trackUris);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        restTemplate.postForEntity(url, entity, Map.class);
+        log.info("✓ {} tracks añadidos exitosamente a playlist {} en {} API",
+                trackUris.size(), spotifyPlaylistId, API_NAME);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // AUTENTICACIÓN
     // ─────────────────────────────────────────────────────────────────────────
 

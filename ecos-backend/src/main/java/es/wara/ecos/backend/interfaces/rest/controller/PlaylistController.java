@@ -100,8 +100,9 @@ public class PlaylistController {
     }
 
     @PostMapping("/{id}/export/spotify")
-    public ResponseEntity<PlaylistResponse> exportToSpotify(@PathVariable Long id) {
-        Playlist playlist = exportPlaylistToSpotifyUseCase.execute(id);
+    public ResponseEntity<PlaylistResponse> exportToSpotify(@PathVariable Long id,
+                                                            @RequestParam Long userId) {
+        Playlist playlist = exportPlaylistToSpotifyUseCase.execute(id, userId);
         return ResponseEntity.ok(PlaylistResponse.from(playlist));
     }
 
