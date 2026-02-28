@@ -26,8 +26,10 @@ import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBCreditDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDetailDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBSearchResponseDTO;
+import es.wara.ecos.backend.config.CacheConfig;
 import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -58,8 +60,12 @@ import java.util.stream.Collectors;
  * <p>Ante errores de API externa, todos los métodos devuelven resultados vacíos
  * para garantizar degradación elegante del sistema.</p>
  *
+ * <p><b>Caché:</b> los métodos de consulta están anotados con {@link org.springframework.cache.annotation.Cacheable}
+ * usando los TTL definidos en {@link es.wara.ecos.backend.config.CacheConfig}:
+ * audio features (7 días), tags (6 h), películas (24 h), soundtracks (24 h), búsquedas (15 min).</p>
+ *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 1.1
  * @since 1.0.0
  */
 @Slf4j
@@ -90,6 +96,7 @@ public class MusicProviderAdapter implements MusicProvider {
      * @param limit número máximo de resultados
      * @return lista de canciones del dominio; vacía si no hay resultados o hay error
      */
+    @Cacheable(cacheNames = CacheConfig.CACHE_SEARCH_SONGS, key = "#query + '-' + #limit")
     @Override
     public List<Song> searchSongs(String query, int limit) {
         try {
@@ -119,6 +126,7 @@ public class MusicProviderAdapter implements MusicProvider {
      * @param spotifyId ID del track en Spotify
      * @return audio features si existen; {@link Optional#empty()} si no hay datos o hay error
      */
+    @Cacheable(cacheNames = CacheConfig.CACHE_AUDIO_FEATURES, key = "#spotifyId")
     @Override
     public Optional<AudioFeatures> getAudioFeatures(String spotifyId) {
         try {
@@ -208,6 +216,7 @@ public class MusicProviderAdapter implements MusicProvider {
      * @param title  título de la canción
      * @return lista de tags normalizados; vacía si no hay datos o hay error
      */
+    @Cacheable(cacheNames = CacheConfig.CACHE_SONG_TAGS, key = "#artist + '-' + #title")
     @Override
     public List<Tag> getSongTags(String artist, String title) {
         try {
@@ -239,6 +248,7 @@ public class MusicProviderAdapter implements MusicProvider {
      * @param movieTitle título de la película
      * @return lista de canciones del soundtrack; vacía si no se encontró OST
      */
+    @Cacheable(cacheNames = CacheConfig.CACHE_SOUNDTRACK_SONGS, key = "#movieTitle")
     @Override
     public List<Song> getSoundtrackSongs(String movieTitle) {
         try {
@@ -310,6 +320,7 @@ public class MusicProviderAdapter implements MusicProvider {
      * @param title  título de la canción
      * @return lista de películas en las que aparece la canción; vacía si no se encontró ninguna
      */
+    @Cacheable(cacheNames = CacheConfig.CACHE_MOVIES_FOR_SONG, key = "#artist + '-' + #title")
     @Override
     public List<Movie> getMoviesForSong(String artist, String title) {
         try {

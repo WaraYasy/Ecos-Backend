@@ -128,6 +128,21 @@
 		</dependency>
 
 		<!-- ============================================ -->
+		<!-- CACHÉ                                        -->
+		<!-- ============================================ -->
+		<!-- Abstracción de caché de Spring (@Cacheable, @CacheEvict, etc.) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+
+		<!-- Implementación Caffeine: caché in-memory de alto rendimiento con TTL -->
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+
+		<!-- ============================================ -->
 		<!-- MONITOREO                                    -->
 		<!-- ============================================ -->
 		<!-- Endpoints de salud y métricas: /actuator/health -->
