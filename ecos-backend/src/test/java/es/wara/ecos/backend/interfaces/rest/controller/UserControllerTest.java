@@ -7,8 +7,10 @@ import es.wara.ecos.backend.application.usecase.user.RegisterUserUseCase;
 import es.wara.ecos.backend.application.usecase.user.UpdateUserPreferencesUseCase;
 import es.wara.ecos.backend.domain.model.MusicProfile;
 import es.wara.ecos.backend.domain.model.User;
+import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class UserControllerTest {
 
     @Autowired
@@ -36,6 +39,9 @@ class UserControllerTest {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @MockitoBean
+    JwtAuthFilter jwtAuthFilter;
 
     @MockitoBean
     RegisterUserUseCase registerUserUseCase;
@@ -49,16 +55,16 @@ class UserControllerTest {
     @MockitoBean
     CalculateUserProfileUseCase calculateUserProfileUseCase;
 
-    private static final User USER = new User(1L, "wara", "wara@ecos.es", "es", LocalDateTime.now());
+    private static final User USER = new User(1L, "wara", "wara@ecos.es", "es", null, LocalDateTime.now());
 
     @Test
     void register_validBody_returns201WithUserResponse() throws Exception {
-        when(registerUserUseCase.execute("wara", "wara@ecos.es", "es")).thenReturn(USER);
+        when(registerUserUseCase.execute("wara", "wara@ecos.es", "pass123", "es")).thenReturn(USER);
 
         mockMvc.perform(post("/v1/users")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"username": "wara", "email": "wara@ecos.es", "language": "es"}
+                                {"username": "wara", "email": "wara@ecos.es", "password": "pass123", "language": "es"}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
@@ -71,7 +77,7 @@ class UserControllerTest {
         mockMvc.perform(post("/v1/users")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"email": "wara@ecos.es"}
+                                {"email": "wara@ecos.es", "password": "pass123"}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
@@ -79,13 +85,13 @@ class UserControllerTest {
 
     @Test
     void register_duplicateUsername_returns404() throws Exception {
-        when(registerUserUseCase.execute(any(), any(), any()))
+        when(registerUserUseCase.execute(any(), any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("El nombre de usuario ya está en uso: wara"));
 
         mockMvc.perform(post("/v1/users")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"username": "wara", "email": "x@x.es"}
+                                {"username": "wara", "email": "x@x.es", "password": "pass123"}
                                 """))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
@@ -112,7 +118,7 @@ class UserControllerTest {
 
     @Test
     void updatePreferences_validBody_returns200WithUpdatedLanguage() throws Exception {
-        User updated = new User(1L, "wara", "wara@ecos.es", "en", LocalDateTime.now());
+        User updated = new User(1L, "wara", "wara@ecos.es", "en", null, LocalDateTime.now());
         when(updateUserPreferencesUseCase.execute(eq(1L), eq("en"))).thenReturn(updated);
 
         mockMvc.perform(put("/v1/users/1/preferences")

@@ -7,9 +7,15 @@ import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase
 import es.wara.ecos.backend.domain.model.ExplorationSession;
 import es.wara.ecos.backend.domain.model.SessionNode;
 import es.wara.ecos.backend.domain.model.Song;
+import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -27,10 +33,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(SessionController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class SessionControllerTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    JwtAuthFilter jwtAuthFilter;
 
     @MockitoBean
     GetSessionByIdUseCase getSessionByIdUseCase;
@@ -44,6 +54,17 @@ class SessionControllerTest {
     @MockitoBean
     AddNodeToSessionUseCase addNodeToSessionUseCase;
 
+    @BeforeEach
+    void setUpSecurityContext() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("5", null, List.of()));
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     private ExplorationSession buildSession(Long id, Long userId) {
         return new ExplorationSession(id, userId, 10L, LocalDateTime.now(), new ArrayList<>());
     }
@@ -56,7 +77,7 @@ class SessionControllerTest {
         mockMvc.perform(post("/v1/sessions")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"userId": 5, "startSongId": 10}
+                                {"startSongId": 10}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
@@ -64,11 +85,11 @@ class SessionControllerTest {
     }
 
     @Test
-    void create_missingUserId_returns400() throws Exception {
+    void create_missingStartSongId_returns400() throws Exception {
         mockMvc.perform(post("/v1/sessions")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"startSongId": 10}
+                                {}
                                 """))
                 .andExpect(status().isBadRequest());
     }
@@ -77,7 +98,7 @@ class SessionControllerTest {
     void getByUser_returns200WithList() throws Exception {
         when(getSessionHistoryUseCase.execute(5L)).thenReturn(List.of(buildSession(1L, 5L)));
 
-        mockMvc.perform(get("/v1/sessions").param("userId", "5"))
+        mockMvc.perform(get("/v1/sessions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].userId").value(5));

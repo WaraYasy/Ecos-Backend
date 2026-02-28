@@ -26,7 +26,7 @@ class GetUserProfileUseCaseTest {
 
     @Test
     void execute_existingUser_returnsUser() {
-        User user = new User(1L, "wara", "wara@ecos.es", "es", LocalDateTime.now());
+        User user = new User(1L, "wara", "wara@ecos.es", "es", null, LocalDateTime.now());
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
         assertThat(useCase.execute(1L)).isEqualTo(user);

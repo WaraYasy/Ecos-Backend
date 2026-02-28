@@ -8,6 +8,7 @@ import es.wara.ecos.backend.application.usecase.playlist.GetPlaylistByIdUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.GetUserPlaylistsUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistUseCase;
 import es.wara.ecos.backend.domain.model.Playlist;
+import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import es.wara.ecos.backend.interfaces.rest.dto.AddSongRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.PlaylistRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.PlaylistResponse;
@@ -20,7 +21,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -63,7 +63,8 @@ public class PlaylistController {
     }
 
     @GetMapping
-    public ResponseEntity<List<PlaylistResponse>> getByUser(@RequestParam Long userId) {
+    public ResponseEntity<List<PlaylistResponse>> getByUser() {
+        Long userId = SecurityUtils.getCurrentUserId();
         List<PlaylistResponse> playlists = getUserPlaylistsUseCase.execute(userId)
                 .stream().map(PlaylistResponse::from).toList();
         return ResponseEntity.ok(playlists);
@@ -71,8 +72,8 @@ public class PlaylistController {
 
     @PostMapping
     public ResponseEntity<PlaylistResponse> create(@Valid @RequestBody PlaylistRequest request) {
-        Playlist playlist = createPlaylistUseCase.execute(
-                request.userId(), request.name(), request.description());
+        Long userId = SecurityUtils.getCurrentUserId();
+        Playlist playlist = createPlaylistUseCase.execute(userId, request.name(), request.description());
         return ResponseEntity.status(HttpStatus.CREATED).body(PlaylistResponse.from(playlist));
     }
 
@@ -101,8 +102,8 @@ public class PlaylistController {
     }
 
     @PostMapping("/{id}/export/spotify")
-    public ResponseEntity<PlaylistResponse> exportToSpotify(@PathVariable Long id,
-                                                            @RequestParam Long userId) {
+    public ResponseEntity<PlaylistResponse> exportToSpotify(@PathVariable Long id) {
+        Long userId = SecurityUtils.getCurrentUserId();
         Playlist playlist = exportPlaylistToSpotifyUseCase.execute(id, userId);
         return ResponseEntity.ok(PlaylistResponse.from(playlist));
     }

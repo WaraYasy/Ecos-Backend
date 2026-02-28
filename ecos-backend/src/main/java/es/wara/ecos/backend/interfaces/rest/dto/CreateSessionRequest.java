@@ -10,6 +10,5 @@ import jakarta.validation.constraints.NotNull;
  * @since 1.0.0
  */
 public record CreateSessionRequest(
-        @NotNull Long userId,
         @NotNull Long startSongId
 ) {}

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 
@@ -23,6 +24,9 @@ class RegisterUserUseCaseTest {
     @Mock
     UserRepository userRepository;
 
+    @Mock
+    PasswordEncoder passwordEncoder;
+
     @InjectMocks
     RegisterUserUseCase useCase;
 
@@ -30,25 +34,27 @@ class RegisterUserUseCaseTest {
     void execute_uniqueData_createsUserWithCreatedAt() {
         when(userRepository.findByUsername("wara")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("wara@ecos.es")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("secreta")).thenReturn("hashed-password");
         when(userRepository.save(any())).thenAnswer(inv -> {
             User u = inv.getArgument(0);
             u.setId(1L);
             return u;
         });
 
-        User result = useCase.execute("wara", "wara@ecos.es", "es");
+        User result = useCase.execute("wara", "wara@ecos.es", "secreta", "es");
 
         assertThat(result.getCreatedAt()).isNotNull();
         assertThat(result.getUsername()).isEqualTo("wara");
         assertThat(result.getEmail()).isEqualTo("wara@ecos.es");
         assertThat(result.getLanguage()).isEqualTo("es");
+        assertThat(result.getPasswordHash()).isEqualTo("hashed-password");
     }
 
     @Test
     void execute_duplicateUsername_throwsIllegalArgumentException() {
         when(userRepository.findByUsername("wara")).thenReturn(Optional.of(new User()));
 
-        assertThatThrownBy(() -> useCase.execute("wara", "nuevo@ecos.es", "es"))
+        assertThatThrownBy(() -> useCase.execute("wara", "nuevo@ecos.es", "pass", "es"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("wara");
 
@@ -60,7 +66,7 @@ class RegisterUserUseCaseTest {
         when(userRepository.findByUsername("nuevo")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("wara@ecos.es")).thenReturn(Optional.of(new User()));
 
-        assertThatThrownBy(() -> useCase.execute("nuevo", "wara@ecos.es", "es"))
+        assertThatThrownBy(() -> useCase.execute("nuevo", "wara@ecos.es", "pass", "es"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("wara@ecos.es");
 

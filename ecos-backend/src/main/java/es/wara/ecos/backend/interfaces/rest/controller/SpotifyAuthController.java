@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
+import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,18 +32,18 @@ public class SpotifyAuthController {
     /**
      * Genera la URL de autorización de Spotify para que el usuario vincule su cuenta.
      *
-     * @param userId identificador del usuario en ECOS
      * @return JSON con la URL de autorización
      */
     @GetMapping("/v1/auth/spotify/login")
-    public ResponseEntity<Map<String, String>> login(@RequestParam Long userId) {
+    public ResponseEntity<Map<String, String>> login() {
+        Long userId = SecurityUtils.getCurrentUserId();
         String url = spotifyAuthPort.getAuthorizationUrl(userId);
         return ResponseEntity.ok(Map.of("url", url));
     }
 
     /**
      * Callback que Spotify invoca tras la autorización del usuario.
-     * Intercambia el código por tokens y los almacena en memoria.
+     * Intercambia el código por tokens y los almacena en base de datos.
      *
      * @param code  código de autorización devuelto por Spotify
      * @param state identificador del usuario en ECOS (enviado como state)

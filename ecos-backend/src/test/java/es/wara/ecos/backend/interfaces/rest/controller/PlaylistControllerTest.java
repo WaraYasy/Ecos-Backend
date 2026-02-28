@@ -8,9 +8,15 @@ import es.wara.ecos.backend.application.usecase.playlist.GetPlaylistByIdUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.GetUserPlaylistsUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistUseCase;
 import es.wara.ecos.backend.domain.model.Playlist;
+import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,10 +31,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(PlaylistController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class PlaylistControllerTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    JwtAuthFilter jwtAuthFilter;
 
     @MockitoBean
     GetPlaylistByIdUseCase getPlaylistByIdUseCase;
@@ -51,6 +61,17 @@ class PlaylistControllerTest {
     @MockitoBean
     ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase;
 
+    @BeforeEach
+    void setUpSecurityContext() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("5", null, List.of()));
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     private Playlist buildPlaylist(String spotifyExportId) {
         return new Playlist(1L, 5L, "Mi playlist", "desc", spotifyExportId, LocalDateTime.now(), List.of());
     }
@@ -60,7 +81,7 @@ class PlaylistControllerTest {
         Playlist exported = buildPlaylist("spotify-pl-id");
         when(exportPlaylistToSpotifyUseCase.execute(1L, 5L)).thenReturn(exported);
 
-        mockMvc.perform(post("/v1/playlists/1/export/spotify").param("userId", "5"))
+        mockMvc.perform(post("/v1/playlists/1/export/spotify"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Mi playlist"));
@@ -74,7 +95,7 @@ class PlaylistControllerTest {
         mockMvc.perform(post("/v1/playlists")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"name": "Mi playlist", "description": "desc", "userId": 5}
+                                {"name": "Mi playlist", "description": "desc"}
                                 """))
                 .andExpect(status().isCreated());
     }

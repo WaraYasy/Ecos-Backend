@@ -50,7 +50,8 @@ public class UserController {
     @PostMapping
     public ResponseEntity<UserResponse> register(@Valid @RequestBody CreateUserRequest request) {
         UserResponse user = UserResponse.from(
-                registerUserUseCase.execute(request.username(), request.email(), request.language()));
+                registerUserUseCase.execute(
+                        request.username(), request.email(), request.password(), request.language()));
         return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
 

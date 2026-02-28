@@ -29,7 +29,7 @@ class UpdateUserPreferencesUseCaseTest {
 
     @Test
     void execute_existingUser_updatesLanguageAndSaves() {
-        User user = new User(1L, "wara", "wara@ecos.es", "es", LocalDateTime.now());
+        User user = new User(1L, "wara", "wara@ecos.es", "es", null, LocalDateTime.now());
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 

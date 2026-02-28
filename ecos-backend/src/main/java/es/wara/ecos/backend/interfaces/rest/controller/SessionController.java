@@ -5,6 +5,7 @@ import es.wara.ecos.backend.application.usecase.session.CreateExplorationSession
 import es.wara.ecos.backend.application.usecase.session.GetSessionByIdUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase;
 import es.wara.ecos.backend.domain.model.ExplorationSession;
+import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import es.wara.ecos.backend.interfaces.rest.dto.AddNodeRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.CreateSessionRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.SessionResponse;
@@ -16,7 +17,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -51,12 +51,14 @@ public class SessionController {
 
     @PostMapping
     public ResponseEntity<SessionResponse> create(@Valid @RequestBody CreateSessionRequest request) {
-        ExplorationSession session = createSessionUseCase.execute(request.userId(), request.startSongId());
+        Long userId = SecurityUtils.getCurrentUserId();
+        ExplorationSession session = createSessionUseCase.execute(userId, request.startSongId());
         return ResponseEntity.status(HttpStatus.CREATED).body(SessionResponse.from(session));
     }
 
     @GetMapping
-    public ResponseEntity<List<SessionResponse>> getByUser(@RequestParam Long userId) {
+    public ResponseEntity<List<SessionResponse>> getByUser() {
+        Long userId = SecurityUtils.getCurrentUserId();
         List<SessionResponse> sessions = getSessionHistoryUseCase.execute(userId)
                 .stream().map(SessionResponse::from).toList();
         return ResponseEntity.ok(sessions);
