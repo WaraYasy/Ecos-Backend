@@ -171,6 +171,13 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- @WebMvcTest, MockMvc slice (Spring Boot 4: paquete reubicado) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Testcontainers: levanta contenedores Docker reales durante los tests -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
