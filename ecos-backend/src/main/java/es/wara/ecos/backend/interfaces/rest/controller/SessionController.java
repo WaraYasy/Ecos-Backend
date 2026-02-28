@@ -2,9 +2,9 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.session.AddNodeToSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.CreateExplorationSessionUseCase;
+import es.wara.ecos.backend.application.usecase.session.GetSessionByIdUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase;
 import es.wara.ecos.backend.domain.model.ExplorationSession;
-import es.wara.ecos.backend.domain.port.SessionRepository;
 import es.wara.ecos.backend.interfaces.rest.dto.AddNodeRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.CreateSessionRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.SessionResponse;
@@ -32,18 +32,18 @@ import java.util.List;
 @RequestMapping("/v1/sessions")
 public class SessionController {
 
-    private final SessionRepository sessionRepository;
+    private final GetSessionByIdUseCase getSessionByIdUseCase;
     private final CreateExplorationSessionUseCase createSessionUseCase;
     private final GetSessionHistoryUseCase getSessionHistoryUseCase;
     private final AddNodeToSessionUseCase addNodeToSessionUseCase;
 
     public SessionController(
-            SessionRepository sessionRepository,
+            GetSessionByIdUseCase getSessionByIdUseCase,
             CreateExplorationSessionUseCase createSessionUseCase,
             GetSessionHistoryUseCase getSessionHistoryUseCase,
             AddNodeToSessionUseCase addNodeToSessionUseCase
     ) {
-        this.sessionRepository = sessionRepository;
+        this.getSessionByIdUseCase = getSessionByIdUseCase;
         this.createSessionUseCase = createSessionUseCase;
         this.getSessionHistoryUseCase = getSessionHistoryUseCase;
         this.addNodeToSessionUseCase = addNodeToSessionUseCase;
@@ -64,10 +64,7 @@ public class SessionController {
 
     @GetMapping("/{id}")
     public ResponseEntity<SessionResponse> getById(@PathVariable Long id) {
-        return sessionRepository.findById(id)
-                .map(SessionResponse::from)
-                .map(ResponseEntity::ok)
-                .orElseThrow(() -> new IllegalArgumentException("Sesión no encontrada: " + id));
+        return ResponseEntity.ok(SessionResponse.from(getSessionByIdUseCase.execute(id)));
     }
 
     @PostMapping("/{id}/nodes")

@@ -1,8 +1,8 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.search.GetSimilarSongsUseCase;
+import es.wara.ecos.backend.application.usecase.song.GetSongByIdUseCase;
 import es.wara.ecos.backend.domain.model.Song;
-import es.wara.ecos.backend.domain.port.SongRepository;
 import es.wara.ecos.backend.interfaces.rest.dto.AudioFeaturesResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.SongResponse;
 import org.springframework.http.ResponseEntity;
@@ -24,20 +24,18 @@ import java.util.List;
 @RequestMapping("/v1/songs")
 public class SongController {
 
-    private final SongRepository songRepository;
+    private final GetSongByIdUseCase getSongByIdUseCase;
     private final GetSimilarSongsUseCase getSimilarSongsUseCase;
 
-    public SongController(SongRepository songRepository, GetSimilarSongsUseCase getSimilarSongsUseCase) {
-        this.songRepository = songRepository;
+    public SongController(GetSongByIdUseCase getSongByIdUseCase,
+                          GetSimilarSongsUseCase getSimilarSongsUseCase) {
+        this.getSongByIdUseCase = getSongByIdUseCase;
         this.getSimilarSongsUseCase = getSimilarSongsUseCase;
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<SongResponse> getById(@PathVariable Long id) {
-        return songRepository.findById(id)
-                .map(SongResponse::from)
-                .map(ResponseEntity::ok)
-                .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + id));
+        return ResponseEntity.ok(SongResponse.from(getSongByIdUseCase.execute(id)));
     }
 
     @GetMapping("/{id}/related")
@@ -51,8 +49,7 @@ public class SongController {
 
     @GetMapping("/{id}/audio-features")
     public ResponseEntity<AudioFeaturesResponse> getAudioFeatures(@PathVariable Long id) {
-        Song song = songRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + id));
+        Song song = getSongByIdUseCase.execute(id);
         AudioFeaturesResponse response = AudioFeaturesResponse.from(song.getAudioFeatures());
         if (response == null) {
             return ResponseEntity.notFound().build();

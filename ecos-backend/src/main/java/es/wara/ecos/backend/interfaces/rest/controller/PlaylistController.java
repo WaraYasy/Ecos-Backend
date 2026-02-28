@@ -4,9 +4,10 @@ import es.wara.ecos.backend.application.usecase.playlist.AddSongToPlaylistUseCas
 import es.wara.ecos.backend.application.usecase.playlist.CreatePlaylistUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.DeletePlaylistUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.ExportPlaylistToSpotifyUseCase;
+import es.wara.ecos.backend.application.usecase.playlist.GetPlaylistByIdUseCase;
+import es.wara.ecos.backend.application.usecase.playlist.GetUserPlaylistsUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistUseCase;
 import es.wara.ecos.backend.domain.model.Playlist;
-import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.interfaces.rest.dto.AddSongRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.PlaylistRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.PlaylistResponse;
@@ -35,7 +36,8 @@ import java.util.List;
 @RequestMapping("/v1/playlists")
 public class PlaylistController {
 
-    private final PlaylistRepository playlistRepository;
+    private final GetPlaylistByIdUseCase getPlaylistByIdUseCase;
+    private final GetUserPlaylistsUseCase getUserPlaylistsUseCase;
     private final CreatePlaylistUseCase createPlaylistUseCase;
     private final DeletePlaylistUseCase deletePlaylistUseCase;
     private final AddSongToPlaylistUseCase addSongToPlaylistUseCase;
@@ -43,14 +45,16 @@ public class PlaylistController {
     private final ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase;
 
     public PlaylistController(
-            PlaylistRepository playlistRepository,
+            GetPlaylistByIdUseCase getPlaylistByIdUseCase,
+            GetUserPlaylistsUseCase getUserPlaylistsUseCase,
             CreatePlaylistUseCase createPlaylistUseCase,
             DeletePlaylistUseCase deletePlaylistUseCase,
             AddSongToPlaylistUseCase addSongToPlaylistUseCase,
             RemoveSongFromPlaylistUseCase removeSongFromPlaylistUseCase,
             ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase
     ) {
-        this.playlistRepository = playlistRepository;
+        this.getPlaylistByIdUseCase = getPlaylistByIdUseCase;
+        this.getUserPlaylistsUseCase = getUserPlaylistsUseCase;
         this.createPlaylistUseCase = createPlaylistUseCase;
         this.deletePlaylistUseCase = deletePlaylistUseCase;
         this.addSongToPlaylistUseCase = addSongToPlaylistUseCase;
@@ -60,7 +64,7 @@ public class PlaylistController {
 
     @GetMapping
     public ResponseEntity<List<PlaylistResponse>> getByUser(@RequestParam Long userId) {
-        List<PlaylistResponse> playlists = playlistRepository.findByUserId(userId)
+        List<PlaylistResponse> playlists = getUserPlaylistsUseCase.execute(userId)
                 .stream().map(PlaylistResponse::from).toList();
         return ResponseEntity.ok(playlists);
     }
@@ -74,10 +78,7 @@ public class PlaylistController {
 
     @GetMapping("/{id}")
     public ResponseEntity<PlaylistResponse> getById(@PathVariable Long id) {
-        return playlistRepository.findById(id)
-                .map(PlaylistResponse::from)
-                .map(ResponseEntity::ok)
-                .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + id));
+        return ResponseEntity.ok(PlaylistResponse.from(getPlaylistByIdUseCase.execute(id)));
     }
 
     @DeleteMapping("/{id}")

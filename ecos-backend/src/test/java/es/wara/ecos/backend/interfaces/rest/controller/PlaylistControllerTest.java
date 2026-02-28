@@ -4,9 +4,10 @@ import es.wara.ecos.backend.application.usecase.playlist.AddSongToPlaylistUseCas
 import es.wara.ecos.backend.application.usecase.playlist.CreatePlaylistUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.DeletePlaylistUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.ExportPlaylistToSpotifyUseCase;
+import es.wara.ecos.backend.application.usecase.playlist.GetPlaylistByIdUseCase;
+import es.wara.ecos.backend.application.usecase.playlist.GetUserPlaylistsUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistUseCase;
 import es.wara.ecos.backend.domain.model.Playlist;
-import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -15,9 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -32,7 +31,10 @@ class PlaylistControllerTest {
     MockMvc mockMvc;
 
     @MockitoBean
-    PlaylistRepository playlistRepository;
+    GetPlaylistByIdUseCase getPlaylistByIdUseCase;
+
+    @MockitoBean
+    GetUserPlaylistsUseCase getUserPlaylistsUseCase;
 
     @MockitoBean
     CreatePlaylistUseCase createPlaylistUseCase;
@@ -79,7 +81,8 @@ class PlaylistControllerTest {
 
     @Test
     void getById_nonExistingPlaylist_returns404() throws Exception {
-        when(playlistRepository.findById(99L)).thenReturn(Optional.empty());
+        when(getPlaylistByIdUseCase.execute(99L))
+                .thenThrow(new IllegalArgumentException("Playlist no encontrada: 99"));
 
         mockMvc.perform(get("/v1/playlists/99"))
                 .andExpect(status().isNotFound())

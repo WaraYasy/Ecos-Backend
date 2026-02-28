@@ -2,11 +2,11 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.session.AddNodeToSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.CreateExplorationSessionUseCase;
+import es.wara.ecos.backend.application.usecase.session.GetSessionByIdUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase;
 import es.wara.ecos.backend.domain.model.ExplorationSession;
 import es.wara.ecos.backend.domain.model.SessionNode;
 import es.wara.ecos.backend.domain.model.Song;
-import es.wara.ecos.backend.domain.port.SessionRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -16,7 +16,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,7 +33,7 @@ class SessionControllerTest {
     MockMvc mockMvc;
 
     @MockitoBean
-    SessionRepository sessionRepository;
+    GetSessionByIdUseCase getSessionByIdUseCase;
 
     @MockitoBean
     CreateExplorationSessionUseCase createSessionUseCase;
@@ -86,7 +85,7 @@ class SessionControllerTest {
 
     @Test
     void getById_existingSession_returns200() throws Exception {
-        when(sessionRepository.findById(1L)).thenReturn(Optional.of(buildSession(1L, 5L)));
+        when(getSessionByIdUseCase.execute(1L)).thenReturn(buildSession(1L, 5L));
 
         mockMvc.perform(get("/v1/sessions/1"))
                 .andExpect(status().isOk())
@@ -95,7 +94,8 @@ class SessionControllerTest {
 
     @Test
     void getById_nonExistingSession_returns404() throws Exception {
-        when(sessionRepository.findById(999L)).thenReturn(Optional.empty());
+        when(getSessionByIdUseCase.execute(999L))
+                .thenThrow(new IllegalArgumentException("Sesión no encontrada: 999"));
 
         mockMvc.perform(get("/v1/sessions/999"))
                 .andExpect(status().isNotFound())
