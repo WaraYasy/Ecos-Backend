@@ -1,6 +1,6 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
-import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyAuthService;
+import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,10 +22,10 @@ import java.util.Map;
 @RestController
 public class SpotifyAuthController {
 
-    private final SpotifyAuthService spotifyAuthService;
+    private final SpotifyAuthPort spotifyAuthPort;
 
-    public SpotifyAuthController(SpotifyAuthService spotifyAuthService) {
-        this.spotifyAuthService = spotifyAuthService;
+    public SpotifyAuthController(SpotifyAuthPort spotifyAuthPort) {
+        this.spotifyAuthPort = spotifyAuthPort;
     }
 
     /**
@@ -36,7 +36,7 @@ public class SpotifyAuthController {
      */
     @GetMapping("/v1/auth/spotify/login")
     public ResponseEntity<Map<String, String>> login(@RequestParam Long userId) {
-        String url = spotifyAuthService.getAuthorizationUrl(userId);
+        String url = spotifyAuthPort.getAuthorizationUrl(userId);
         return ResponseEntity.ok(Map.of("url", url));
     }
 
@@ -50,7 +50,7 @@ public class SpotifyAuthController {
      */
     @GetMapping("/callback/spotify")
     public ResponseEntity<String> callback(@RequestParam String code, @RequestParam String state) {
-        spotifyAuthService.exchangeCodeForToken(code, state);
+        spotifyAuthPort.exchangeCodeForToken(code, state);
         return ResponseEntity.ok("Cuenta Spotify vinculada");
     }
 

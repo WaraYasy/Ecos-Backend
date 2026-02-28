@@ -2,7 +2,7 @@ package es.wara.ecos.backend.application.usecase.playlist;
 
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
-import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyAuthService;
+import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,17 +25,17 @@ import java.util.List;
 public class ExportPlaylistToSpotifyUseCase {
 
     private final PlaylistRepository playlistRepository;
-    private final SpotifyAuthService spotifyAuthService;
+    private final SpotifyAuthPort spotifyAuthPort;
     private final SpotifyClient spotifyClient;
 
     public ExportPlaylistToSpotifyUseCase(
             PlaylistRepository playlistRepository,
-            SpotifyAuthService spotifyAuthService,
+            SpotifyAuthPort spotifyAuthPort,
             SpotifyClient spotifyClient
     ) {
         this.playlistRepository = playlistRepository;
-        this.spotifyAuthService = spotifyAuthService;
-        this.spotifyClient = spotifyClient;
+        this.spotifyAuthPort    = spotifyAuthPort;
+        this.spotifyClient      = spotifyClient;
     }
 
     /**
@@ -50,7 +50,7 @@ public class ExportPlaylistToSpotifyUseCase {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + playlistId));
 
-        String userToken = spotifyAuthService.getTokenForUser(userId);
+        String userToken = spotifyAuthPort.getTokenForUser(userId);
         String spotifyUserId = spotifyClient.getCurrentSpotifyUser(userToken);
 
         String spotifyPlaylistId = spotifyClient.createPlaylist(
