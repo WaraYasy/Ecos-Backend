@@ -1,0 +1,22 @@
+# Directorios de build — se generan dentro del contenedor
+target/
+
+# Entorno local — nunca va a producción
+.env
+logs/
+
+# Git e IDE
+.git/
+.gitignore
+.idea/
+*.iml
+.vscode/
+
+# Documentación y scripts de desarrollo
+docs/
+dev.md
+HELP.md
+*.postman_collection.json
+
+# Tests — ya corren en CI antes del despliegue
+src/test/
