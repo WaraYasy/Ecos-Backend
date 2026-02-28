@@ -1,8 +1,9 @@
 package es.wara.ecos.backend.domain.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
@@ -14,7 +15,8 @@ import java.time.LocalDateTime;
  * @version 1.0
  * @since 1.0.0
  */
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
@@ -23,6 +25,7 @@ public class User {
     private String username;
     private String email;
     private String language;
+    private String passwordHash;
     private LocalDateTime createdAt;
 
 }
