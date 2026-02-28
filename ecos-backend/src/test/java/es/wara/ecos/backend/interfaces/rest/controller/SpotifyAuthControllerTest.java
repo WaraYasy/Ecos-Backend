@@ -1,6 +1,6 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
-import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyAuthService;
+import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -22,11 +22,11 @@ class SpotifyAuthControllerTest {
     MockMvc mockMvc;
 
     @MockitoBean
-    SpotifyAuthService spotifyAuthService;
+    SpotifyAuthPort spotifyAuthPort;
 
     @Test
     void login_returns200WithAuthUrl() throws Exception {
-        when(spotifyAuthService.getAuthorizationUrl(1L))
+        when(spotifyAuthPort.getAuthorizationUrl(1L))
                 .thenReturn("https://accounts.spotify.com/authorize?client_id=test&state=1");
 
         mockMvc.perform(get("/v1/auth/spotify/login").param("userId", "1"))
@@ -37,7 +37,7 @@ class SpotifyAuthControllerTest {
 
     @Test
     void callback_validCodeAndState_returns200WithConfirmation() throws Exception {
-        doNothing().when(spotifyAuthService).exchangeCodeForToken("abc", "1");
+        doNothing().when(spotifyAuthPort).exchangeCodeForToken("abc", "1");
 
         mockMvc.perform(get("/callback/spotify")
                         .param("code", "abc")

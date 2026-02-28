@@ -3,7 +3,7 @@ package es.wara.ecos.backend.application.usecase.playlist;
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
-import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyAuthService;
+import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,7 +31,7 @@ class ExportPlaylistToSpotifyUseCaseTest {
     PlaylistRepository playlistRepository;
 
     @Mock
-    SpotifyAuthService spotifyAuthService;
+    SpotifyAuthPort spotifyAuthPort;
 
     @Mock
     SpotifyClient spotifyClient;
@@ -50,7 +50,7 @@ class ExportPlaylistToSpotifyUseCaseTest {
 
         Playlist playlist = buildPlaylist(List.of(song));
         when(playlistRepository.findById(1L)).thenReturn(Optional.of(playlist));
-        when(spotifyAuthService.getTokenForUser(5L)).thenReturn("user-token");
+        when(spotifyAuthPort.getTokenForUser(5L)).thenReturn("user-token");
         when(spotifyClient.getCurrentSpotifyUser("user-token")).thenReturn("spotify-user-id");
         when(spotifyClient.createPlaylist("user-token", "spotify-user-id", "Mi playlist", "descripción"))
                 .thenReturn("new-pl-id");
@@ -74,14 +74,14 @@ class ExportPlaylistToSpotifyUseCaseTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("99");
 
-        verifyNoInteractions(spotifyAuthService, spotifyClient);
+        verifyNoInteractions(spotifyAuthPort, spotifyClient);
     }
 
     @Test
     void execute_userWithoutSpotifyLinked_throwsIllegalArgumentException() {
         Playlist playlist = buildPlaylist(List.of());
         when(playlistRepository.findById(1L)).thenReturn(Optional.of(playlist));
-        when(spotifyAuthService.getTokenForUser(5L))
+        when(spotifyAuthPort.getTokenForUser(5L))
                 .thenThrow(new IllegalArgumentException("El usuario 5 no ha vinculado su cuenta de Spotify"));
 
         assertThatThrownBy(() -> useCase.execute(1L, 5L))
@@ -94,7 +94,7 @@ class ExportPlaylistToSpotifyUseCaseTest {
         Song songNoId = new Song(); // spotifyId = null
         Playlist playlist = buildPlaylist(List.of(songNoId));
         when(playlistRepository.findById(1L)).thenReturn(Optional.of(playlist));
-        when(spotifyAuthService.getTokenForUser(5L)).thenReturn("token");
+        when(spotifyAuthPort.getTokenForUser(5L)).thenReturn("token");
         when(spotifyClient.getCurrentSpotifyUser("token")).thenReturn("uid");
         when(spotifyClient.createPlaylist(any(), any(), any(), any())).thenReturn("pid");
         when(playlistRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
