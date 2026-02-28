@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.infrastructure.adapter.spotify;
 
+import es.wara.ecos.backend.domain.port.SpotifyPlaylistPort;
 import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifyAudioFeaturesDTO;
 import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifySearchResponseDTO;
 import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifyTrackDTO;
@@ -51,7 +52,7 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-public class SpotifyClient {
+public class SpotifyClient implements SpotifyPlaylistPort {
 
     private static final String API_NAME = "Spotify";
     private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
@@ -194,8 +195,9 @@ public class SpotifyClient {
      * @param userToken access token del usuario (Authorization Code Flow)
      * @return identificador de usuario en Spotify
      */
+    @Override
     @SuppressWarnings("unchecked")
-    public String getCurrentSpotifyUser(String userToken) {
+    public String getCurrentUserId(String userToken) {
         String url = API_BASE_URL + "/me";
         log.info("Obteniendo perfil de usuario de {} API", API_NAME);
 
@@ -220,6 +222,7 @@ public class SpotifyClient {
      * @param description    descripción de la playlist
      * @return identificador de la playlist creada en Spotify
      */
+    @Override
     @SuppressWarnings("unchecked")
     public String createPlaylist(String userToken, String spotifyUserId, String name, String description) {
         String url = API_BASE_URL + "/users/" + spotifyUserId + "/playlists";
@@ -251,6 +254,7 @@ public class SpotifyClient {
      * @param spotifyPlaylistId   identificador de la playlist en Spotify
      * @param trackUris           lista de URIs de tracks con formato {@code spotify:track:{id}}
      */
+    @Override
     public void addTracksToPlaylist(String userToken, String spotifyPlaylistId, java.util.List<String> trackUris) {
         if (trackUris == null || trackUris.isEmpty()) {
             log.warn("No hay tracks para añadir a la playlist de Spotify {}", spotifyPlaylistId);

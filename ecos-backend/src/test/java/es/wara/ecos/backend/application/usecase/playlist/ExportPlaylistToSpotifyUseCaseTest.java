@@ -4,7 +4,7 @@ import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
-import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyClient;
+import es.wara.ecos.backend.domain.port.SpotifyPlaylistPort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -34,7 +34,7 @@ class ExportPlaylistToSpotifyUseCaseTest {
     SpotifyAuthPort spotifyAuthPort;
 
     @Mock
-    SpotifyClient spotifyClient;
+    SpotifyPlaylistPort spotifyPlaylistPort;
 
     @InjectMocks
     ExportPlaylistToSpotifyUseCase useCase;
@@ -51,15 +51,15 @@ class ExportPlaylistToSpotifyUseCaseTest {
         Playlist playlist = buildPlaylist(List.of(song));
         when(playlistRepository.findById(1L)).thenReturn(Optional.of(playlist));
         when(spotifyAuthPort.getTokenForUser(5L)).thenReturn("user-token");
-        when(spotifyClient.getCurrentSpotifyUser("user-token")).thenReturn("spotify-user-id");
-        when(spotifyClient.createPlaylist("user-token", "spotify-user-id", "Mi playlist", "descripción"))
+        when(spotifyPlaylistPort.getCurrentUserId("user-token")).thenReturn("spotify-user-id");
+        when(spotifyPlaylistPort.createPlaylist("user-token", "spotify-user-id", "Mi playlist", "descripción"))
                 .thenReturn("new-pl-id");
         when(playlistRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         Playlist result = useCase.execute(1L, 5L);
 
         assertThat(result.getSpotifyExportId()).isEqualTo("new-pl-id");
-        verify(spotifyClient).addTracksToPlaylist(
+        verify(spotifyPlaylistPort).addTracksToPlaylist(
                 eq("user-token"),
                 eq("new-pl-id"),
                 argThat(uris -> uris.size() == 1 && uris.get(0).equals("spotify:track:track-abc"))
@@ -74,7 +74,7 @@ class ExportPlaylistToSpotifyUseCaseTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("99");
 
-        verifyNoInteractions(spotifyAuthPort, spotifyClient);
+        verifyNoInteractions(spotifyAuthPort, spotifyPlaylistPort);
     }
 
     @Test
@@ -95,13 +95,13 @@ class ExportPlaylistToSpotifyUseCaseTest {
         Playlist playlist = buildPlaylist(List.of(songNoId));
         when(playlistRepository.findById(1L)).thenReturn(Optional.of(playlist));
         when(spotifyAuthPort.getTokenForUser(5L)).thenReturn("token");
-        when(spotifyClient.getCurrentSpotifyUser("token")).thenReturn("uid");
-        when(spotifyClient.createPlaylist(any(), any(), any(), any())).thenReturn("pid");
+        when(spotifyPlaylistPort.getCurrentUserId("token")).thenReturn("uid");
+        when(spotifyPlaylistPort.createPlaylist(any(), any(), any(), any())).thenReturn("pid");
         when(playlistRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         useCase.execute(1L, 5L);
 
-        verify(spotifyClient).addTracksToPlaylist(eq("token"), eq("pid"), argThat(List::isEmpty));
+        verify(spotifyPlaylistPort).addTracksToPlaylist(eq("token"), eq("pid"), argThat(List::isEmpty));
     }
 
 }

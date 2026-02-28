@@ -3,7 +3,7 @@ package es.wara.ecos.backend.application.usecase.playlist;
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
-import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyClient;
+import es.wara.ecos.backend.domain.port.SpotifyPlaylistPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -26,16 +26,16 @@ public class ExportPlaylistToSpotifyUseCase {
 
     private final PlaylistRepository playlistRepository;
     private final SpotifyAuthPort spotifyAuthPort;
-    private final SpotifyClient spotifyClient;
+    private final SpotifyPlaylistPort spotifyPlaylistPort;
 
     public ExportPlaylistToSpotifyUseCase(
             PlaylistRepository playlistRepository,
             SpotifyAuthPort spotifyAuthPort,
-            SpotifyClient spotifyClient
+            SpotifyPlaylistPort spotifyPlaylistPort
     ) {
-        this.playlistRepository = playlistRepository;
-        this.spotifyAuthPort    = spotifyAuthPort;
-        this.spotifyClient      = spotifyClient;
+        this.playlistRepository   = playlistRepository;
+        this.spotifyAuthPort      = spotifyAuthPort;
+        this.spotifyPlaylistPort  = spotifyPlaylistPort;
     }
 
     /**
@@ -51,9 +51,9 @@ public class ExportPlaylistToSpotifyUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + playlistId));
 
         String userToken = spotifyAuthPort.getTokenForUser(userId);
-        String spotifyUserId = spotifyClient.getCurrentSpotifyUser(userToken);
+        String spotifyUserId = spotifyPlaylistPort.getCurrentUserId(userToken);
 
-        String spotifyPlaylistId = spotifyClient.createPlaylist(
+        String spotifyPlaylistId = spotifyPlaylistPort.createPlaylist(
                 userToken,
                 spotifyUserId,
                 playlist.getName(),
@@ -67,7 +67,7 @@ public class ExportPlaylistToSpotifyUseCase {
                         .toList()
                 : List.of();
 
-        spotifyClient.addTracksToPlaylist(userToken, spotifyPlaylistId, trackUris);
+        spotifyPlaylistPort.addTracksToPlaylist(userToken, spotifyPlaylistId, trackUris);
 
         playlist.setSpotifyExportId(spotifyPlaylistId);
         Playlist saved = playlistRepository.save(playlist);
