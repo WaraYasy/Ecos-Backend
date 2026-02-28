@@ -2,6 +2,7 @@ package es.wara.ecos.backend.infrastructure.adapter.lastfm;
 
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmSimilarTracksDTO;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTagDTO;
+import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTagTrackDTO;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.dto.LastFmTrackInfoDTO;
 import es.wara.ecos.backend.infrastructure.exception.ApiAuthenticationException;
 import es.wara.ecos.backend.infrastructure.exception.ApiRateLimitException;
@@ -155,6 +156,58 @@ public class LastFmClient {
         return parseSimilarTracks(response);
     }
 
+    /**
+     * Obtiene las canciones más populares para un tag (estética/género) dado.
+     * <p>
+     * Llama a {@code tag.getTopTracks} de Last.fm. Es la pieza central del
+     * cuadrante de Estética del sistema de búsqueda: dado un tag comunitario
+     * como "cyberpunk", "dreamy" o "cottagecore", devuelve las canciones que
+     * la comunidad más asocia con esa estética.
+     * </p>
+     * <p>
+     * Si el tag no existe en Last.fm devuelve un DTO con lista vacía (no lanza
+     * excepción). Si el tag tiene pocos tracks, devuelve todos los disponibles.
+     * </p>
+     *
+     * @param tag   nombre del tag / estética (ej. "cyberpunk", "dreamy")
+     * @param limit número máximo de canciones a devolver (1-50; 0 = default de Last.fm)
+     * @return DTO con la lista de tracks del tag; vacío si el tag no existe
+     * @throws IllegalArgumentException si el tag está vacío
+     * @throws ApiRateLimitException    si se excede el límite de peticiones
+     * @throws ApiServerException       si el servidor de Last.fm falla
+     */
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
+    public LastFmTagTrackDTO getTopTracksByTag(String tag, int limit) {
+        if (!StringUtils.hasText(tag)) {
+            throw new IllegalArgumentException("El tag no puede estar vacío");
+        }
+
+        log.info("Obteniendo top tracks del tag '{}' en {} API", tag, API_NAME);
+
+        Map<String, String> params = new HashMap<>(Map.of("tag", tag));
+        if (limit > 0) {
+            params.put("limit", String.valueOf(Math.min(limit, 50)));
+        }
+
+        String url = buildUrl("tag.getTopTracks", params);
+
+        try {
+            Map<String, Object> response = executeRequest(url, "top tracks del tag");
+            return parseTagTracks(response);
+        } catch (ExternalApiException e) {
+            // Tag no encontrado (error 6) → devolver lista vacía sin propagar
+            if (e.getMessage() != null && e.getMessage().contains("not found")) {
+                log.warn("Tag '{}' no encontrado en {}, devolviendo lista vacía", tag, API_NAME);
+                return new LastFmTagTrackDTO();
+            }
+            throw e;
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MÉTODOS AUXILIARES
     // ─────────────────────────────────────────────────────────────────────────
@@ -299,6 +352,48 @@ public class LastFmClient {
         LastFmSimilarTracksDTO.SimilarTracksWrapper wrapper = new LastFmSimilarTracksDTO.SimilarTracksWrapper();
         wrapper.setTrack(tracks);
         result.setSimilartracks(wrapper);
+        return result;
+    }
+
+    /**
+     * Convierte la respuesta de {@code tag.getTopTracks} (Map) al DTO tipado.
+     * Estructura esperada: {@code { "tracks": { "track": [...] } }}
+     */
+    @SuppressWarnings("unchecked")
+    private LastFmTagTrackDTO parseTagTracks(Map<String, Object> response) {
+        LastFmTagTrackDTO result = new LastFmTagTrackDTO();
+
+        Object tracksObj = response.get("tracks");
+        if (!(tracksObj instanceof Map)) {
+            return result;
+        }
+
+        Map<String, Object> tracks = (Map<String, Object>) tracksObj;
+        Object trackListObj = tracks.get("track");
+        if (!(trackListObj instanceof List)) {
+            return result;
+        }
+
+        List<Map<String, Object>> trackList = (List<Map<String, Object>>) trackListObj;
+        List<LastFmTagTrackDTO.TagTrack> tagTracks = new ArrayList<>();
+        for (Map<String, Object> t : trackList) {
+            LastFmTagTrackDTO.TagTrack track = new LastFmTagTrackDTO.TagTrack();
+            track.setName(t.get("name") instanceof String name ? name : null);
+            track.setDuration(t.get("duration") instanceof String dur ? dur : null);
+            track.setUrl(t.get("url") instanceof String url ? url : null);
+
+            if (t.get("artist") instanceof Map<?, ?> artistMap) {
+                LastFmTagTrackDTO.TagTrackArtist artist = new LastFmTagTrackDTO.TagTrackArtist();
+                artist.setName(artistMap.get("name") instanceof String name ? name : null);
+                track.setArtist(artist);
+            }
+
+            tagTracks.add(track);
+        }
+
+        LastFmTagTrackDTO.TracksWrapper wrapper = new LastFmTagTrackDTO.TracksWrapper();
+        wrapper.setTrack(tagTracks);
+        result.setTracks(wrapper);
         return result;
     }
 
