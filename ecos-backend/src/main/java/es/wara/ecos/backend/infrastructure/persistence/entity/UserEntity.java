@@ -34,6 +34,9 @@ public class UserEntity {
     @Column(length = 10)
     private String language;
 
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

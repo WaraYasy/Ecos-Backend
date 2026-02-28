@@ -21,6 +21,7 @@ public class UserMapper {
                 entity.getUsername(),
                 entity.getEmail(),
                 entity.getLanguage(),
+                entity.getPasswordHash(),
                 entity.getCreatedAt()
         );
     }
@@ -32,6 +33,7 @@ public class UserMapper {
         entity.setUsername(model.getUsername());
         entity.setEmail(model.getEmail());
         entity.setLanguage(model.getLanguage());
+        entity.setPasswordHash(model.getPasswordHash());
         entity.setCreatedAt(model.getCreatedAt());
         return entity;
     }
