@@ -34,7 +34,6 @@ import java.util.List;
  * @author Wara Pacheco
  * @version 1.0
  * @since 1.0.0
- * @see <a href="../../../../../../../../docs/CACHE_STRATEGY.md">Estrategia de caché de dos capas</a>
  */
 @EnableCaching
 @Configuration
