@@ -4,6 +4,8 @@ import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase
 import es.wara.ecos.backend.application.usecase.user.GetUserProfileUseCase;
 import es.wara.ecos.backend.application.usecase.user.RegisterUserUseCase;
 import es.wara.ecos.backend.application.usecase.user.UpdateUserPreferencesUseCase;
+import es.wara.ecos.backend.domain.exception.ForbiddenException;
+import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import es.wara.ecos.backend.interfaces.rest.dto.CreateUserRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.MusicProfileResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.UpdatePreferencesRequest;
@@ -63,6 +65,9 @@ public class UserController {
     @PutMapping("/{id}/preferences")
     public ResponseEntity<UserResponse> updatePreferences(@PathVariable Long id,
                                                           @Valid @RequestBody UpdatePreferencesRequest request) {
+        if (!id.equals(SecurityUtils.getCurrentUserId())) {
+            throw new ForbiddenException("No puedes modificar las preferencias de otro usuario");
+        }
         return ResponseEntity.ok(UserResponse.from(
                 updateUserPreferencesUseCase.execute(id, request.language())));
     }

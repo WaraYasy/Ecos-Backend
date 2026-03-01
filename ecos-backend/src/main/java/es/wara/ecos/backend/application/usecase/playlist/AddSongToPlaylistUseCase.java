@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.application.usecase.playlist;
 
+import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.domain.port.SongRepository;
@@ -24,15 +25,20 @@ public class AddSongToPlaylistUseCase {
     }
 
     /**
-     * Añade una canción al final de la playlist indicada.
+     * Añade una canción al final de la playlist indicada verificando que pertenezca al usuario actual.
      *
-     * @param playlistId identificador de la playlist destino
-     * @param songId     identificador de la canción a añadir
+     * @param playlistId    identificador de la playlist destino
+     * @param songId        identificador de la canción a añadir
+     * @param currentUserId identificador del usuario autenticado
      * @throws IllegalArgumentException si la playlist o la canción no existen
+     * @throws ForbiddenException       si el usuario no es el propietario
      */
-    public void execute(Long playlistId, Long songId) {
+    public void execute(Long playlistId, Long songId, Long currentUserId) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + playlistId));
+        if (!playlist.getUserId().equals(currentUserId)) {
+            throw new ForbiddenException("No tienes permiso para modificar esta playlist");
+        }
 
         songRepository.findById(songId)
                 .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + songId));

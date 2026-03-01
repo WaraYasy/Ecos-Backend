@@ -23,8 +23,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import es.wara.ecos.backend.domain.exception.ForbiddenException;
+
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -108,6 +115,42 @@ class PlaylistControllerTest {
         mockMvc.perform(get("/v1/playlists/99"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+    }
+
+    @Test
+    void delete_ownPlaylist_returns204() throws Exception {
+        doNothing().when(deletePlaylistUseCase).execute(eq(1L), eq(5L));
+
+        mockMvc.perform(delete("/v1/playlists/1"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void delete_foreignPlaylist_returns403() throws Exception {
+        doThrow(new ForbiddenException("No tienes permiso para eliminar esta playlist"))
+                .when(deletePlaylistUseCase).execute(eq(1L), eq(5L));
+
+        mockMvc.perform(delete("/v1/playlists/1"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+    }
+
+    @Test
+    void addSong_ownPlaylist_returns204() throws Exception {
+        doNothing().when(addSongToPlaylistUseCase).execute(eq(1L), eq(20L), eq(5L));
+
+        mockMvc.perform(post("/v1/playlists/1/songs")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"songId\": 20}"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void removeSong_ownPlaylist_returns204() throws Exception {
+        doNothing().when(removeSongFromPlaylistUseCase).execute(eq(1L), anyLong(), eq(5L));
+
+        mockMvc.perform(delete("/v1/playlists/1/songs/10"))
+                .andExpect(status().isNoContent());
     }
 
 }

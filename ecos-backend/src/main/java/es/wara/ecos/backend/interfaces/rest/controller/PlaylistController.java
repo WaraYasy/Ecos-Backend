@@ -84,20 +84,20 @@ public class PlaylistController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        deletePlaylistUseCase.execute(id);
+        deletePlaylistUseCase.execute(id, SecurityUtils.getCurrentUserId());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/songs")
     public ResponseEntity<Void> addSong(@PathVariable Long id,
                                         @Valid @RequestBody AddSongRequest request) {
-        addSongToPlaylistUseCase.execute(id, request.songId());
+        addSongToPlaylistUseCase.execute(id, request.songId(), SecurityUtils.getCurrentUserId());
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}/songs/{songId}")
     public ResponseEntity<Void> removeSong(@PathVariable Long id, @PathVariable Long songId) {
-        removeSongFromPlaylistUseCase.execute(id, songId);
+        removeSongFromPlaylistUseCase.execute(id, songId, SecurityUtils.getCurrentUserId());
         return ResponseEntity.noContent().build();
     }
 

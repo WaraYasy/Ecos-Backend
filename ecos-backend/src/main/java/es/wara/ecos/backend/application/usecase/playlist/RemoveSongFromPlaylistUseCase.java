@@ -1,5 +1,7 @@
 package es.wara.ecos.backend.application.usecase.playlist;
 
+import es.wara.ecos.backend.domain.exception.ForbiddenException;
+import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import org.springframework.stereotype.Service;
 
@@ -20,15 +22,20 @@ public class RemoveSongFromPlaylistUseCase {
     }
 
     /**
-     * Elimina una canción de la playlist indicada.
+     * Elimina una canción de la playlist indicada verificando que pertenezca al usuario actual.
      *
-     * @param playlistId identificador de la playlist
-     * @param songId     identificador de la canción a eliminar
+     * @param playlistId    identificador de la playlist
+     * @param songId        identificador de la canción a eliminar
+     * @param currentUserId identificador del usuario autenticado
      * @throws IllegalArgumentException si la playlist no existe
+     * @throws ForbiddenException       si el usuario no es el propietario
      */
-    public void execute(Long playlistId, Long songId) {
-        playlistRepository.findById(playlistId)
+    public void execute(Long playlistId, Long songId, Long currentUserId) {
+        Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + playlistId));
+        if (!playlist.getUserId().equals(currentUserId)) {
+            throw new ForbiddenException("No tienes permiso para modificar esta playlist");
+        }
         playlistRepository.removeSong(playlistId, songId);
     }
 
