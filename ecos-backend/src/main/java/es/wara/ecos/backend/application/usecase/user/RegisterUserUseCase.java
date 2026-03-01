@@ -2,8 +2,8 @@ package es.wara.ecos.backend.application.usecase.user;
 
 import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.model.User;
+import es.wara.ecos.backend.domain.port.PasswordHasher;
 import es.wara.ecos.backend.domain.port.UserRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,11 +19,11 @@ import java.time.LocalDateTime;
 public class RegisterUserUseCase {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordHasher passwordHasher;
 
-    public RegisterUserUseCase(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        this.userRepository  = userRepository;
-        this.passwordEncoder = passwordEncoder;
+    public RegisterUserUseCase(UserRepository userRepository, PasswordHasher passwordHasher) {
+        this.userRepository = userRepository;
+        this.passwordHasher = passwordHasher;
     }
 
     /**
@@ -47,7 +47,7 @@ public class RegisterUserUseCase {
         User user = new User();
         user.setUsername(username);
         user.setEmail(email);
-        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setPasswordHash(passwordHasher.hash(password));
         user.setLanguage(language);
         user.setCreatedAt(LocalDateTime.now());
         return userRepository.save(user);

@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
@@ -75,9 +78,10 @@ public class SpotifyAuthService implements SpotifyAuthPort {
         Long userId = Long.parseLong(state);
 
         HttpHeaders headers = buildBasicAuthHeaders();
-        String body = "grant_type=authorization_code"
-                + "&code="         + code
-                + "&redirect_uri=" + redirectUri;
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "authorization_code");
+        body.add("code", code);
+        body.add("redirect_uri", redirectUri);
 
         ResponseEntity<Map> response =
                 restTemplate.postForEntity(TOKEN_URL, new HttpEntity<>(body, headers), Map.class);
@@ -108,7 +112,9 @@ public class SpotifyAuthService implements SpotifyAuthPort {
         String refreshToken = encryptor.decrypt(current.getRefreshToken());
 
         HttpHeaders headers = buildBasicAuthHeaders();
-        String body = "grant_type=refresh_token&refresh_token=" + refreshToken;
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "refresh_token");
+        body.add("refresh_token", refreshToken);
 
         ResponseEntity<Map> response =
                 restTemplate.postForEntity(TOKEN_URL, new HttpEntity<>(body, headers), Map.class);

@@ -2,13 +2,13 @@ package es.wara.ecos.backend.application.usecase.user;
 
 import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.model.User;
+import es.wara.ecos.backend.domain.port.PasswordHasher;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 
@@ -26,7 +26,7 @@ class RegisterUserUseCaseTest {
     UserRepository userRepository;
 
     @Mock
-    PasswordEncoder passwordEncoder;
+    PasswordHasher passwordHasher;
 
     @InjectMocks
     RegisterUserUseCase useCase;
@@ -35,7 +35,7 @@ class RegisterUserUseCaseTest {
     void execute_uniqueData_createsUserWithCreatedAt() {
         when(userRepository.findByUsername("wara")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("wara@ecos.es")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("secreta")).thenReturn("hashed-password");
+        when(passwordHasher.hash("secreta")).thenReturn("hashed-password");
         when(userRepository.save(any())).thenAnswer(inv -> {
             User u = inv.getArgument(0);
             u.setId(1L);

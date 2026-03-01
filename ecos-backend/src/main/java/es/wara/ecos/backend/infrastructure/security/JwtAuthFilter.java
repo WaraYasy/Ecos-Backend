@@ -38,11 +38,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            if (jwtService.isValid(token)) {
+            try {
                 Long userId = jwtService.extractUserId(token);
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(userId.toString(), null, List.of());
                 SecurityContextHolder.getContext().setAuthentication(auth);
+            } catch (Exception ignored) {
+                // Token inválido — continuar sin autenticación
             }
         }
 
