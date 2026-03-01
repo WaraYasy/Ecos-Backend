@@ -56,11 +56,11 @@ class SpotifyAuthControllerTest {
 
     @Test
     void callback_validCodeAndState_returns200WithConfirmation() throws Exception {
-        doNothing().when(spotifyAuthPort).exchangeCodeForToken("abc", "1");
+        doNothing().when(spotifyAuthPort).exchangeCodeForToken("abc", "test-state-uuid");
 
         mockMvc.perform(get("/callback/spotify")
                         .param("code", "abc")
-                        .param("state", "1"))
+                        .param("state", "test-state-uuid"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Cuenta Spotify vinculada"));
     }

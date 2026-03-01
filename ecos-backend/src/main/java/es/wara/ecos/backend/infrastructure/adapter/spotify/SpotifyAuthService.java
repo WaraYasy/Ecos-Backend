@@ -1,8 +1,10 @@
 package es.wara.ecos.backend.infrastructure.adapter.spotify;
 
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
+import es.wara.ecos.backend.infrastructure.persistence.entity.OAuthStateEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.SpotifyTokenEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.UserEntity;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaOAuthStateRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSpotifyTokenRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +23,7 @@ import org.springframework.util.MultiValueMap;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Implementación del flujo Authorization Code de Spotify.
@@ -52,30 +55,48 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
     private final RestTemplate restTemplate;
     private final JpaSpotifyTokenRepository tokenRepository;
+    private final JpaOAuthStateRepository oAuthStateRepository;
     private final TextEncryptor encryptor;
 
     public SpotifyAuthService(RestTemplate restTemplate,
                               JpaSpotifyTokenRepository tokenRepository,
+                              JpaOAuthStateRepository oAuthStateRepository,
                               TextEncryptor encryptor) {
-        this.restTemplate    = restTemplate;
-        this.tokenRepository = tokenRepository;
-        this.encryptor       = encryptor;
+        this.restTemplate        = restTemplate;
+        this.tokenRepository     = tokenRepository;
+        this.oAuthStateRepository = oAuthStateRepository;
+        this.encryptor           = encryptor;
     }
 
     @Override
+    @Transactional
     public String getAuthorizationUrl(Long userId) {
+        String state = UUID.randomUUID().toString();
+        OAuthStateEntity oauthState = new OAuthStateEntity();
+        oauthState.setState(state);
+        oauthState.setUserId(userId);
+        oauthState.setExpiresAt(Instant.now().plusSeconds(600));
+        oAuthStateRepository.save(oauthState);
+
         return AUTH_URL
                 + "?client_id="     + clientId
                 + "&response_type=code"
                 + "&redirect_uri="  + redirectUri
                 + "&scope="         + SCOPES.replace(" ", "%20")
-                + "&state="         + userId;
+                + "&state="         + state;
     }
 
     @Override
     @Transactional
     public void exchangeCodeForToken(String code, String state) {
-        Long userId = Long.parseLong(state);
+        OAuthStateEntity oauthState = oAuthStateRepository.findById(state)
+                .orElseThrow(() -> new IllegalArgumentException("Estado OAuth inválido o expirado"));
+        if (oauthState.getExpiresAt().isBefore(Instant.now())) {
+            oAuthStateRepository.delete(oauthState);
+            throw new IllegalArgumentException("Estado OAuth expirado");
+        }
+        Long userId = oauthState.getUserId();
+        oAuthStateRepository.delete(oauthState);
 
         HttpHeaders headers = buildBasicAuthHeaders();
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
