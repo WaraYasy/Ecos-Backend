@@ -18,6 +18,7 @@ public record SongResponse(
         String album,
         Integer year,
         String spotifyId,
+        String isrc,
         Integer durationMs,
         String previewUrl,
         List<String> tags,
@@ -35,6 +36,7 @@ public record SongResponse(
                 song.getAlbum() != null ? song.getAlbum().getTitle() : null,
                 song.getAlbum() != null ? song.getAlbum().getYear() : null,
                 song.getSpotifyId(),
+                song.getIsrc(),
                 song.getDurationMs(),
                 song.getPreviewUrl(),
                 song.getTags() != null

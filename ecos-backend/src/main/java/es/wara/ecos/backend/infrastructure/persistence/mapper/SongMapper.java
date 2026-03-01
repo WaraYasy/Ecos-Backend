@@ -35,6 +35,7 @@ public class SongMapper {
         Song song = new Song();
         song.setId(entity.getId());
         song.setSpotifyId(entity.getSpotifyId());
+        song.setIsrc(entity.getIsrc());
         song.setTitle(entity.getTitle());
         song.setDurationMs(entity.getDurationMs());
         song.setPreviewUrl(entity.getPreviewUrl());
@@ -62,6 +63,7 @@ public class SongMapper {
         SongEntity entity = new SongEntity();
         entity.setId(model.getId());
         entity.setSpotifyId(model.getSpotifyId());
+        entity.setIsrc(model.getIsrc());
         entity.setTitle(model.getTitle());
         entity.setDurationMs(model.getDurationMs());
         entity.setPreviewUrl(model.getPreviewUrl());

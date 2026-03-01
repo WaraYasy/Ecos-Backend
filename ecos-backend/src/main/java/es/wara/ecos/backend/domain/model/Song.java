@@ -24,6 +24,8 @@ public class Song {
 
     private Long id;
     private String spotifyId;
+    /** Código ISRC (International Standard Recording Code, 12 chars). Puede ser null. */
+    private String isrc;
     private String title;
     /** Duración en milisegundos. */
     private Integer durationMs;

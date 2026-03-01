@@ -487,6 +487,7 @@ public class MusicProviderAdapter implements MusicProvider {
 
         Song song = new Song();
         song.setSpotifyId(dto.getId());
+        song.setIsrc(dto.getExternalIds() != null ? dto.getExternalIds().getIsrc() : null);
         song.setTitle(dto.getName());
         song.setDurationMs(dto.getDurationMs());
         song.setPreviewUrl(dto.getPreviewUrl());

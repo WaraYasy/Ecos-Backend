@@ -50,6 +50,13 @@ public class SpotifyTrackDTO {
     private List<ArtistSimple> artists;
 
     /**
+     * Identificadores externos del track (ISRC, EAN, UPC).
+     * Presente en respuestas de {@code GET /v1/tracks/{id}} y {@code GET /v1/search?type=track}.
+     */
+    @JsonProperty("external_ids")
+    private ExternalIds externalIds;
+
+    /**
      * Álbum simplificado incluido en la respuesta de track.
      */
     @Data
@@ -76,5 +83,16 @@ public class SpotifyTrackDTO {
     public static class ArtistSimple {
         private String id;
         private String name;
+    }
+
+    /**
+     * Identificadores externos del track.
+     */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ExternalIds {
+        /** International Standard Recording Code (12 caracteres, ej. USRC17607839). */
+        private String isrc;
     }
 }

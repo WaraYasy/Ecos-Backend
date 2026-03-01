@@ -30,6 +30,9 @@ public class SongEntity {
     @Column(name = "spotify_id", unique = true, nullable = false, length = 50)
     private String spotifyId;
 
+    @Column(length = 12, unique = true)
+    private String isrc;
+
     @Column(nullable = false, length = 255)
     private String title;
 

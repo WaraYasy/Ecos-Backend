@@ -32,6 +32,14 @@ public interface SongRepository {
     Optional<Song> findBySpotifyId(String spotifyId);
 
     /**
+     * Busca una canción por su código ISRC.
+     *
+     * @param isrc código ISRC de 12 caracteres (ej. USRC17607839)
+     * @return la canción encontrada, o vacío si no existe
+     */
+    Optional<Song> findByIsrc(String isrc);
+
+    /**
      * Persiste una canción en el repositorio.
      *
      * @param song canción a guardar
