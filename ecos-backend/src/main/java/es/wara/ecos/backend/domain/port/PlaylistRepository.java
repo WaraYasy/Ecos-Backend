@@ -62,4 +62,12 @@ public interface PlaylistRepository {
      */
     void removeSong(Long playlistId, Long songId);
 
+    /**
+     * Cuenta el número de canciones en una playlist.
+     *
+     * @param playlistId identificador de la playlist
+     * @return número de canciones en la playlist
+     */
+    int countSongs(Long playlistId);
+
 }

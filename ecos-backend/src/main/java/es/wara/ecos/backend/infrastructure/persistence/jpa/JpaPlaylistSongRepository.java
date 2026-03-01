@@ -17,4 +17,6 @@ public interface JpaPlaylistSongRepository extends JpaRepository<PlaylistSongEnt
 
     List<PlaylistSongEntity> findById_PlaylistIdOrderByPosition(Long playlistId);
 
+    int countById_PlaylistId(Long playlistId);
+
 }

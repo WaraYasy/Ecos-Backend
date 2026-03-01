@@ -2,6 +2,7 @@ package es.wara.ecos.backend.infrastructure.persistence.mapper;
 
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.infrastructure.persistence.entity.PlaylistEntity;
+import es.wara.ecos.backend.infrastructure.persistence.entity.UserEntity;
 import org.springframework.stereotype.Component;
 
 /**
@@ -34,6 +35,11 @@ public class PlaylistMapper {
         entity.setDescription(model.getDescription());
         entity.setSpotifyExportId(model.getSpotifyExportId());
         entity.setCreatedAt(model.getCreatedAt());
+        if (model.getUserId() != null) {
+            UserEntity user = new UserEntity();
+            user.setId(model.getUserId());
+            entity.setUser(user);
+        }
         return entity;
     }
 

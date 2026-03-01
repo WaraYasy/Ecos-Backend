@@ -78,4 +78,9 @@ public class PlaylistRepositoryImpl implements PlaylistRepository {
         jpaPlaylistSong.deleteById(new PlaylistSongId(playlistId, songId));
     }
 
+    @Override
+    public int countSongs(Long playlistId) {
+        return jpaPlaylistSong.countById_PlaylistId(playlistId);
+    }
+
 }

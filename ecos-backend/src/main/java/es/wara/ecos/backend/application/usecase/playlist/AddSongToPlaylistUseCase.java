@@ -37,8 +37,7 @@ public class AddSongToPlaylistUseCase {
         songRepository.findById(songId)
                 .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + songId));
 
-        // La posición es la siguiente al final de la lista actual
-        int nextPosition = (playlist.getSongs() != null) ? playlist.getSongs().size() + 1 : 1;
+        int nextPosition = playlistRepository.countSongs(playlistId) + 1;
         playlistRepository.addSong(playlistId, songId, nextPosition);
     }
 
