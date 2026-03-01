@@ -5,15 +5,21 @@ import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase
 import es.wara.ecos.backend.application.usecase.user.GetUserProfileUseCase;
 import es.wara.ecos.backend.application.usecase.user.RegisterUserUseCase;
 import es.wara.ecos.backend.application.usecase.user.UpdateUserPreferencesUseCase;
+import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.model.MusicProfile;
 import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -57,6 +63,11 @@ class UserControllerTest {
 
     private static final User USER = new User(1L, "wara", "wara@ecos.es", "es", null, LocalDateTime.now());
 
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void register_validBody_returns201WithUserResponse() throws Exception {
         when(registerUserUseCase.execute("wara", "wara@ecos.es", "pass123", "es")).thenReturn(USER);
@@ -84,17 +95,17 @@ class UserControllerTest {
     }
 
     @Test
-    void register_duplicateUsername_returns404() throws Exception {
+    void register_duplicateUsername_returns409() throws Exception {
         when(registerUserUseCase.execute(any(), any(), any(), any()))
-                .thenThrow(new IllegalArgumentException("El nombre de usuario ya está en uso: wara"));
+                .thenThrow(new ConflictException("El nombre de usuario ya está en uso: wara"));
 
         mockMvc.perform(post("/v1/users")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {"username": "wara", "email": "x@x.es", "password": "pass123"}
                                 """))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("CONFLICT"));
     }
 
     @Test
@@ -117,7 +128,10 @@ class UserControllerTest {
     }
 
     @Test
-    void updatePreferences_validBody_returns200WithUpdatedLanguage() throws Exception {
+    void updatePreferences_ownUser_returns200WithUpdatedLanguage() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("1", null, List.of()));
+
         User updated = new User(1L, "wara", "wara@ecos.es", "en", null, LocalDateTime.now());
         when(updateUserPreferencesUseCase.execute(eq(1L), eq("en"))).thenReturn(updated);
 
