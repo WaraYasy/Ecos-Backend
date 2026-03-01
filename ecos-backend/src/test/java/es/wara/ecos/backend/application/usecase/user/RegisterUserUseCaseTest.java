@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.application.usecase.user;
 
+import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -51,23 +52,23 @@ class RegisterUserUseCaseTest {
     }
 
     @Test
-    void execute_duplicateUsername_throwsIllegalArgumentException() {
+    void execute_duplicateUsername_throwsConflictException() {
         when(userRepository.findByUsername("wara")).thenReturn(Optional.of(new User()));
 
         assertThatThrownBy(() -> useCase.execute("wara", "nuevo@ecos.es", "pass", "es"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("wara");
 
         verify(userRepository, never()).save(any());
     }
 
     @Test
-    void execute_duplicateEmail_throwsIllegalArgumentException() {
+    void execute_duplicateEmail_throwsConflictException() {
         when(userRepository.findByUsername("nuevo")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("wara@ecos.es")).thenReturn(Optional.of(new User()));
 
         assertThatThrownBy(() -> useCase.execute("nuevo", "wara@ecos.es", "pass", "es"))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("wara@ecos.es");
 
         verify(userRepository, never()).save(any());

@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.application.usecase.user;
 
+import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,10 +38,10 @@ public class RegisterUserUseCase {
      */
     public User execute(String username, String email, String password, String language) {
         if (userRepository.findByUsername(username).isPresent()) {
-            throw new IllegalArgumentException("El nombre de usuario ya está en uso: " + username);
+            throw new ConflictException("El nombre de usuario ya está en uso: " + username);
         }
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new IllegalArgumentException("El email ya está en uso: " + email);
+            throw new ConflictException("El email ya está en uso: " + email);
         }
 
         User user = new User();
