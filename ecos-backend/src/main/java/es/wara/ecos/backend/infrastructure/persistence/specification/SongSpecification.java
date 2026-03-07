@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * Especificaciones JPA para la búsqueda multidimensional de canciones en los 5 cuadrantes de ECOS.
  *
- * <p>El método principal {@link #from(SearchParams)} combina con {@code AND} solo los
+ * <p>Función principal {@link #from(SearchParams)} combina con {@code AND} solo los
  * predicados cuyo parámetro no es nulo. Los cuadrantes soportados son:</p>
  * <ul>
  *   <li><b>Texto libre</b> ({@code q}): busca en título de la canción y nombre del artista</li>

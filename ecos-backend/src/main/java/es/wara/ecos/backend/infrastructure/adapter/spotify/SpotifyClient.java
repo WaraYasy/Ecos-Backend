@@ -83,7 +83,7 @@ public class SpotifyClient implements SpotifyPlaylistPort {
     @PostConstruct
     private void validateCredentials() {
         if (!StringUtils.hasText(clientId) || !StringUtils.hasText(clientSecret)) {
-            log.error("✗ Credenciales de Spotify no configuradas correctamente");
+            log.error("Credenciales de Spotify no configuradas correctamente");
             throw new IllegalStateException(
                 "Las credenciales de Spotify (SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET) deben estar configuradas en el archivo .env"
             );
