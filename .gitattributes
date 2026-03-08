@@ -1,0 +1,3 @@
+# Normalizar line endings del wrapper de Maven
+ecos-backend/mvnw        text eol=lf
+ecos-backend/*.cmd       text eol=crlf

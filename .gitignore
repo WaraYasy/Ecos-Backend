@@ -1,11 +1,22 @@
-HELP.md
-target/
-.claude/
-.mvn/wrapper/maven-wrapper.jar
+# ==================================================================
+# .gitignore — raíz del repositorio Ecos-Backend
+# El proyecto Spring Boot está en el subdirectorio ecos-backend/
+# ==================================================================
+
+# ── Maven (rutas relativas al subdirectorio del proyecto) ─────────
+ecos-backend/target/
+ecos-backend/.mvn/wrapper/maven-wrapper.jar
+ecos-backend/HELP.md
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
+# ── IntelliJ IDEA ─────────────────────────────────────────────────
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# ── STS / Eclipse ─────────────────────────────────────────────────
 .apt_generated
 .classpath
 .factorypath
@@ -14,32 +25,30 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
+# ── NetBeans ──────────────────────────────────────────────────────
+ecos-backend/nbproject/private/
+ecos-backend/nbbuild/
+ecos-backend/dist/
+ecos-backend/nbdist/
+ecos-backend/.nb-gradle/
+ecos-backend/build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
+# ── VS Code ───────────────────────────────────────────────────────
 .vscode/
 
-### Variables de entorno (NO SUBIR) ###
+# ── Variables de entorno (NUNCA subir) ────────────────────────────
 .env
+ecos-backend/.env
 
-### Archivos de log (NO SUBIR) ###
+# ── Archivos de log ───────────────────────────────────────────────
 logs/
 *.log
 
-### Documentación local de desarrollo ###
+# ── Documentación local de desarrollo (no se sube a Git) ─────────
 dev.md
-docs/
+ecos-backend/docs/
+
+# ── Claude Code ───────────────────────────────────────────────────
+.claude/

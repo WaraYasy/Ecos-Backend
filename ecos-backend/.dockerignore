@@ -1,22 +1,35 @@
-# Directorios de build — se generan dentro del contenedor
+# ==================================================================
+# .dockerignore — contexto de build Docker para ecos-backend
+# Rutas relativas al directorio ecos-backend/ (donde está el Dockerfile)
+# ==================================================================
+
+# ── Build output — se genera dentro del contenedor ───────────────
 target/
 
-# Entorno local — nunca va a producción
+# ── Entorno local ─────────────────────────────────────────────────
 .env
 logs/
+*.log
 
-# Git e IDE
+# ── Git e IDE ─────────────────────────────────────────────────────
 .git/
 .gitignore
+.gitattributes
 .idea/
 *.iml
+*.iws
+*.ipr
 .vscode/
+.claude/
 
-# Documentación y scripts de desarrollo
+# ── Maven wrapper (se ejecuta dentro del contenedor) ─────────────
+.mvn/wrapper/maven-wrapper.jar
+
+# ── Documentación y colecciones Postman ──────────────────────────
 docs/
 dev.md
 HELP.md
 *.postman_collection.json
 
-# Tests — ya corren en CI antes del despliegue
+# ── Tests — se ejecutan en CI antes del despliegue ───────────────
 src/test/
