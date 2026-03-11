@@ -15,19 +15,29 @@ import org.springframework.security.core.context.SecurityContextHolder;
  */
 public final class SecurityUtils {
 
+    /** Clase utilitaria: constructor privado para evitar instanciación accidental. */
     private SecurityUtils() {}
 
     /**
      * Devuelve el identificador del usuario autenticado en la petición actual.
+     * <p>
+     * El {@code Authentication} lo establece {@link JwtAuthFilter} durante el
+     * procesamiento del filtro, usando el {@code userId} como nombre del principal.
+     * </p>
      *
      * @return userId extraído del token JWT
      * @throws IllegalStateException si no hay usuario autenticado en el contexto
+     *                               (petición pública o token ausente/inválido)
      */
     public static Long getCurrentUserId() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
+
+        // El contexto está vacío si la petición no portaba un token válido
         if (auth == null || auth.getName() == null) {
             throw new IllegalStateException("No hay usuario autenticado en el contexto de seguridad");
         }
+
+        // El nombre del principal es el userId almacenado como String en JwtAuthFilter
         return Long.parseLong(auth.getName());
     }
 

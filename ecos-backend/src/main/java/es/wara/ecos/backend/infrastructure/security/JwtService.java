@@ -23,13 +23,25 @@ import java.util.Date;
 @Component
 public class JwtService {
 
+    /** Clave secreta en texto plano inyectada desde la variable de entorno {@code JWT_SECRET}. */
     @Value("${jwt.secret}")
     private String secret;
 
+    /** Tiempo de vida del token en milisegundos. Por defecto 24 h (86 400 000 ms). */
     @Value("${jwt.expiration-ms:86400000}")
     private long expirationMs;
 
+    /**
+     * Construye la clave HMAC-SHA a partir del secreto configurado.
+     * <p>
+     * Se recalcula en cada llamada para reflejar posibles rotaciones de secreto
+     * sin necesidad de reiniciar el contexto de Spring.
+     * </p>
+     *
+     * @return clave criptográfica lista para firmar o verificar tokens
+     */
     private SecretKey getKey() {
+        // Convierte el secreto UTF-8 en una SecretKey apta para HMAC-SHA256/384/512
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -37,43 +49,59 @@ public class JwtService {
      * Genera un token JWT con el userId como sujeto.
      *
      * @param userId identificador del usuario
-     * @return token JWT firmado
+     * @return token JWT firmado con HMAC-SHA y listo para enviar al cliente
      */
     public String generateToken(Long userId) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + expirationMs);
+
         return Jwts.builder()
-                .subject(userId.toString())
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expirationMs))
-                .signWith(getKey())
-                .compact();
+                .subject(userId.toString())   // sujeto = userId en formato String
+                .issuedAt(now)                // momento de emisión (claim "iat")
+                .expiration(expiry)           // momento de expiración (claim "exp")
+                .signWith(getKey())           // firma HMAC-SHA256
+                .compact();                   // serializa a string compacto Base64URL
     }
 
     /**
      * Extrae el userId del token JWT.
+     * <p>
+     * Lanza una excepción de jjwt (p.ej. {@code ExpiredJwtException}) si el token
+     * ha expirado o la firma no es válida.
+     * </p>
      *
-     * @param token token JWT válido
-     * @return identificador del usuario
+     * @param token token JWT válido y firmado
+     * @return identificador del usuario contenido en el claim {@code sub}
      */
     public Long extractUserId(String token) {
+        // Parsea y verifica el token; lanza excepción si es inválido o expirado
         Claims claims = Jwts.parser()
                 .verifyWith(getKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+
+        // El sujeto se almacenó como String al generar el token
         return Long.parseLong(claims.getSubject());
     }
 
     /**
      * Valida la firma y la expiración del token JWT.
+     * <p>
+     * Devuelve {@code false} para cualquier error de jjwt: firma incorrecta,
+     * token expirado, formato malformado, etc.
+     * </p>
      *
      * @param token token a validar
      * @return {@code true} si el token es válido y no ha expirado
      */
     public boolean isValid(String token) {
         try {
+            // Intentar parsear el token: si no lanza excepción, es válido
             Jwts.parser().verifyWith(getKey()).build().parseSignedClaims(token);
             return true;
         } catch (Exception e) {
+            // Cualquier excepción indica token inválido (expirado, malformado, firma incorrecta…)
             return false;
         }
     }
