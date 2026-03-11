@@ -25,14 +25,23 @@ public class SpotifyAuthController {
 
     private final SpotifyAuthPort spotifyAuthPort;
 
+    /**
+     * Inyecta el port de autorización de Spotify.
+     *
+     * @param spotifyAuthPort adaptador que implementa el flujo OAuth de Spotify
+     */
     public SpotifyAuthController(SpotifyAuthPort spotifyAuthPort) {
         this.spotifyAuthPort = spotifyAuthPort;
     }
 
     /**
-     * Genera la URL de autorización de Spotify para que el usuario vincule su cuenta.
+     * Inicia el flujo OAuth de Spotify generando la URL de autorización.
+     * <p>
+     * Genera un {@code state} UUID y lo persiste en la tabla {@code oauth_states} con TTL de 10 min
+     * para proteger contra ataques CSRF. El cliente móvil debe redirigir al usuario a la URL devuelta.
+     * </p>
      *
-     * @return JSON con la URL de autorización
+     * @return {@code 200 OK} con un JSON {@code {"url": "..."}} apuntando a la pantalla de Spotify
      */
     @GetMapping("/v1/auth/spotify/login")
     public ResponseEntity<Map<String, String>> login() {
@@ -43,11 +52,14 @@ public class SpotifyAuthController {
 
     /**
      * Callback que Spotify invoca tras la autorización del usuario.
-     * Intercambia el código por tokens y los almacena en base de datos.
+     * <p>
+     * Valida el {@code state} contra la tabla {@code oauth_states} para prevenir CSRF,
+     * intercambia el código por tokens de acceso/refresco y los persiste en base de datos.
+     * </p>
      *
-     * @param code  código de autorización devuelto por Spotify
-     * @param state identificador del usuario en ECOS (enviado como state)
-     * @return confirmación de vinculación
+     * @param code  código de autorización de un solo uso devuelto por Spotify
+     * @param state UUID anti-CSRF generado al iniciar el flujo; debe coincidir con el almacenado
+     * @return {@code 200 OK} con mensaje de confirmación de vinculación
      */
     @GetMapping("/callback/spotify")
     public ResponseEntity<String> callback(@RequestParam String code, @RequestParam String state) {

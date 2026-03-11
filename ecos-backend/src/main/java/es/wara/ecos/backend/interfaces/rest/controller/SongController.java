@@ -27,17 +27,35 @@ public class SongController {
     private final GetSongByIdUseCase getSongByIdUseCase;
     private final GetSimilarSongsUseCase getSimilarSongsUseCase;
 
+    /**
+     * Inyecta los casos de uso necesarios para consultar canciones.
+     *
+     * @param getSongByIdUseCase     consulta de una canción por su ID
+     * @param getSimilarSongsUseCase búsqueda de canciones similares a una dada
+     */
     public SongController(GetSongByIdUseCase getSongByIdUseCase,
                           GetSimilarSongsUseCase getSimilarSongsUseCase) {
         this.getSongByIdUseCase = getSongByIdUseCase;
         this.getSimilarSongsUseCase = getSimilarSongsUseCase;
     }
 
+    /**
+     * Devuelve los detalles completos de una canción por su ID.
+     *
+     * @param id identificador de la canción
+     * @return {@code 200 OK} con la canción, o {@code 404} si no existe
+     */
     @GetMapping("/{id}")
     public ResponseEntity<SongResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(SongResponse.from(getSongByIdUseCase.execute(id)));
     }
 
+    /**
+     * Devuelve canciones similares a la indicada según el algoritmo de similitud de ECOS.
+     *
+     * @param id identificador de la canción de referencia
+     * @return {@code 200 OK} con la lista de canciones relacionadas
+     */
     @GetMapping("/{id}/related")
     public ResponseEntity<List<SongResponse>> getRelated(@PathVariable Long id) {
         List<SongResponse> related = getSimilarSongsUseCase.execute(id)
@@ -47,10 +65,22 @@ public class SongController {
         return ResponseEntity.ok(related);
     }
 
+    /**
+     * Devuelve las características de audio de una canción (energía, valencia, BPM, etc.).
+     * <p>
+     * Responde {@code 404} si la canción existe pero aún no tiene características
+     * de audio calculadas (p.ej. no fue encontrada en Spotify).
+     * </p>
+     *
+     * @param id identificador de la canción
+     * @return {@code 200 OK} con las características de audio, o {@code 404} si no están disponibles
+     */
     @GetMapping("/{id}/audio-features")
     public ResponseEntity<AudioFeaturesResponse> getAudioFeatures(@PathVariable Long id) {
         Song song = getSongByIdUseCase.execute(id);
         AudioFeaturesResponse response = AudioFeaturesResponse.from(song.getAudioFeatures());
+
+        // getAudioFeatures() puede ser null si Spotify no devolvió datos para esta canción
         if (response == null) {
             return ResponseEntity.notFound().build();
         }

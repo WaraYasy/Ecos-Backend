@@ -25,6 +25,12 @@ public class AuthController {
     private final LoginUseCase loginUseCase;
     private final JwtService jwtService;
 
+    /**
+     * Inyecta las dependencias necesarias para autenticar usuarios y generar tokens.
+     *
+     * @param loginUseCase caso de uso que verifica credenciales y devuelve el userId
+     * @param jwtService   servicio para generar el token JWT de respuesta
+     */
     public AuthController(LoginUseCase loginUseCase, JwtService jwtService) {
         this.loginUseCase = loginUseCase;
         this.jwtService   = jwtService;

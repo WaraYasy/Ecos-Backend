@@ -37,6 +37,14 @@ public class SessionController {
     private final GetSessionHistoryUseCase getSessionHistoryUseCase;
     private final AddNodeToSessionUseCase addNodeToSessionUseCase;
 
+    /**
+     * Inyecta los casos de uso necesarios para las operaciones sobre sesiones de exploración.
+     *
+     * @param getSessionByIdUseCase    consulta de una sesión por ID
+     * @param createSessionUseCase     creación de una nueva sesión de exploración
+     * @param getSessionHistoryUseCase historial de sesiones del usuario autenticado
+     * @param addNodeToSessionUseCase  adición de un nodo (canción con posición) a una sesión
+     */
     public SessionController(
             GetSessionByIdUseCase getSessionByIdUseCase,
             CreateExplorationSessionUseCase createSessionUseCase,
@@ -49,6 +57,12 @@ public class SessionController {
         this.addNodeToSessionUseCase = addNodeToSessionUseCase;
     }
 
+    /**
+     * Crea una nueva sesión de exploración musical para el usuario autenticado.
+     *
+     * @param request cuerpo con el {@code startSongId} (canción inicial del grafo)
+     * @return {@code 201 Created} con la sesión recién creada
+     */
     @PostMapping
     public ResponseEntity<SessionResponse> create(@Valid @RequestBody CreateSessionRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
@@ -56,6 +70,11 @@ public class SessionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(SessionResponse.from(session));
     }
 
+    /**
+     * Devuelve el historial de sesiones de exploración del usuario autenticado.
+     *
+     * @return {@code 200 OK} con la lista de sesiones ordenadas por fecha (puede ser vacía)
+     */
     @GetMapping
     public ResponseEntity<List<SessionResponse>> getByUser() {
         Long userId = SecurityUtils.getCurrentUserId();
@@ -64,11 +83,28 @@ public class SessionController {
         return ResponseEntity.ok(sessions);
     }
 
+    /**
+     * Devuelve los detalles de una sesión de exploración por su ID, incluyendo todos sus nodos.
+     *
+     * @param id identificador de la sesión
+     * @return {@code 200 OK} con la sesión, o {@code 404} si no existe
+     */
     @GetMapping("/{id}")
     public ResponseEntity<SessionResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(SessionResponse.from(getSessionByIdUseCase.execute(id)));
     }
 
+    /**
+     * Añade un nodo al grafo de exploración de una sesión.
+     * <p>
+     * Cada nodo representa una canción con una posición {@code (x, y)} en el espacio
+     * de exploración visual del cliente móvil.
+     * </p>
+     *
+     * @param id      identificador de la sesión
+     * @param request cuerpo con {@code songId} y las coordenadas {@code x}, {@code y} del nodo
+     * @return {@code 200 OK} con la sesión actualizada incluyendo el nuevo nodo
+     */
     @PostMapping("/{id}/nodes")
     public ResponseEntity<SessionResponse> addNode(@PathVariable Long id,
                                                    @Valid @RequestBody AddNodeRequest request) {
