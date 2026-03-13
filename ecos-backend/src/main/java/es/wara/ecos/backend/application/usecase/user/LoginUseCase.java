@@ -36,7 +36,7 @@ public class LoginUseCase {
         return userRepository.findByEmail(email)
                 .filter(user -> passwordHasher.matches(password, user.getPasswordHash()))
                 .map(user -> user.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Credenciales incorrectas"));
+                .orElseThrow(() -> new IllegalStateException("Credenciales incorrectas"));
     }
 
 }
