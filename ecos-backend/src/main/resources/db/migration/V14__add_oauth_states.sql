@@ -3,6 +3,6 @@
 -- con un TTL de 10 minutos.
 CREATE TABLE oauth_states (
     state      VARCHAR(64)  PRIMARY KEY,
-    user_id    BIGINT       NOT NULL,
+    user_id    UUID         NOT NULL,
     expires_at TIMESTAMP    NOT NULL
 );

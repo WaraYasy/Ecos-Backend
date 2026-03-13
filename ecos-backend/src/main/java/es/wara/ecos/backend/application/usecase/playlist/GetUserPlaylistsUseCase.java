@@ -5,6 +5,7 @@ import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Caso de uso para obtener todas las playlists de un usuario.
@@ -28,7 +29,7 @@ public class GetUserPlaylistsUseCase {
      * @param userId identificador del usuario
      * @return lista de playlists del usuario (puede estar vacía)
      */
-    public List<Playlist> execute(Long userId) {
+    public List<Playlist> execute(UUID userId) {
         return playlistRepository.findByUserId(userId);
     }
 

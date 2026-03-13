@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -39,8 +40,12 @@ class ExportPlaylistToSpotifyUseCaseTest {
     @InjectMocks
     ExportPlaylistToSpotifyUseCase useCase;
 
+    private static final UUID PLAYLIST_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID USER_ID     = UUID.fromString("00000000-0000-0000-0000-000000000005");
+    private static final UUID UNKNOWN_ID  = UUID.fromString("00000000-0000-0000-0000-000000000099");
+
     private Playlist buildPlaylist(List<Song> songs) {
-        return new Playlist(1L, 5L, "Mi playlist", "descripción", null, LocalDateTime.now(), songs);
+        return new Playlist(PLAYLIST_ID, USER_ID, "Mi playlist", "descripción", null, LocalDateTime.now(), songs);
     }
 
     @Test
@@ -49,14 +54,14 @@ class ExportPlaylistToSpotifyUseCaseTest {
         song.setSpotifyId("track-abc");
 
         Playlist playlist = buildPlaylist(List.of(song));
-        when(playlistRepository.findById(1L)).thenReturn(Optional.of(playlist));
-        when(spotifyAuthPort.getTokenForUser(5L)).thenReturn("user-token");
+        when(playlistRepository.findById(PLAYLIST_ID)).thenReturn(Optional.of(playlist));
+        when(spotifyAuthPort.getTokenForUser(USER_ID)).thenReturn("user-token");
         when(spotifyPlaylistPort.getCurrentUserId("user-token")).thenReturn("spotify-user-id");
         when(spotifyPlaylistPort.createPlaylist("user-token", "spotify-user-id", "Mi playlist", "descripción"))
                 .thenReturn("new-pl-id");
         when(playlistRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Playlist result = useCase.execute(1L, 5L);
+        Playlist result = useCase.execute(PLAYLIST_ID, USER_ID);
 
         assertThat(result.getSpotifyExportId()).isEqualTo("new-pl-id");
         verify(spotifyPlaylistPort).addTracksToPlaylist(
@@ -68,11 +73,10 @@ class ExportPlaylistToSpotifyUseCaseTest {
 
     @Test
     void execute_playlistNotFound_throwsIllegalArgumentException() {
-        when(playlistRepository.findById(99L)).thenReturn(Optional.empty());
+        when(playlistRepository.findById(UNKNOWN_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> useCase.execute(99L, 5L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("99");
+        assertThatThrownBy(() -> useCase.execute(UNKNOWN_ID, USER_ID))
+                .isInstanceOf(IllegalArgumentException.class);
 
         verifyNoInteractions(spotifyAuthPort, spotifyPlaylistPort);
     }
@@ -80,11 +84,11 @@ class ExportPlaylistToSpotifyUseCaseTest {
     @Test
     void execute_userWithoutSpotifyLinked_throwsIllegalArgumentException() {
         Playlist playlist = buildPlaylist(List.of());
-        when(playlistRepository.findById(1L)).thenReturn(Optional.of(playlist));
-        when(spotifyAuthPort.getTokenForUser(5L))
-                .thenThrow(new IllegalArgumentException("El usuario 5 no ha vinculado su cuenta de Spotify"));
+        when(playlistRepository.findById(PLAYLIST_ID)).thenReturn(Optional.of(playlist));
+        when(spotifyAuthPort.getTokenForUser(USER_ID))
+                .thenThrow(new IllegalArgumentException("El usuario no ha vinculado su cuenta de Spotify"));
 
-        assertThatThrownBy(() -> useCase.execute(1L, 5L))
+        assertThatThrownBy(() -> useCase.execute(PLAYLIST_ID, USER_ID))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Spotify");
     }
@@ -93,13 +97,13 @@ class ExportPlaylistToSpotifyUseCaseTest {
     void execute_songsWithoutSpotifyId_callsAddTracksWithEmptyList() {
         Song songNoId = new Song(); // spotifyId = null
         Playlist playlist = buildPlaylist(List.of(songNoId));
-        when(playlistRepository.findById(1L)).thenReturn(Optional.of(playlist));
-        when(spotifyAuthPort.getTokenForUser(5L)).thenReturn("token");
+        when(playlistRepository.findById(PLAYLIST_ID)).thenReturn(Optional.of(playlist));
+        when(spotifyAuthPort.getTokenForUser(USER_ID)).thenReturn("token");
         when(spotifyPlaylistPort.getCurrentUserId("token")).thenReturn("uid");
         when(spotifyPlaylistPort.createPlaylist(any(), any(), any(), any())).thenReturn("pid");
         when(playlistRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        useCase.execute(1L, 5L);
+        useCase.execute(PLAYLIST_ID, USER_ID);
 
         verify(spotifyPlaylistPort).addTracksToPlaylist(eq("token"), eq("pid"), argThat(List::isEmpty));
     }

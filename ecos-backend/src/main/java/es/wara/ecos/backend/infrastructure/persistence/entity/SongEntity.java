@@ -4,10 +4,12 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Entidad JPA que mapea la tabla songs, con relaciones a albums, artists (song_artists), audio_features y song_tags.
@@ -24,8 +26,9 @@ import java.util.List;
 public class SongEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator(style = UuidGenerator.Style.TIME)
+    @Column(updatable = false, nullable = false)
+    private UUID id;
 
     @Column(name = "spotify_id", unique = true, nullable = false, length = 50)
     private String spotifyId;

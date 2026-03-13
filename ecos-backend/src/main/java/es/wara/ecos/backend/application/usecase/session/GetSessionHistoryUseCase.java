@@ -5,6 +5,7 @@ import es.wara.ecos.backend.domain.port.SessionRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Caso de uso para obtener el historial de sesiones de exploración de un usuario.
@@ -28,7 +29,7 @@ public class GetSessionHistoryUseCase {
      * @param userId identificador del usuario
      * @return lista de sesiones del usuario, nunca null
      */
-    public List<ExplorationSession> execute(Long userId) {
+    public List<ExplorationSession> execute(UUID userId) {
         return sessionRepository.findByUserId(userId);
     }
 

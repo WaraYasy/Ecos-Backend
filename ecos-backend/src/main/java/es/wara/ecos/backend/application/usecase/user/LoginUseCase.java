@@ -4,6 +4,8 @@ import es.wara.ecos.backend.domain.port.PasswordHasher;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Caso de uso para autenticar a un usuario con su email y contraseña.
  *
@@ -30,7 +32,7 @@ public class LoginUseCase {
      * @return identificador del usuario autenticado
      * @throws IllegalArgumentException si las credenciales son incorrectas
      */
-    public Long execute(String email, String password) {
+    public UUID execute(String email, String password) {
         return userRepository.findByEmail(email)
                 .filter(user -> passwordHasher.matches(password, user.getPasswordHash()))
                 .map(user -> user.getId())

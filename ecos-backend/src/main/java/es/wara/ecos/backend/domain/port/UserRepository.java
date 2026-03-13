@@ -3,6 +3,7 @@ package es.wara.ecos.backend.domain.port;
 import es.wara.ecos.backend.domain.model.User;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Puerto de salida para el acceso y persistencia de usuarios en el dominio de ECOS.
@@ -19,7 +20,7 @@ public interface UserRepository {
      * @param id identificador interno del usuario
      * @return el usuario encontrado, o vacío si no existe
      */
-    Optional<User> findById(Long id);
+    Optional<User> findById(UUID id);
 
     /**
      * Busca un usuario por su nombre de usuario.

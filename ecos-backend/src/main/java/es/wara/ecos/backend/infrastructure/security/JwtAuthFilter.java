@@ -11,6 +11,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Filtro JWT que intercepta cada petición HTTP, extrae el Bearer token del header
@@ -64,7 +65,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
             try {
                 // Parsear el token: lanza excepción si está expirado o la firma es inválida
-                Long userId = jwtService.extractUserId(token);
+                UUID userId = jwtService.extractUserId(token);
 
                 // Crear el objeto de autenticación con userId como principal; sin credenciales ni roles
                 UsernamePasswordAuthenticationToken auth =

@@ -4,6 +4,7 @@ import es.wara.ecos.backend.infrastructure.persistence.entity.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Repositorio Spring Data JPA para UserEntity; permite buscar usuarios por username y por email.
@@ -12,7 +13,7 @@ import java.util.Optional;
  * @version 1.0
  * @since 1.0.0
  */
-public interface JpaUserRepository extends JpaRepository<UserEntity, Long> {
+public interface JpaUserRepository extends JpaRepository<UserEntity, UUID> {
 
     Optional<UserEntity> findByUsername(String username);
 

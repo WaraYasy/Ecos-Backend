@@ -4,6 +4,7 @@ import es.wara.ecos.backend.domain.model.ExplorationSession;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * DTO de respuesta para una sesión de exploración musical.
@@ -13,9 +14,9 @@ import java.util.List;
  * @since 1.0.0
  */
 public record SessionResponse(
-        Long id,
-        Long userId,
-        Long startSongId,
+        UUID id,
+        UUID userId,
+        UUID startSongId,
         LocalDateTime createdAt,
         List<SessionNodeResponse> nodes
 ) {

@@ -4,6 +4,7 @@ import es.wara.ecos.backend.domain.model.Playlist;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Puerto de salida para el acceso y persistencia de playlists en el dominio de ECOS.
@@ -20,7 +21,7 @@ public interface PlaylistRepository {
      * @param id identificador interno de la playlist
      * @return la playlist encontrada, o vacío si no existe
      */
-    Optional<Playlist> findById(Long id);
+    Optional<Playlist> findById(UUID id);
 
     /**
      * Obtiene todas las playlists de un usuario.
@@ -28,7 +29,7 @@ public interface PlaylistRepository {
      * @param userId identificador del usuario propietario
      * @return lista de playlists del usuario
      */
-    List<Playlist> findByUserId(Long userId);
+    List<Playlist> findByUserId(UUID userId);
 
     /**
      * Persiste una playlist en el repositorio.
@@ -45,14 +46,14 @@ public interface PlaylistRepository {
      * @param songId     identificador de la canción a añadir
      * @param position   posición (basada en 1) donde se insertará la canción
      */
-    void addSong(Long playlistId, Long songId, int position);
+    void addSong(UUID playlistId, UUID songId, int position);
 
     /**
      * Elimina una playlist por su identificador.
      *
      * @param id identificador de la playlist a eliminar
      */
-    void delete(Long id);
+    void delete(UUID id);
 
     /**
      * Elimina una canción de una playlist.
@@ -60,7 +61,7 @@ public interface PlaylistRepository {
      * @param playlistId identificador de la playlist
      * @param songId     identificador de la canción a eliminar
      */
-    void removeSong(Long playlistId, Long songId);
+    void removeSong(UUID playlistId, UUID songId);
 
     /**
      * Cuenta el número de canciones en una playlist.
@@ -68,6 +69,6 @@ public interface PlaylistRepository {
      * @param playlistId identificador de la playlist
      * @return número de canciones en la playlist
      */
-    int countSongs(Long playlistId);
+    int countSongs(UUID playlistId);
 
 }

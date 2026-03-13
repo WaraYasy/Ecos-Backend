@@ -3,6 +3,7 @@ package es.wara.ecos.backend.interfaces.rest.dto;
 import es.wara.ecos.backend.domain.model.Song;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * DTO de respuesta para una canción del catálogo de ECOS.
@@ -12,7 +13,7 @@ import java.util.List;
  * @since 1.0.0
  */
 public record SongResponse(
-        Long id,
+        UUID id,
         String title,
         List<String> artists,
         String album,

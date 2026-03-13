@@ -6,6 +6,7 @@ import es.wara.ecos.backend.infrastructure.persistence.mapper.TagMapper;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Componente interno de infraestructura para consultas de song_tags agrupadas por canción.
@@ -25,7 +26,7 @@ public class TagRepositoryImpl {
         this.mapper = mapper;
     }
 
-    public List<Tag> findBySongId(Long songId) {
+    public List<Tag> findBySongId(UUID songId) {
         return jpa.findById_SongId(songId).stream()
                 .map(mapper::toModel)
                 .toList();

@@ -5,6 +5,7 @@ import es.wara.ecos.backend.domain.model.Song;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Puerto de salida para el acceso y persistencia de canciones en el dominio de ECOS.
@@ -21,7 +22,7 @@ public interface SongRepository {
      * @param id identificador interno de la canción
      * @return la canción encontrada, o vacío si no existe
      */
-    Optional<Song> findById(Long id);
+    Optional<Song> findById(UUID id);
 
     /**
      * Busca una canción por su identificador de Spotify.

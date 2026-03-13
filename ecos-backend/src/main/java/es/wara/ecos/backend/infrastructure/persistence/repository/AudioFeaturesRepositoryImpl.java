@@ -6,6 +6,7 @@ import es.wara.ecos.backend.infrastructure.persistence.mapper.AudioFeaturesMappe
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Componente interno de infraestructura para la gestión de audio_features; no implementa un puerto de dominio directamente.
@@ -25,7 +26,7 @@ public class AudioFeaturesRepositoryImpl {
         this.mapper = mapper;
     }
 
-    public Optional<AudioFeatures> findBySongId(Long songId) {
+    public Optional<AudioFeatures> findBySongId(UUID songId) {
         return jpa.findById(songId).map(mapper::toModel);
     }
 

@@ -5,6 +5,7 @@ import es.wara.ecos.backend.domain.model.MusicProfile;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * DTO de respuesta con el perfil musical calculado de un usuario.
@@ -14,7 +15,7 @@ import java.util.Map;
  * @since 1.0.0
  */
 public record MusicProfileResponse(
-        Long userId,
+        UUID userId,
         BigDecimal avgEnergy,
         BigDecimal harmonicRichness,
         BigDecimal eclecticity,

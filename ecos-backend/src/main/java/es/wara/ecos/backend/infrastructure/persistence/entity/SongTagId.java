@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.util.UUID;
 
 /**
  * Clave primaria compuesta (song_id, tag) para la tabla song_tags.
@@ -24,7 +25,7 @@ import java.io.Serializable;
 public class SongTagId implements Serializable {
 
     @Column(name = "song_id")
-    private Long songId;
+    private UUID songId;
 
     @Column(name = "tag", length = 100, nullable = false)
     private String tag;

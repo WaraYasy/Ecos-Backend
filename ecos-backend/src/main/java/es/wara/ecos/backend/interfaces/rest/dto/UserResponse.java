@@ -3,6 +3,7 @@ package es.wara.ecos.backend.interfaces.rest.dto;
 import es.wara.ecos.backend.domain.model.User;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO de respuesta con los datos básicos de un usuario de ECOS.
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
  * @since 1.0.0
  */
 public record UserResponse(
-        Long id,
+        UUID id,
         String username,
         String email,
         String language,

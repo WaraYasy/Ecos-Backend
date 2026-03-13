@@ -5,6 +5,8 @@ import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Caso de uso para eliminar una canción de una playlist.
  *
@@ -30,7 +32,7 @@ public class RemoveSongFromPlaylistUseCase {
      * @throws IllegalArgumentException si la playlist no existe
      * @throws ForbiddenException       si el usuario no es el propietario
      */
-    public void execute(Long playlistId, Long songId, Long currentUserId) {
+    public void execute(UUID playlistId, UUID songId, UUID currentUserId) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + playlistId));
         if (!playlist.getUserId().equals(currentUserId)) {

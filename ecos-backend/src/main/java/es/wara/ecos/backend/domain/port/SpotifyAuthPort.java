@@ -1,5 +1,7 @@
 package es.wara.ecos.backend.domain.port;
 
+import java.util.UUID;
+
 /**
  * Puerto de dominio para el flujo de autorización de Spotify (Authorization Code Flow).
  * <p>
@@ -16,7 +18,7 @@ public interface SpotifyAuthPort {
      * @param userId identificador del usuario en ECOS
      * @return URL completa de autorización de Spotify
      */
-    String getAuthorizationUrl(Long userId);
+    String getAuthorizationUrl(UUID userId);
 
     /**
      * Intercambia el código de autorización por tokens y los persiste.
@@ -33,5 +35,5 @@ public interface SpotifyAuthPort {
      * @return access token de Spotify listo para usar
      * @throws IllegalArgumentException si el usuario no ha vinculado su cuenta
      */
-    String getTokenForUser(Long userId);
+    String getTokenForUser(UUID userId);
 }

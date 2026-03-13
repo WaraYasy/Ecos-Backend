@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Representa un artista musical en el dominio de ECOS.
@@ -20,7 +21,7 @@ import java.util.List;
 @AllArgsConstructor
 public class Artist {
 
-    private Long id;
+    private UUID id;
     private String spotifyId;
     private String name;
     private String country;

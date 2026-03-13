@@ -7,6 +7,7 @@ import es.wara.ecos.backend.infrastructure.persistence.mapper.UserMapper;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementación del puerto de dominio UserRepository usando JPA.
@@ -27,7 +28,7 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public Optional<User> findById(Long id) {
+    public Optional<User> findById(UUID id) {
         return jpa.findById(id).map(mapper::toModel);
     }
 

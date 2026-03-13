@@ -1,5 +1,7 @@
 package es.wara.ecos.backend.interfaces.rest.dto;
 
+import java.util.UUID;
+
 /**
  * DTO de respuesta al inicio de sesión con el token JWT y el identificador del usuario.
  *
@@ -9,5 +11,5 @@ package es.wara.ecos.backend.interfaces.rest.dto;
  */
 public record LoginResponse(
         String token,
-        Long userId
+        UUID userId
 ) {}

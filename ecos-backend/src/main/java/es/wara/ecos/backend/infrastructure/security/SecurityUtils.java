@@ -2,6 +2,8 @@ package es.wara.ecos.backend.infrastructure.security;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.UUID;
+
 /**
  * Helper estático para acceder al usuario autenticado desde el {@link SecurityContextHolder}.
  * <p>
@@ -29,7 +31,7 @@ public final class SecurityUtils {
      * @throws IllegalStateException si no hay usuario autenticado en el contexto
      *                               (petición pública o token ausente/inválido)
      */
-    public static Long getCurrentUserId() {
+    public static UUID getCurrentUserId() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
 
         // El contexto está vacío si la petición no portaba un token válido
@@ -38,7 +40,7 @@ public final class SecurityUtils {
         }
 
         // El nombre del principal es el userId almacenado como String en JwtAuthFilter
-        return Long.parseLong(auth.getName());
+        return UUID.fromString(auth.getName());
     }
 
 }

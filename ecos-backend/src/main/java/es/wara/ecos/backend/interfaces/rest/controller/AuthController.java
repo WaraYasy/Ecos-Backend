@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 /**
  * Controlador REST para autenticación de usuarios con email y contraseña.
  *
@@ -45,7 +47,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        Long userId = loginUseCase.execute(request.email(), request.password());
+        UUID userId = loginUseCase.execute(request.email(), request.password());
         return ResponseEntity.ok(new LoginResponse(jwtService.generateToken(userId), userId));
     }
 

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Repositorio Spring Data JPA para SongEntity; permite buscar canciones por spotifyId,
@@ -15,7 +16,7 @@ import java.util.Optional;
  * @version 1.1
  * @since 1.0.0
  */
-public interface JpaSongRepository extends JpaRepository<SongEntity, Long>,
+public interface JpaSongRepository extends JpaRepository<SongEntity, UUID>,
         JpaSpecificationExecutor<SongEntity> {
 
     Optional<SongEntity> findBySpotifyId(String spotifyId);

@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.UUID;
+
 /**
  * Representa un álbum musical asociado a un artista en el dominio de ECOS.
  *
@@ -18,11 +20,11 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Album {
 
-    private Long id;
+    private UUID id;
     private String spotifyId;
     private String title;
     private Integer year;
     private String coverUrl;
-    private Long artistId;
+    private UUID artistId;
 
 }

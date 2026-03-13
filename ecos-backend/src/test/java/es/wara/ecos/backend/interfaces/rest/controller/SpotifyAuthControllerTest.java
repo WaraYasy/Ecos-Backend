@@ -13,6 +13,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.doNothing;
@@ -35,6 +36,8 @@ class SpotifyAuthControllerTest {
     @MockitoBean
     SpotifyAuthPort spotifyAuthPort;
 
+    private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
@@ -43,9 +46,9 @@ class SpotifyAuthControllerTest {
     @Test
     void login_returns200WithAuthUrl() throws Exception {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("1", null, List.of()));
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
 
-        when(spotifyAuthPort.getAuthorizationUrl(1L))
+        when(spotifyAuthPort.getAuthorizationUrl(USER_ID))
                 .thenReturn("https://accounts.spotify.com/authorize?client_id=test&state=1");
 
         mockMvc.perform(get("/v1/auth/spotify/login"))

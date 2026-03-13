@@ -5,6 +5,7 @@ import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Caso de uso para crear una nueva playlist para un usuario.
@@ -30,7 +31,7 @@ public class CreatePlaylistUseCase {
      * @param description descripción opcional (puede ser null)
      * @return la playlist creada con su identificador asignado
      */
-    public Playlist execute(Long userId, String name, String description) {
+    public Playlist execute(UUID userId, String name, String description) {
         Playlist playlist = new Playlist();
         playlist.setUserId(userId);
         playlist.setName(name);

@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Representa una canción en el dominio de ECOS, incluyendo sus características
@@ -22,7 +23,7 @@ import java.util.List;
 @AllArgsConstructor
 public class Song {
 
-    private Long id;
+    private UUID id;
     private String spotifyId;
     /** Código ISRC (International Standard Recording Code, 12 chars). Puede ser null. */
     private String isrc;

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -43,7 +44,7 @@ public class CalculateUserProfileUseCase {
      * @return el perfil musical calculado
      * @throws IllegalArgumentException si el usuario no existe
      */
-    public MusicProfile execute(Long userId) {
+    public MusicProfile execute(UUID userId) {
         userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
 

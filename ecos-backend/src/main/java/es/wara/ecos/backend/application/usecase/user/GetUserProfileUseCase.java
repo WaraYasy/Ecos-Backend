@@ -4,6 +4,8 @@ import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Caso de uso para obtener los datos de perfil de un usuario.
  *
@@ -27,7 +29,7 @@ public class GetUserProfileUseCase {
      * @return el usuario encontrado
      * @throws IllegalArgumentException si el usuario no existe
      */
-    public User execute(Long userId) {
+    public User execute(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
     }

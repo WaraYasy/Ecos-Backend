@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Caso de uso para exportar una playlist de ECOS a la cuenta de Spotify del usuario.
@@ -46,7 +47,7 @@ public class ExportPlaylistToSpotifyUseCase {
      * @return la playlist actualizada con el {@code spotifyExportId} asignado
      * @throws IllegalArgumentException si la playlist no existe o el usuario no ha vinculado Spotify
      */
-    public Playlist execute(Long playlistId, Long userId) {
+    public Playlist execute(UUID playlistId, UUID userId) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + playlistId));
 

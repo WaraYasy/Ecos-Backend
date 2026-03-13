@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Caso de uso para añadir un nodo (canción visitada) al grafo de una sesión activa.
@@ -39,7 +40,7 @@ public class AddNodeToSessionUseCase {
      * @return la sesión actualizada con el nuevo nodo incluido
      * @throws IllegalArgumentException si la sesión o la canción no existen
      */
-    public ExplorationSession execute(Long sessionId, Long songId, BigDecimal x, BigDecimal y) {
+    public ExplorationSession execute(UUID sessionId, UUID songId, BigDecimal x, BigDecimal y) {
         ExplorationSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Sesión no encontrada: " + sessionId));
 

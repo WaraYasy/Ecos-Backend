@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementación del puerto de dominio SessionRepository usando JPA.
@@ -28,12 +29,12 @@ public class SessionRepositoryImpl implements SessionRepository {
     }
 
     @Override
-    public Optional<ExplorationSession> findById(Long id) {
+    public Optional<ExplorationSession> findById(UUID id) {
         return jpa.findById(id).map(mapper::toModel);
     }
 
     @Override
-    public List<ExplorationSession> findByUserId(Long userId) {
+    public List<ExplorationSession> findByUserId(UUID userId) {
         return jpa.findByUser_Id(userId).stream()
                 .map(mapper::toModel)
                 .toList();

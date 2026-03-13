@@ -6,6 +6,7 @@ import es.wara.ecos.backend.domain.port.SongRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Caso de uso para obtener canciones similares a una dada, usando el proveedor externo.
@@ -35,7 +36,7 @@ public class GetSimilarSongsUseCase {
      * @return lista de hasta {@value LIMIT} canciones similares
      * @throws IllegalArgumentException si la canción no existe
      */
-    public List<Song> execute(Long songId) {
+    public List<Song> execute(UUID songId) {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + songId));
 

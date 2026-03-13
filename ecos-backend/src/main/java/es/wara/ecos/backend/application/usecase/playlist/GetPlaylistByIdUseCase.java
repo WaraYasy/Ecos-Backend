@@ -4,6 +4,8 @@ import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Caso de uso para obtener una playlist por su identificador.
  *
@@ -27,7 +29,7 @@ public class GetPlaylistByIdUseCase {
      * @return la playlist encontrada
      * @throws IllegalArgumentException si la playlist no existe
      */
-    public Playlist execute(Long id) {
+    public Playlist execute(UUID id) {
         return playlistRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + id));
     }

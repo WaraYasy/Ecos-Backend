@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Caso de uso para iniciar una nueva sesión de exploración a partir de una canción semilla.
@@ -34,7 +35,7 @@ public class CreateExplorationSessionUseCase {
      * @return la sesión creada con su identificador asignado
      * @throws IllegalArgumentException si la canción inicial no existe
      */
-    public ExplorationSession execute(Long userId, Long startSongId) {
+    public ExplorationSession execute(UUID userId, UUID startSongId) {
         songRepository.findById(startSongId)
                 .orElseThrow(() -> new IllegalArgumentException("Canción inicial no encontrada: " + startSongId));
 

@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Controlador REST para gestión de sesiones de exploración musical en ECOS.
@@ -65,7 +66,7 @@ public class SessionController {
      */
     @PostMapping
     public ResponseEntity<SessionResponse> create(@Valid @RequestBody CreateSessionRequest request) {
-        Long userId = SecurityUtils.getCurrentUserId();
+        UUID userId = SecurityUtils.getCurrentUserId();
         ExplorationSession session = createSessionUseCase.execute(userId, request.startSongId());
         return ResponseEntity.status(HttpStatus.CREATED).body(SessionResponse.from(session));
     }
@@ -77,7 +78,7 @@ public class SessionController {
      */
     @GetMapping
     public ResponseEntity<List<SessionResponse>> getByUser() {
-        Long userId = SecurityUtils.getCurrentUserId();
+        UUID userId = SecurityUtils.getCurrentUserId();
         List<SessionResponse> sessions = getSessionHistoryUseCase.execute(userId)
                 .stream().map(SessionResponse::from).toList();
         return ResponseEntity.ok(sessions);
@@ -90,7 +91,7 @@ public class SessionController {
      * @return {@code 200 OK} con la sesión, o {@code 404} si no existe
      */
     @GetMapping("/{id}")
-    public ResponseEntity<SessionResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<SessionResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(SessionResponse.from(getSessionByIdUseCase.execute(id)));
     }
 
@@ -106,7 +107,7 @@ public class SessionController {
      * @return {@code 200 OK} con la sesión actualizada incluyendo el nuevo nodo
      */
     @PostMapping("/{id}/nodes")
-    public ResponseEntity<SessionResponse> addNode(@PathVariable Long id,
+    public ResponseEntity<SessionResponse> addNode(@PathVariable UUID id,
                                                    @Valid @RequestBody AddNodeRequest request) {
         ExplorationSession session = addNodeToSessionUseCase.execute(id, request.songId(), request.x(), request.y());
         return ResponseEntity.ok(SessionResponse.from(session));

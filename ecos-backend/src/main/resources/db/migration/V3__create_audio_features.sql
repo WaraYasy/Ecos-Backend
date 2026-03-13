@@ -3,7 +3,7 @@
 -- Valores normalizados 0.0-1.0 salvo tempo (BPM) y loudness (dB).
 
 CREATE TABLE audio_features (
-    song_id          BIGINT       PRIMARY KEY REFERENCES songs(id) ON DELETE CASCADE,
+    song_id          UUID         PRIMARY KEY REFERENCES songs(id) ON DELETE CASCADE,
     energy           DECIMAL(4,3),  -- 0.0 a 1.0
     tempo            DECIMAL(6,3),  -- BPM (ej. 120.5)
     valence          DECIMAL(4,3),  -- 0.0 (triste) a 1.0 (eufórico)

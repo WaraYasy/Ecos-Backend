@@ -2,6 +2,8 @@ package es.wara.ecos.backend.interfaces.rest.dto;
 
 import jakarta.validation.constraints.NotNull;
 
+import java.util.UUID;
+
 /**
  * DTO de petición para añadir una canción a una playlist.
  *
@@ -10,5 +12,5 @@ import jakarta.validation.constraints.NotNull;
  * @since 1.0.0
  */
 public record AddSongRequest(
-        @NotNull Long songId
+        @NotNull UUID songId
 ) {}

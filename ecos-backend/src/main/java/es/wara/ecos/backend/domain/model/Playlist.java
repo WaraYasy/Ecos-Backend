@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Representa una lista de reproducción creada por un usuario en ECOS,
@@ -22,8 +23,8 @@ import java.util.List;
 @AllArgsConstructor
 public class Playlist {
 
-    private Long id;
-    private Long userId;
+    private UUID id;
+    private UUID userId;
     private String name;
     private String description;
     /** ID de la playlist en Spotify si ha sido exportada; null en caso contrario. */

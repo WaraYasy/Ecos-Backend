@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Controlador REST para gestión de playlists de ECOS.
@@ -80,7 +81,7 @@ public class PlaylistController {
      */
     @GetMapping
     public ResponseEntity<List<PlaylistResponse>> getByUser() {
-        Long userId = SecurityUtils.getCurrentUserId();
+        UUID userId = SecurityUtils.getCurrentUserId();
         List<PlaylistResponse> playlists = getUserPlaylistsUseCase.execute(userId)
                 .stream().map(PlaylistResponse::from).toList();
         return ResponseEntity.ok(playlists);
@@ -94,7 +95,7 @@ public class PlaylistController {
      */
     @PostMapping
     public ResponseEntity<PlaylistResponse> create(@Valid @RequestBody PlaylistRequest request) {
-        Long userId = SecurityUtils.getCurrentUserId();
+        UUID userId = SecurityUtils.getCurrentUserId();
         Playlist playlist = createPlaylistUseCase.execute(userId, request.name(), request.description());
         return ResponseEntity.status(HttpStatus.CREATED).body(PlaylistResponse.from(playlist));
     }
@@ -106,7 +107,7 @@ public class PlaylistController {
      * @return {@code 200 OK} con la playlist, o {@code 404} si no existe
      */
     @GetMapping("/{id}")
-    public ResponseEntity<PlaylistResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<PlaylistResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(PlaylistResponse.from(getPlaylistByIdUseCase.execute(id)));
     }
 
@@ -120,7 +121,7 @@ public class PlaylistController {
      * @return {@code 204 No Content} si se eliminó correctamente
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
         deletePlaylistUseCase.execute(id, SecurityUtils.getCurrentUserId());
         return ResponseEntity.noContent().build();
     }
@@ -133,7 +134,7 @@ public class PlaylistController {
      * @return {@code 204 No Content} si se añadió correctamente
      */
     @PostMapping("/{id}/songs")
-    public ResponseEntity<Void> addSong(@PathVariable Long id,
+    public ResponseEntity<Void> addSong(@PathVariable UUID id,
                                         @Valid @RequestBody AddSongRequest request) {
         addSongToPlaylistUseCase.execute(id, request.songId(), SecurityUtils.getCurrentUserId());
         return ResponseEntity.noContent().build();
@@ -147,7 +148,7 @@ public class PlaylistController {
      * @return {@code 204 No Content} si se eliminó correctamente
      */
     @DeleteMapping("/{id}/songs/{songId}")
-    public ResponseEntity<Void> removeSong(@PathVariable Long id, @PathVariable Long songId) {
+    public ResponseEntity<Void> removeSong(@PathVariable UUID id, @PathVariable UUID songId) {
         removeSongFromPlaylistUseCase.execute(id, songId, SecurityUtils.getCurrentUserId());
         return ResponseEntity.noContent().build();
     }
@@ -163,8 +164,8 @@ public class PlaylistController {
      * @return {@code 200 OK} con la playlist actualizada (incluyendo el ID de Spotify)
      */
     @PostMapping("/{id}/export/spotify")
-    public ResponseEntity<PlaylistResponse> exportToSpotify(@PathVariable Long id) {
-        Long userId = SecurityUtils.getCurrentUserId();
+    public ResponseEntity<PlaylistResponse> exportToSpotify(@PathVariable UUID id) {
+        UUID userId = SecurityUtils.getCurrentUserId();
         Playlist playlist = exportPlaylistToSpotifyUseCase.execute(id, userId);
         return ResponseEntity.ok(PlaylistResponse.from(playlist));
     }

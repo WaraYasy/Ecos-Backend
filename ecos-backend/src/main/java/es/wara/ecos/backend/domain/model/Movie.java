@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Representa una película del catálogo de TMDB, usada para contextualizar
@@ -21,7 +22,7 @@ import java.util.List;
 @AllArgsConstructor
 public class Movie {
 
-    private Long id;
+    private UUID id;
     private Integer tmdbId;
     private String title;
     private Integer year;

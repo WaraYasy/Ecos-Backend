@@ -4,6 +4,7 @@ import es.wara.ecos.backend.domain.model.Playlist;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * DTO de respuesta para una playlist de ECOS.
@@ -13,10 +14,10 @@ import java.util.List;
  * @since 1.0.0
  */
 public record PlaylistResponse(
-        Long id,
+        UUID id,
         String name,
         String description,
-        Long userId,
+        UUID userId,
         LocalDateTime createdAt,
         List<SongResponse> songs
 ) {

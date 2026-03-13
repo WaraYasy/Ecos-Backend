@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,6 +32,8 @@ class RegisterUserUseCaseTest {
     @InjectMocks
     RegisterUserUseCase useCase;
 
+    private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
     @Test
     void execute_uniqueData_createsUserWithCreatedAt() {
         when(userRepository.findByUsername("wara")).thenReturn(Optional.empty());
@@ -38,7 +41,7 @@ class RegisterUserUseCaseTest {
         when(passwordHasher.hash("secreta")).thenReturn("hashed-password");
         when(userRepository.save(any())).thenAnswer(inv -> {
             User u = inv.getArgument(0);
-            u.setId(1L);
+            u.setId(USER_ID);
             return u;
         });
 

@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Representa una sesión de exploración musical de un usuario, compuesta por
@@ -22,9 +23,9 @@ import java.util.List;
 @AllArgsConstructor
 public class ExplorationSession {
 
-    private Long id;
-    private Long userId;
-    private Long startSongId;
+    private UUID id;
+    private UUID userId;
+    private UUID startSongId;
     private LocalDateTime createdAt;
     private List<SessionNode> nodes;
 

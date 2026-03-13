@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Controlador REST para el flujo de autorización de Spotify (Authorization Code Flow).
@@ -45,7 +46,7 @@ public class SpotifyAuthController {
      */
     @GetMapping("/v1/auth/spotify/login")
     public ResponseEntity<Map<String, String>> login() {
-        Long userId = SecurityUtils.getCurrentUserId();
+        UUID userId = SecurityUtils.getCurrentUserId();
         String url = spotifyAuthPort.getAuthorizationUrl(userId);
         return ResponseEntity.ok(Map.of("url", url));
     }

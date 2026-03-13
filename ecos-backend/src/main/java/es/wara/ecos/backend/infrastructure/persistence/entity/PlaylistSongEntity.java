@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.UUID;
 
 /**
  * Entidad JPA que mapea la tabla playlist_songs, incluyendo el campo position para el orden de las canciones.
@@ -30,10 +31,10 @@ public class PlaylistSongEntity {
     @EqualsAndHashCode
     public static class PlaylistSongId implements Serializable {
         @Column(name = "playlist_id")
-        private Long playlistId;
+        private UUID playlistId;
 
         @Column(name = "song_id")
-        private Long songId;
+        private UUID songId;
     }
 
     @EmbeddedId

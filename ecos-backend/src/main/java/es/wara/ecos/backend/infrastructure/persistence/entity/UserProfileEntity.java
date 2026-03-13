@@ -8,6 +8,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 /**
  * Entidad JPA que mapea la tabla user_profiles, con clave primaria compartida con users (relación 1:1).
@@ -24,7 +25,8 @@ import java.math.BigDecimal;
 public class UserProfileEntity {
 
     @Id
-    private Long userId;
+    @Column(name = "user_id")
+    private UUID userId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId

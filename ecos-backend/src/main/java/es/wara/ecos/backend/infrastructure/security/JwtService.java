@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 /**
  * Servicio de generación y validación de tokens JWT para autenticación stateless.
@@ -51,7 +52,7 @@ public class JwtService {
      * @param userId identificador del usuario
      * @return token JWT firmado con HMAC-SHA y listo para enviar al cliente
      */
-    public String generateToken(Long userId) {
+    public String generateToken(UUID userId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
@@ -73,7 +74,7 @@ public class JwtService {
      * @param token token JWT válido y firmado
      * @return identificador del usuario contenido en el claim {@code sub}
      */
-    public Long extractUserId(String token) {
+    public UUID extractUserId(String token) {
         // Parsea y verifica el token; lanza excepción si es inválido o expirado
         Claims claims = Jwts.parser()
                 .verifyWith(getKey())
@@ -82,7 +83,7 @@ public class JwtService {
                 .getPayload();
 
         // El sujeto se almacenó como String al generar el token
-        return Long.parseLong(claims.getSubject());
+        return UUID.fromString(claims.getSubject());
     }
 
     /**

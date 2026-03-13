@@ -4,6 +4,7 @@ import es.wara.ecos.backend.domain.model.ExplorationSession;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Puerto de salida para el acceso y persistencia de sesiones de exploración
@@ -21,7 +22,7 @@ public interface SessionRepository {
      * @param id identificador interno de la sesión
      * @return la sesión encontrada, o vacío si no existe
      */
-    Optional<ExplorationSession> findById(Long id);
+    Optional<ExplorationSession> findById(UUID id);
 
     /**
      * Obtiene el historial de sesiones de exploración de un usuario.
@@ -29,7 +30,7 @@ public interface SessionRepository {
      * @param userId identificador del usuario
      * @return lista de sesiones del usuario ordenadas cronológicamente
      */
-    List<ExplorationSession> findByUserId(Long userId);
+    List<ExplorationSession> findByUserId(UUID userId);
 
     /**
      * Persiste una sesión de exploración en el repositorio.

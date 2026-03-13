@@ -24,7 +24,6 @@ import java.util.List;
 public class SearchController {
 
     private final SearchSongsUseCase searchSongsUseCase;
-
     /**
      * Inyecta el caso de uso que ejecuta la búsqueda multidimensional.
      *

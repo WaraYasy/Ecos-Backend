@@ -4,6 +4,8 @@ import es.wara.ecos.backend.domain.model.ExplorationSession;
 import es.wara.ecos.backend.domain.port.SessionRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Caso de uso para obtener una sesión de exploración por su identificador.
  *
@@ -27,7 +29,7 @@ public class GetSessionByIdUseCase {
      * @return la sesión encontrada
      * @throws IllegalArgumentException si la sesión no existe
      */
-    public ExplorationSession execute(Long id) {
+    public ExplorationSession execute(UUID id) {
         return sessionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Sesión no encontrada: " + id));
     }

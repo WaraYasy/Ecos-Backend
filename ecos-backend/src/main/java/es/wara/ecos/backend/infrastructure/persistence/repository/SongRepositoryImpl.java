@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementación del puerto de dominio SongRepository usando JPA.
@@ -41,7 +42,7 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     @Override
-    public Optional<Song> findById(Long id) {
+    public Optional<Song> findById(UUID id) {
         return jpa.findById(id).map(mapper::toModel);
     }
 

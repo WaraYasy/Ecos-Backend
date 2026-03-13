@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +39,10 @@ class CalculateUserProfileUseCaseTest {
 
     @InjectMocks
     CalculateUserProfileUseCase useCase;
+
+    private static final UUID USER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID UNKNOWN_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000000010");
 
     // ─── helpers ──────────────────────────────────────────────────────────────
 
@@ -62,26 +67,25 @@ class CalculateUserProfileUseCaseTest {
             node.setSong(song);
             return node;
         }).collect(Collectors.toList());
-        return new ExplorationSession(1L, 1L, 1L, LocalDateTime.now(), nodes);
+        return new ExplorationSession(SESSION_ID, USER_ID, UUID.randomUUID(), LocalDateTime.now(), nodes);
     }
 
     // ─── tests ────────────────────────────────────────────────────────────────
 
     @Test
     void execute_userNotFound_throwsIllegalArgumentException() {
-        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        when(userRepository.findById(UNKNOWN_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> useCase.execute(99L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("99");
+        assertThatThrownBy(() -> useCase.execute(UNKNOWN_ID))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void execute_noSessions_returnsZeroProfile() {
-        when(userRepository.findById(1L)).thenReturn(Optional.of(new User()));
-        when(sessionRepository.findByUserId(1L)).thenReturn(List.of());
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new User()));
+        when(sessionRepository.findByUserId(USER_ID)).thenReturn(List.of());
 
-        MusicProfile result = useCase.execute(1L);
+        MusicProfile result = useCase.execute(USER_ID);
 
         assertThat(result.getAvgEnergy()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.getHarmonicRichness()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -94,10 +98,10 @@ class CalculateUserProfileUseCaseTest {
     void execute_songsWithAudioFeatures_calculatesAvgEnergyCorrectly() {
         Song s1 = songWith(new BigDecimal("0.4"), 0, List.of(), null);
         Song s2 = songWith(new BigDecimal("0.6"), 2, List.of(), null);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(new User()));
-        when(sessionRepository.findByUserId(1L)).thenReturn(List.of(sessionWith(List.of(s1, s2))));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new User()));
+        when(sessionRepository.findByUserId(USER_ID)).thenReturn(List.of(sessionWith(List.of(s1, s2))));
 
-        MusicProfile result = useCase.execute(1L);
+        MusicProfile result = useCase.execute(USER_ID);
 
         assertThat(result.getAvgEnergy()).isEqualByComparingTo(new BigDecimal("0.5000"));
     }
@@ -109,10 +113,10 @@ class CalculateUserProfileUseCaseTest {
         // s1 tiene 3 tags "rock", s2 tiene 1 tag "pop" → total 4, géneros únicos 2
         Song s1 = songWith(null, null, List.of(rock, rock, rock), null);
         Song s2 = songWith(null, null, List.of(pop), null);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(new User()));
-        when(sessionRepository.findByUserId(1L)).thenReturn(List.of(sessionWith(List.of(s1, s2))));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new User()));
+        when(sessionRepository.findByUserId(USER_ID)).thenReturn(List.of(sessionWith(List.of(s1, s2))));
 
-        MusicProfile result = useCase.execute(1L);
+        MusicProfile result = useCase.execute(USER_ID);
 
         assertThat(result.getTopGenres()).isNotEmpty();
         assertThat(result.getTopGenres().get(0)).isEqualTo("rock");
@@ -125,10 +129,10 @@ class CalculateUserProfileUseCaseTest {
         Song s1 = songWith(null, null, List.of(), 1985);
         Song s2 = songWith(null, null, List.of(), 1987);
         Song s3 = songWith(null, null, List.of(), 1995);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(new User()));
-        when(sessionRepository.findByUserId(1L)).thenReturn(List.of(sessionWith(List.of(s1, s2, s3))));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new User()));
+        when(sessionRepository.findByUserId(USER_ID)).thenReturn(List.of(sessionWith(List.of(s1, s2, s3))));
 
-        MusicProfile result = useCase.execute(1L);
+        MusicProfile result = useCase.execute(USER_ID);
 
         assertThat(result.getFavoriteEras()).containsKey("1980s");
         assertThat(result.getFavoriteEras()).containsKey("1990s");

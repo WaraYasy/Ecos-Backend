@@ -4,6 +4,8 @@ import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Caso de uso para actualizar las preferencias de un usuario (actualmente, idioma).
  *
@@ -28,7 +30,7 @@ public class UpdateUserPreferencesUseCase {
      * @return el usuario actualizado
      * @throws IllegalArgumentException si el usuario no existe
      */
-    public User execute(Long userId, String language) {
+    public User execute(UUID userId, String language) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
 

@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 /**
  * Características de audio de una canción obtenidas de Spotify,
@@ -21,7 +22,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class AudioFeatures {
 
-    private Long songId;
+    private UUID songId;
     /** Intensidad y actividad percibida: 0.0 a 1.0. */
     private BigDecimal energy;
     /** Velocidad del tempo en BPM. */

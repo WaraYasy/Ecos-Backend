@@ -3,8 +3,8 @@
 -- spotify_export_id se rellena cuando se exporta a Spotify.
 
 CREATE TABLE playlists (
-    id               BIGSERIAL    PRIMARY KEY,
-    user_id          BIGINT       REFERENCES users(id) ON DELETE CASCADE,
+    id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id          UUID         REFERENCES users(id) ON DELETE CASCADE,
     name             VARCHAR(255) NOT NULL,
     description      TEXT,
     spotify_export_id VARCHAR(50),
@@ -12,8 +12,8 @@ CREATE TABLE playlists (
 );
 
 CREATE TABLE playlist_songs (
-    playlist_id BIGINT   REFERENCES playlists(id) ON DELETE CASCADE,
-    song_id     BIGINT   REFERENCES songs(id)     ON DELETE CASCADE,
+    playlist_id UUID     REFERENCES playlists(id) ON DELETE CASCADE,
+    song_id     UUID     REFERENCES songs(id)     ON DELETE CASCADE,
     position    SMALLINT NOT NULL,
     PRIMARY KEY (playlist_id, song_id)
 );

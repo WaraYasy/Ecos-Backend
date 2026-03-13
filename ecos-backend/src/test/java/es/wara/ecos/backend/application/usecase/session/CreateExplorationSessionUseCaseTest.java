@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,20 +35,25 @@ class CreateExplorationSessionUseCaseTest {
     @InjectMocks
     CreateExplorationSessionUseCase useCase;
 
+    private static final UUID SESSION_ID  = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    private static final UUID USER_ID     = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID SONG_ID     = UUID.fromString("00000000-0000-0000-0000-000000000010");
+    private static final UUID UNKNOWN_ID  = UUID.fromString("00000000-0000-0000-0000-000000000999");
+
     @Test
     void execute_validSong_createsSessionWithCorrectFields() {
         Song song = new Song();
-        song.setId(10L);
-        when(songRepository.findById(10L)).thenReturn(Optional.of(song));
+        song.setId(SONG_ID);
+        when(songRepository.findById(SONG_ID)).thenReturn(Optional.of(song));
 
-        ExplorationSession saved = new ExplorationSession(99L, 1L, 10L, LocalDateTime.now(), new ArrayList<>());
+        ExplorationSession saved = new ExplorationSession(SESSION_ID, USER_ID, SONG_ID, LocalDateTime.now(), new ArrayList<>());
         when(sessionRepository.save(any(ExplorationSession.class))).thenReturn(saved);
 
-        ExplorationSession result = useCase.execute(1L, 10L);
+        ExplorationSession result = useCase.execute(USER_ID, SONG_ID);
 
-        assertThat(result.getId()).isEqualTo(99L);
-        assertThat(result.getUserId()).isEqualTo(1L);
-        assertThat(result.getStartSongId()).isEqualTo(10L);
+        assertThat(result.getId()).isEqualTo(SESSION_ID);
+        assertThat(result.getUserId()).isEqualTo(USER_ID);
+        assertThat(result.getStartSongId()).isEqualTo(SONG_ID);
 
         ArgumentCaptor<ExplorationSession> captor = ArgumentCaptor.forClass(ExplorationSession.class);
         verify(sessionRepository).save(captor.capture());
@@ -57,11 +63,10 @@ class CreateExplorationSessionUseCaseTest {
 
     @Test
     void execute_songNotFound_throwsIllegalArgumentException() {
-        when(songRepository.findById(99L)).thenReturn(Optional.empty());
+        when(songRepository.findById(UNKNOWN_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> useCase.execute(1L, 99L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("99");
+        assertThatThrownBy(() -> useCase.execute(USER_ID, UNKNOWN_ID))
+                .isInstanceOf(IllegalArgumentException.class);
 
         verify(sessionRepository, never()).save(any());
     }

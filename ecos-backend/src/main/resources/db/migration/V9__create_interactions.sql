@@ -5,9 +5,9 @@
 CREATE TYPE interaction_action AS ENUM ('play', 'skip', 'add_playlist', 'expand_node');
 
 CREATE TABLE user_interactions (
-    id          BIGSERIAL          PRIMARY KEY,
-    user_id     BIGINT             REFERENCES users(id) ON DELETE CASCADE,
-    song_id     BIGINT             REFERENCES songs(id) ON DELETE CASCADE,
+    id          UUID               PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID               REFERENCES users(id) ON DELETE CASCADE,
+    song_id     UUID               REFERENCES songs(id) ON DELETE CASCADE,
     action      interaction_action NOT NULL,
     duration_ms INTEGER,            -- milisegundos escuchados (relevante en 'play')
     created_at  TIMESTAMP          DEFAULT NOW()

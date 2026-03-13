@@ -4,6 +4,8 @@ import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.SongRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Caso de uso para obtener una canción por su identificador.
  *
@@ -27,7 +29,7 @@ public class GetSongByIdUseCase {
      * @return la canción encontrada
      * @throws IllegalArgumentException si la canción no existe
      */
-    public Song execute(Long id) {
+    public Song execute(UUID id) {
         return songRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + id));
     }

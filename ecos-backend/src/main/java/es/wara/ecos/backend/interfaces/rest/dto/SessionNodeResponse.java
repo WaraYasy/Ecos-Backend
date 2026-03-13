@@ -4,6 +4,7 @@ import es.wara.ecos.backend.domain.model.SessionNode;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO de respuesta para un nodo dentro de una sesión de exploración.
@@ -13,7 +14,7 @@ import java.time.LocalDateTime;
  * @since 1.0.0
  */
 public record SessionNodeResponse(
-        Long id,
+        UUID id,
         SongResponse song,
         BigDecimal xPosition,
         BigDecimal yPosition,

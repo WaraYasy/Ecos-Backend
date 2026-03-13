@@ -5,9 +5,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Entidad JPA que mapea la tabla movies.
@@ -24,8 +26,9 @@ import java.util.List;
 public class MovieEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @UuidGenerator(style = UuidGenerator.Style.TIME)
+    @Column(updatable = false, nullable = false)
+    private UUID id;
 
     @Column(name = "tmdb_id", unique = true, nullable = false)
     private Integer tmdbId;

@@ -3,7 +3,7 @@
 -- favorite_eras y top_genres se almacenan como JSONB para flexibilidad.
 
 CREATE TABLE users (
-    id         BIGSERIAL    PRIMARY KEY,
+    id         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     username   VARCHAR(100) UNIQUE NOT NULL,
     email      VARCHAR(255) UNIQUE NOT NULL,
     language   VARCHAR(10)  DEFAULT 'es',
@@ -11,7 +11,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE user_profiles (
-    user_id           BIGINT       PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    user_id           UUID         PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     avg_energy        DECIMAL(4,3),
     harmonic_richness DECIMAL(4,3),
     eclecticity       DECIMAL(4,3),

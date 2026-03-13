@@ -70,7 +70,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
     @Override
     @Transactional
-    public String getAuthorizationUrl(Long userId) {
+    public String getAuthorizationUrl(UUID userId) {
         String state = UUID.randomUUID().toString();
         OAuthStateEntity oauthState = new OAuthStateEntity();
         oauthState.setState(state);
@@ -95,7 +95,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
             oAuthStateRepository.delete(oauthState);
             throw new IllegalArgumentException("Estado OAuth expirado");
         }
-        Long userId = oauthState.getUserId();
+        UUID userId = oauthState.getUserId();
         oAuthStateRepository.delete(oauthState);
 
         HttpHeaders headers = buildBasicAuthHeaders();
@@ -113,7 +113,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
     @Override
     @Transactional
-    public String getTokenForUser(Long userId) {
+    public String getTokenForUser(UUID userId) {
         SpotifyTokenEntity token = tokenRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "El usuario " + userId + " no ha vinculado su cuenta de Spotify"));
@@ -162,7 +162,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
         return saved;
     }
 
-    private void persistToken(Long userId, Map<?, ?> body) {
+    private void persistToken(UUID userId, Map<?, ?> body) {
         if (body == null || !body.containsKey("access_token")) {
             throw new IllegalArgumentException(
                     "Respuesta inválida de Spotify al obtener token para userId=" + userId);

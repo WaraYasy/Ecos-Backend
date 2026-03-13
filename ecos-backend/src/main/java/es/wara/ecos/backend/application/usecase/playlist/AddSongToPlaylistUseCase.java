@@ -6,6 +6,8 @@ import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.domain.port.SongRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * Caso de uso para añadir una canción al final de una playlist existente.
  *
@@ -33,7 +35,7 @@ public class AddSongToPlaylistUseCase {
      * @throws IllegalArgumentException si la playlist o la canción no existen
      * @throws ForbiddenException       si el usuario no es el propietario
      */
-    public void execute(Long playlistId, Long songId, Long currentUserId) {
+    public void execute(UUID playlistId, UUID songId, UUID currentUserId) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + playlistId));
         if (!playlist.getUserId().equals(currentUserId)) {

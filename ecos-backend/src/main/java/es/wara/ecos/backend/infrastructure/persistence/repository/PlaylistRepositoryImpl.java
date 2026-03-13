@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Implementación del puerto de dominio PlaylistRepository usando JPA.
@@ -37,12 +38,12 @@ public class PlaylistRepositoryImpl implements PlaylistRepository {
     }
 
     @Override
-    public Optional<Playlist> findById(Long id) {
+    public Optional<Playlist> findById(UUID id) {
         return jpa.findById(id).map(mapper::toModel);
     }
 
     @Override
-    public List<Playlist> findByUserId(Long userId) {
+    public List<Playlist> findByUserId(UUID userId) {
         return jpa.findByUser_Id(userId).stream()
                 .map(mapper::toModel)
                 .toList();
@@ -54,7 +55,7 @@ public class PlaylistRepositoryImpl implements PlaylistRepository {
     }
 
     @Override
-    public void addSong(Long playlistId, Long songId, int position) {
+    public void addSong(UUID playlistId, UUID songId, int position) {
         PlaylistEntity playlist = new PlaylistEntity();
         playlist.setId(playlistId);
         SongEntity song = new SongEntity();
@@ -69,17 +70,17 @@ public class PlaylistRepositoryImpl implements PlaylistRepository {
     }
 
     @Override
-    public void delete(Long id) {
+    public void delete(UUID id) {
         jpa.deleteById(id);
     }
 
     @Override
-    public void removeSong(Long playlistId, Long songId) {
+    public void removeSong(UUID playlistId, UUID songId) {
         jpaPlaylistSong.deleteById(new PlaylistSongId(playlistId, songId));
     }
 
     @Override
-    public int countSongs(Long playlistId) {
+    public int countSongs(UUID playlistId) {
         return jpaPlaylistSong.countById_PlaylistId(playlistId);
     }
 

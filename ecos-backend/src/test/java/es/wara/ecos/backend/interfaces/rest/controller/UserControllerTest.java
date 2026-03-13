@@ -19,12 +19,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.List;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -61,7 +60,10 @@ class UserControllerTest {
     @MockitoBean
     CalculateUserProfileUseCase calculateUserProfileUseCase;
 
-    private static final User USER = new User(1L, "wara", "wara@ecos.es", "es", null, LocalDateTime.now());
+    private static final UUID USER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID UNKNOWN_ID = UUID.fromString("00000000-0000-0000-0000-000000000999");
+
+    private static final User USER = new User(USER_ID, "wara", "wara@ecos.es", "es", null, LocalDateTime.now());
 
     @AfterEach
     void clearSecurityContext() {
@@ -78,7 +80,7 @@ class UserControllerTest {
                                 {"username": "wara", "email": "wara@ecos.es", "password": "pass123", "language": "es"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.id").value(USER_ID.toString()))
                 .andExpect(jsonPath("$.username").value("wara"))
                 .andExpect(jsonPath("$.email").value("wara@ecos.es"));
     }
@@ -110,19 +112,19 @@ class UserControllerTest {
 
     @Test
     void getById_existingUser_returns200() throws Exception {
-        when(getUserProfileUseCase.execute(1L)).thenReturn(USER);
+        when(getUserProfileUseCase.execute(USER_ID)).thenReturn(USER);
 
-        mockMvc.perform(get("/v1/users/1"))
+        mockMvc.perform(get("/v1/users/" + USER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("wara"));
     }
 
     @Test
     void getById_nonExistingUser_returns404() throws Exception {
-        when(getUserProfileUseCase.execute(999L))
-                .thenThrow(new IllegalArgumentException("Usuario no encontrado: 999"));
+        when(getUserProfileUseCase.execute(UNKNOWN_ID))
+                .thenThrow(new IllegalArgumentException("Usuario no encontrado: " + UNKNOWN_ID));
 
-        mockMvc.perform(get("/v1/users/999"))
+        mockMvc.perform(get("/v1/users/" + UNKNOWN_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
     }
@@ -130,12 +132,12 @@ class UserControllerTest {
     @Test
     void updatePreferences_ownUser_returns200WithUpdatedLanguage() throws Exception {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("1", null, List.of()));
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
 
-        User updated = new User(1L, "wara", "wara@ecos.es", "en", null, LocalDateTime.now());
-        when(updateUserPreferencesUseCase.execute(eq(1L), eq("en"))).thenReturn(updated);
+        User updated = new User(USER_ID, "wara", "wara@ecos.es", "en", null, LocalDateTime.now());
+        when(updateUserPreferencesUseCase.execute(eq(USER_ID), eq("en"))).thenReturn(updated);
 
-        mockMvc.perform(put("/v1/users/1/preferences")
+        mockMvc.perform(put("/v1/users/" + USER_ID + "/preferences")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {"language": "en"}
@@ -147,18 +149,18 @@ class UserControllerTest {
     @Test
     void getMusicProfile_returns200WithProfile() throws Exception {
         MusicProfile profile = new MusicProfile(
-                1L,
+                USER_ID,
                 new BigDecimal("0.5"),
                 new BigDecimal("0.3"),
                 new BigDecimal("0.4"),
                 Map.of("1980s", 0.7),
                 List.of("rock", "pop")
         );
-        when(calculateUserProfileUseCase.execute(1L)).thenReturn(profile);
+        when(calculateUserProfileUseCase.execute(USER_ID)).thenReturn(profile);
 
-        mockMvc.perform(get("/v1/users/1/profile"))
+        mockMvc.perform(get("/v1/users/" + USER_ID + "/profile"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(1))
+                .andExpect(jsonPath("$.userId").value(USER_ID.toString()))
                 .andExpect(jsonPath("$.topGenres[0]").value("rock"));
     }
 

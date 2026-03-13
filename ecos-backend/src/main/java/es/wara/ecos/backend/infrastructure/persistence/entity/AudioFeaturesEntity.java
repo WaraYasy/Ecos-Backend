@@ -6,9 +6,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 /**
  * Entidad JPA que mapea la tabla audio_features, con relación 1:1 con songs.
+ * La PK es el mismo UUID que la song asociada (shared primary key via @MapsId).
  *
  * @author Wara Pacheco
  * @version 1.0
@@ -23,7 +25,7 @@ public class AudioFeaturesEntity {
 
     @Id
     @Column(name = "song_id")
-    private Long songId;
+    private UUID songId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId

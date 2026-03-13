@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 /**
  * Controlador REST para gestión de usuarios de ECOS.
  *
@@ -81,7 +83,7 @@ public class UserController {
      * @return {@code 200 OK} con el perfil del usuario, o {@code 404} si no existe
      */
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<UserResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(UserResponse.from(getUserProfileUseCase.execute(id)));
     }
 
@@ -97,7 +99,7 @@ public class UserController {
      * @return {@code 200 OK} con el perfil actualizado
      */
     @PutMapping("/{id}/preferences")
-    public ResponseEntity<UserResponse> updatePreferences(@PathVariable Long id,
+    public ResponseEntity<UserResponse> updatePreferences(@PathVariable UUID id,
                                                           @Valid @RequestBody UpdatePreferencesRequest request) {
         // Verificación de propiedad: el usuario solo puede modificar sus propias preferencias
         if (!id.equals(SecurityUtils.getCurrentUserId())) {
@@ -114,7 +116,7 @@ public class UserController {
      * @return {@code 200 OK} con el perfil musical (géneros favoritos, características, etc.)
      */
     @GetMapping("/{id}/profile")
-    public ResponseEntity<MusicProfileResponse> getMusicProfile(@PathVariable Long id) {
+    public ResponseEntity<MusicProfileResponse> getMusicProfile(@PathVariable UUID id) {
         return ResponseEntity.ok(MusicProfileResponse.from(calculateUserProfileUseCase.execute(id)));
     }
 

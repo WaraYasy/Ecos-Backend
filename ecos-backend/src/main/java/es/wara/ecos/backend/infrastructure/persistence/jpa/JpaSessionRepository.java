@@ -4,6 +4,7 @@ import es.wara.ecos.backend.infrastructure.persistence.entity.ExplorationSession
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Repositorio Spring Data JPA para ExplorationSessionEntity; permite obtener todas las sesiones de un usuario.
@@ -12,8 +13,8 @@ import java.util.List;
  * @version 1.0
  * @since 1.0.0
  */
-public interface JpaSessionRepository extends JpaRepository<ExplorationSessionEntity, Long> {
+public interface JpaSessionRepository extends JpaRepository<ExplorationSessionEntity, UUID> {
 
-    List<ExplorationSessionEntity> findByUser_Id(Long userId);
+    List<ExplorationSessionEntity> findByUser_Id(UUID userId);
 
 }

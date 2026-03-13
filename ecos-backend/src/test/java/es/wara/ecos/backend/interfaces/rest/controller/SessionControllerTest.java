@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,10 +55,16 @@ class SessionControllerTest {
     @MockitoBean
     AddNodeToSessionUseCase addNodeToSessionUseCase;
 
+    private static final UUID USER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000005");
+    private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID SONG_ID    = UUID.fromString("00000000-0000-0000-0000-000000000010");
+    private static final UUID SONG_20    = UUID.fromString("00000000-0000-0000-0000-000000000020");
+    private static final UUID UNKNOWN_ID = UUID.fromString("00000000-0000-0000-0000-000000000999");
+
     @BeforeEach
     void setUpSecurityContext() {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("5", null, List.of()));
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
     }
 
     @AfterEach
@@ -65,23 +72,23 @@ class SessionControllerTest {
         SecurityContextHolder.clearContext();
     }
 
-    private ExplorationSession buildSession(Long id, Long userId) {
-        return new ExplorationSession(id, userId, 10L, LocalDateTime.now(), new ArrayList<>());
+    private ExplorationSession buildSession(UUID id, UUID userId) {
+        return new ExplorationSession(id, userId, SONG_ID, LocalDateTime.now(), new ArrayList<>());
     }
 
     @Test
     void create_validBody_returns201() throws Exception {
-        ExplorationSession session = buildSession(1L, 5L);
-        when(createSessionUseCase.execute(5L, 10L)).thenReturn(session);
+        ExplorationSession session = buildSession(SESSION_ID, USER_ID);
+        when(createSessionUseCase.execute(USER_ID, SONG_ID)).thenReturn(session);
 
         mockMvc.perform(post("/v1/sessions")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"startSongId": 10}
+                                {"startSongId": "00000000-0000-0000-0000-000000000010"}
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.userId").value(5));
+                .andExpect(jsonPath("$.id").value(SESSION_ID.toString()))
+                .andExpect(jsonPath("$.userId").value(USER_ID.toString()));
     }
 
     @Test
@@ -96,49 +103,49 @@ class SessionControllerTest {
 
     @Test
     void getByUser_returns200WithList() throws Exception {
-        when(getSessionHistoryUseCase.execute(5L)).thenReturn(List.of(buildSession(1L, 5L)));
+        when(getSessionHistoryUseCase.execute(USER_ID)).thenReturn(List.of(buildSession(SESSION_ID, USER_ID)));
 
         mockMvc.perform(get("/v1/sessions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].userId").value(5));
+                .andExpect(jsonPath("$[0].userId").value(USER_ID.toString()));
     }
 
     @Test
     void getById_existingSession_returns200() throws Exception {
-        when(getSessionByIdUseCase.execute(1L)).thenReturn(buildSession(1L, 5L));
+        when(getSessionByIdUseCase.execute(SESSION_ID)).thenReturn(buildSession(SESSION_ID, USER_ID));
 
-        mockMvc.perform(get("/v1/sessions/1"))
+        mockMvc.perform(get("/v1/sessions/" + SESSION_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1));
+                .andExpect(jsonPath("$.id").value(SESSION_ID.toString()));
     }
 
     @Test
     void getById_nonExistingSession_returns404() throws Exception {
-        when(getSessionByIdUseCase.execute(999L))
-                .thenThrow(new IllegalArgumentException("Sesión no encontrada: 999"));
+        when(getSessionByIdUseCase.execute(UNKNOWN_ID))
+                .thenThrow(new IllegalArgumentException("Sesión no encontrada: " + UNKNOWN_ID));
 
-        mockMvc.perform(get("/v1/sessions/999"))
+        mockMvc.perform(get("/v1/sessions/" + UNKNOWN_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
     }
 
     @Test
     void addNode_validBody_returns200WithNode() throws Exception {
-        ExplorationSession session = buildSession(1L, 5L);
+        ExplorationSession session = buildSession(SESSION_ID, USER_ID);
         Song song = new Song();
-        song.setId(20L);
+        song.setId(SONG_20);
         SessionNode node = new SessionNode();
         node.setSong(song);
         node.setSequenceOrder(1);
         session.setNodes(List.of(node));
 
-        when(addNodeToSessionUseCase.execute(eq(1L), eq(20L), any(), any())).thenReturn(session);
+        when(addNodeToSessionUseCase.execute(eq(SESSION_ID), eq(SONG_20), any(), any())).thenReturn(session);
 
-        mockMvc.perform(post("/v1/sessions/1/nodes")
+        mockMvc.perform(post("/v1/sessions/" + SESSION_ID + "/nodes")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"songId": 20, "x": 1.0, "y": 2.0}
+                                {"songId": "00000000-0000-0000-0000-000000000020", "x": 1.0, "y": 2.0}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nodes").isArray())

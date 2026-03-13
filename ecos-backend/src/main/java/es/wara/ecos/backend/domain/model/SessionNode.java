@@ -7,6 +7,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Representa un nodo dentro de una sesión de exploración, indicando la canción
@@ -22,8 +23,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class SessionNode {
 
-    private Long id;
-    private Long sessionId;
+    private UUID id;
+    private UUID sessionId;
     private Song song;
     /** Coordenada X del nodo en el grafo visual. */
     private BigDecimal xPosition;

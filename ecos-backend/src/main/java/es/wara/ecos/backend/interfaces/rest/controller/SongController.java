@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Controlador REST para operaciones sobre canciones individuales.
@@ -46,7 +47,7 @@ public class SongController {
      * @return {@code 200 OK} con la canción, o {@code 404} si no existe
      */
     @GetMapping("/{id}")
-    public ResponseEntity<SongResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<SongResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(SongResponse.from(getSongByIdUseCase.execute(id)));
     }
 
@@ -57,7 +58,7 @@ public class SongController {
      * @return {@code 200 OK} con la lista de canciones relacionadas
      */
     @GetMapping("/{id}/related")
-    public ResponseEntity<List<SongResponse>> getRelated(@PathVariable Long id) {
+    public ResponseEntity<List<SongResponse>> getRelated(@PathVariable UUID id) {
         List<SongResponse> related = getSimilarSongsUseCase.execute(id)
                 .stream()
                 .map(SongResponse::from)
@@ -76,7 +77,7 @@ public class SongController {
      * @return {@code 200 OK} con las características de audio, o {@code 404} si no están disponibles
      */
     @GetMapping("/{id}/audio-features")
-    public ResponseEntity<AudioFeaturesResponse> getAudioFeatures(@PathVariable Long id) {
+    public ResponseEntity<AudioFeaturesResponse> getAudioFeatures(@PathVariable UUID id) {
         Song song = getSongByIdUseCase.execute(id);
         AudioFeaturesResponse response = AudioFeaturesResponse.from(song.getAudioFeatures());
 

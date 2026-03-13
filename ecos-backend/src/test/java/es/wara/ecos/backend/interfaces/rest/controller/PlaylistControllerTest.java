@@ -7,6 +7,7 @@ import es.wara.ecos.backend.application.usecase.playlist.ExportPlaylistToSpotify
 import es.wara.ecos.backend.application.usecase.playlist.GetPlaylistByIdUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.GetUserPlaylistsUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistUseCase;
+import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
 import org.junit.jupiter.api.AfterEach;
@@ -22,10 +23,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
-import es.wara.ecos.backend.domain.exception.ForbiddenException;
-
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -68,10 +68,16 @@ class PlaylistControllerTest {
     @MockitoBean
     ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase;
 
+    private static final UUID USER_ID     = UUID.fromString("00000000-0000-0000-0000-000000000005");
+    private static final UUID PLAYLIST_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID SONG_ID     = UUID.fromString("00000000-0000-0000-0000-000000000020");
+    private static final UUID SONG_10     = UUID.fromString("00000000-0000-0000-0000-000000000010");
+    private static final UUID UNKNOWN_ID  = UUID.fromString("00000000-0000-0000-0000-000000000099");
+
     @BeforeEach
     void setUpSecurityContext() {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("5", null, List.of()));
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
     }
 
     @AfterEach
@@ -80,23 +86,23 @@ class PlaylistControllerTest {
     }
 
     private Playlist buildPlaylist(String spotifyExportId) {
-        return new Playlist(1L, 5L, "Mi playlist", "desc", spotifyExportId, LocalDateTime.now(), List.of());
+        return new Playlist(PLAYLIST_ID, USER_ID, "Mi playlist", "desc", spotifyExportId, LocalDateTime.now(), List.of());
     }
 
     @Test
     void exportToSpotify_validRequest_returns200WithPlaylistResponse() throws Exception {
         Playlist exported = buildPlaylist("spotify-pl-id");
-        when(exportPlaylistToSpotifyUseCase.execute(1L, 5L)).thenReturn(exported);
+        when(exportPlaylistToSpotifyUseCase.execute(PLAYLIST_ID, USER_ID)).thenReturn(exported);
 
-        mockMvc.perform(post("/v1/playlists/1/export/spotify"))
+        mockMvc.perform(post("/v1/playlists/" + PLAYLIST_ID + "/export/spotify"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.id").value(PLAYLIST_ID.toString()))
                 .andExpect(jsonPath("$.name").value("Mi playlist"));
     }
 
     @Test
     void create_validBody_returns201() throws Exception {
-        when(createPlaylistUseCase.execute(5L, "Mi playlist", "desc"))
+        when(createPlaylistUseCase.execute(USER_ID, "Mi playlist", "desc"))
                 .thenReturn(buildPlaylist(null));
 
         mockMvc.perform(post("/v1/playlists")
@@ -109,47 +115,47 @@ class PlaylistControllerTest {
 
     @Test
     void getById_nonExistingPlaylist_returns404() throws Exception {
-        when(getPlaylistByIdUseCase.execute(99L))
-                .thenThrow(new IllegalArgumentException("Playlist no encontrada: 99"));
+        when(getPlaylistByIdUseCase.execute(UNKNOWN_ID))
+                .thenThrow(new IllegalArgumentException("Playlist no encontrada: " + UNKNOWN_ID));
 
-        mockMvc.perform(get("/v1/playlists/99"))
+        mockMvc.perform(get("/v1/playlists/" + UNKNOWN_ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
     }
 
     @Test
     void delete_ownPlaylist_returns204() throws Exception {
-        doNothing().when(deletePlaylistUseCase).execute(eq(1L), eq(5L));
+        doNothing().when(deletePlaylistUseCase).execute(eq(PLAYLIST_ID), eq(USER_ID));
 
-        mockMvc.perform(delete("/v1/playlists/1"))
+        mockMvc.perform(delete("/v1/playlists/" + PLAYLIST_ID))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void delete_foreignPlaylist_returns403() throws Exception {
         doThrow(new ForbiddenException("No tienes permiso para eliminar esta playlist"))
-                .when(deletePlaylistUseCase).execute(eq(1L), eq(5L));
+                .when(deletePlaylistUseCase).execute(eq(PLAYLIST_ID), eq(USER_ID));
 
-        mockMvc.perform(delete("/v1/playlists/1"))
+        mockMvc.perform(delete("/v1/playlists/" + PLAYLIST_ID))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("FORBIDDEN"));
     }
 
     @Test
     void addSong_ownPlaylist_returns204() throws Exception {
-        doNothing().when(addSongToPlaylistUseCase).execute(eq(1L), eq(20L), eq(5L));
+        doNothing().when(addSongToPlaylistUseCase).execute(eq(PLAYLIST_ID), eq(SONG_ID), eq(USER_ID));
 
-        mockMvc.perform(post("/v1/playlists/1/songs")
+        mockMvc.perform(post("/v1/playlists/" + PLAYLIST_ID + "/songs")
                         .contentType(APPLICATION_JSON)
-                        .content("{\"songId\": 20}"))
+                        .content("{\"songId\": \"00000000-0000-0000-0000-000000000020\"}"))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void removeSong_ownPlaylist_returns204() throws Exception {
-        doNothing().when(removeSongFromPlaylistUseCase).execute(eq(1L), anyLong(), eq(5L));
+        doNothing().when(removeSongFromPlaylistUseCase).execute(eq(PLAYLIST_ID), any(UUID.class), eq(USER_ID));
 
-        mockMvc.perform(delete("/v1/playlists/1/songs/10"))
+        mockMvc.perform(delete("/v1/playlists/" + PLAYLIST_ID + "/songs/" + SONG_10))
                 .andExpect(status().isNoContent());
     }
 

@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Representa un usuario registrado en ECOS con sus preferencias de idioma
@@ -21,7 +22,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class User {
 
-    private Long id;
+    private UUID id;
     private String username;
     private String email;
     private String language;

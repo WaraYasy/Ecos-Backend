@@ -8,6 +8,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Perfil musical calculado de un usuario a partir de su historial de escucha
@@ -23,7 +24,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class MusicProfile {
 
-    private Long userId;
+    private UUID userId;
     /** Energía media de las canciones escuchadas: 0.0 a 1.0. */
     private BigDecimal avgEnergy;
     /** Variedad de tonalidades presentes en el historial: 0.0 a 1.0. */

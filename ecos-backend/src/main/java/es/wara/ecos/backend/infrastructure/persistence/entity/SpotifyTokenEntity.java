@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "spotify_tokens")
@@ -15,7 +16,8 @@ import java.time.Instant;
 public class SpotifyTokenEntity {
 
     @Id
-    private Long userId;
+    @Column(name = "user_id")
+    private UUID userId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
