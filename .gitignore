@@ -1,12 +1,11 @@
 # ==================================================================
-# .gitignore — raíz del repositorio Ecos-Backend
-# El proyecto Spring Boot está en el subdirectorio ecos-backend/
+# .gitignore — Ecos-Backend (proyecto Spring Boot en raíz)
 # ==================================================================
 
-# ── Maven (rutas relativas al subdirectorio del proyecto) ─────────
-ecos-backend/target/
-ecos-backend/.mvn/wrapper/maven-wrapper.jar
-ecos-backend/HELP.md
+# ── Maven ─────────────────────────────────────────────────────────
+target/
+.mvn/wrapper/maven-wrapper.jar
+HELP.md
 !**/src/main/**/target/
 !**/src/test/**/target/
 
@@ -26,12 +25,12 @@ ecos-backend/HELP.md
 .sts4-cache
 
 # ── NetBeans ──────────────────────────────────────────────────────
-ecos-backend/nbproject/private/
-ecos-backend/nbbuild/
-ecos-backend/dist/
-ecos-backend/nbdist/
-ecos-backend/.nb-gradle/
-ecos-backend/build/
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
@@ -40,7 +39,6 @@ ecos-backend/build/
 
 # ── Variables de entorno (NUNCA subir) ────────────────────────────
 .env
-ecos-backend/.env
 
 # ── Archivos de log ───────────────────────────────────────────────
 logs/
@@ -48,7 +46,7 @@ logs/
 
 # ── Documentación local de desarrollo (no se sube a Git) ─────────
 dev.md
-ecos-backend/docs/
+docs/
 
 # ── Claude Code ───────────────────────────────────────────────────
 .claude/
