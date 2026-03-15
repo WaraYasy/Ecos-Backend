@@ -185,6 +185,7 @@
 		<!-- DOCUMENTACIÓN                               -->
 		<!-- ============================================ -->
 		<!-- SpringDoc OpenAPI: genera Swagger UI en /swagger-ui.html -->
+
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>

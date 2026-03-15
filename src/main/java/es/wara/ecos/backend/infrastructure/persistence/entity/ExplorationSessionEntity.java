@@ -7,6 +7,8 @@ import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -38,5 +40,9 @@ public class ExplorationSessionEntity {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sequenceOrder ASC")
+    private List<SessionNodeEntity> nodes = new ArrayList<>();
 
 }
