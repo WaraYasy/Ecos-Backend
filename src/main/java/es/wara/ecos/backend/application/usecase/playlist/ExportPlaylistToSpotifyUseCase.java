@@ -71,10 +71,10 @@ public class ExportPlaylistToSpotifyUseCase {
         spotifyPlaylistPort.addTracksToPlaylist(userToken, spotifyPlaylistId, trackUris);
 
         playlist.setSpotifyExportId(spotifyPlaylistId);
-        Playlist saved = playlistRepository.save(playlist);
+        playlistRepository.save(playlist);
 
         log.info("Playlist {} exportada a Spotify con ID {}", playlistId, spotifyPlaylistId);
-        return saved;
+        return playlistRepository.findById(playlistId).orElse(playlist);
     }
 
 }

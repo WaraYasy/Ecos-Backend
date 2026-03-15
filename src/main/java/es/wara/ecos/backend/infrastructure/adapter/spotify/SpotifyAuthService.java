@@ -83,7 +83,8 @@ public class SpotifyAuthService implements SpotifyAuthPort {
                 + "&response_type=code"
                 + "&redirect_uri="  + redirectUri
                 + "&scope="         + SCOPES.replace(" ", "%20")
-                + "&state="         + state;
+                + "&state="         + state
+                + "&show_dialog=true";
     }
 
     @Override

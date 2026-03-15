@@ -27,26 +27,50 @@ import java.util.Base64;
 import java.util.Map;
 
 /**
- * Cliente para interactuar con la API de Spotify.
+ * Cliente para interactuar con la API de Spotify Web API v1.
  * <p>
- * Implementa el flujo de autenticación Client Credentials de OAuth2 y expone
- * métodos para buscar tracks, obtener audio features y recuperar un track por ID.
- * </p>
- * <p>
- * <b>Características:</b>
+ * Gestiona dos flujos de autenticación de OAuth2:
  * <ul>
- *   <li>Autenticación automática con caché de token (1 hora, margen 5 min)</li>
- *   <li>Retry automático (máx. 3) ante errores 429 y 5xx con backoff exponencial</li>
- *   <li>Renovación de token ante error 401 en llamadas a la API</li>
- *   <li>Manejo tipado de errores HTTP (401, 403, 429, 5xx)</li>
+ *   <li><b>Client Credentials</b>: para endpoints públicos (búsqueda, catálogo). Token
+ *       cacheado en memoria con margen de renovación de 5 minutos.</li>
+ *   <li><b>Authorization Code</b>: para endpoints de usuario (playlists). Token gestionado
+ *       por {@link es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyAuthService}.</li>
  * </ul>
  * </p>
- * <p>
- * <b>Variables de entorno requeridas:</b> {@code SPOTIFY_CLIENT_ID}, {@code SPOTIFY_CLIENT_SECRET}
- * </p>
+ *
+ * <p><b>Endpoints utilizados (estado API feb-2026):</b></p>
+ * <pre>
+ * CATÁLOGO (Client Credentials)
+ *   GET  /search                        búsqueda de tracks, limit max 10 en Dev Mode
+ *   GET  /tracks/{id}                   datos completos de un track
+ *   GET  /audio-features/{id}           características de audio de un track
+ *
+ * USUARIO (Authorization Code)
+ *   GET  /me                            perfil del usuario autenticado
+ *   POST /me/playlists                  crear playlist en la cuenta del usuario
+ *   POST /playlists/{id}/items          añadir items a una playlist  ← /tracks DEPRECATED feb-2026
+ *
+ * AUTH
+ *   POST https://accounts.spotify.com/api/token   obtener/renovar token
+ * </pre>
+ *
+ * <p><b>Nota sobre el cambio feb-2026:</b> Spotify renombró {@code /playlists/{id}/tracks}
+ * a {@code /playlists/{id}/items} para soportar tracks, podcasts y futuros tipos de contenido.
+ * El endpoint antiguo devuelve 403 sin mensaje de error (no 404), lo que puede confundir.
+ * Lo mismo aplica para {@code GET/PUT/DELETE /playlists/{id}/items}.</p>
+ *
+ * <p><b>Restricciones Development Mode (desde feb-2026):</b></p>
+ * <ul>
+ *   <li>Máximo 5 usuarios autorizados por app</li>
+ *   <li>Requiere cuenta Spotify Premium</li>
+ *   <li>Búsqueda limitada a {@code limit=10} (producción admite hasta 50)</li>
+ *   <li>Endpoints de playlist siguen disponibles</li>
+ * </ul>
+ *
+ * <p><b>Variables de entorno requeridas:</b> {@code SPOTIFY_CLIENT_ID}, {@code SPOTIFY_CLIENT_SECRET}</p>
  *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 1.1
  * @see <a href="https://developer.spotify.com/documentation/web-api">Spotify Web API</a>
  * @since 1.0.0
  */
@@ -64,6 +88,13 @@ public class SpotifyClient implements SpotifyPlaylistPort {
 
     @Value("${spotify.client.secret}")
     private String clientSecret;
+
+    @Value("${spotify.market:ES}")
+    private String market;
+
+    /** Límite máximo de resultados por búsqueda. Dev Mode de Spotify admite hasta 10; producción hasta 50. */
+    @Value("${spotify.search.max-limit:10}")
+    private int searchMaxLimit;
 
     private final RestTemplate restTemplate;
 
@@ -122,7 +153,10 @@ public class SpotifyClient implements SpotifyPlaylistPort {
         String url = UriComponentsBuilder.fromUriString(API_BASE_URL + "/search")
                 .queryParam("q", query)
                 .queryParam("type", "track")
-                .queryParam("limit", Math.min(limit, 50))
+                .queryParam("limit", Math.min(limit, searchMaxLimit))
+                .queryParam("market", market)
+                .build()
+                .encode()
                 .toUriString();
 
         log.info("Buscando tracks en {} API: '{}'", API_NAME, query);
@@ -198,19 +232,26 @@ public class SpotifyClient implements SpotifyPlaylistPort {
     @Override
     @SuppressWarnings("unchecked")
     public String getCurrentUserId(String userToken) {
-        String url = API_BASE_URL + "/me";
+        java.net.URI uri = java.net.URI.create(API_BASE_URL + "/me");
         log.info("Obteniendo perfil de usuario de {} API", API_NAME);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(userToken);
         HttpEntity<?> entity = new HttpEntity<>(headers);
 
-        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
-        Map<String, Object> body = (Map<String, Object>) response.getBody();
-        if (body == null || !body.containsKey("id")) {
-            throw new ExternalApiException(API_NAME, "No se pudo obtener el ID de usuario de Spotify");
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(uri, HttpMethod.GET, entity, Map.class);
+            Map<String, Object> body = (Map<String, Object>) response.getBody();
+            if (body == null || !body.containsKey("id")) {
+                throw new ExternalApiException(API_NAME, "No se pudo obtener el ID de usuario de Spotify");
+            }
+            return (String) body.get("id");
+        } catch (HttpClientErrorException e) {
+            log.error("✗ Error {} al obtener perfil de usuario en {} API: {}",
+                    e.getStatusCode().value(), API_NAME, e.getResponseBodyAsString());
+            throw new ExternalApiException(API_NAME, e.getStatusCode().value(),
+                    "Error al obtener perfil de usuario de Spotify", e);
         }
-        return (String) body.get("id");
     }
 
     /**
@@ -225,34 +266,45 @@ public class SpotifyClient implements SpotifyPlaylistPort {
     @Override
     @SuppressWarnings("unchecked")
     public String createPlaylist(String userToken, String spotifyUserId, String name, String description) {
-        String url = API_BASE_URL + "/users/" + spotifyUserId + "/playlists";
+        java.net.URI uri = java.net.URI.create(API_BASE_URL + "/me/playlists");
         log.info("Creando playlist en {} para usuario {}", API_NAME, spotifyUserId);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(userToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        Map<String, String> requestBody = Map.of(
+        Map<String, Object> requestBody = Map.of(
                 "name", name,
                 "description", description != null ? description : "",
-                "public", "false"
+                "public", false
         );
-        HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
-        Map<String, Object> body = (Map<String, Object>) response.getBody();
-        if (body == null || !body.containsKey("id")) {
-            throw new ExternalApiException(API_NAME, "No se pudo obtener el ID de la playlist creada en Spotify");
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(uri, HttpMethod.POST, entity, Map.class);
+            Map<String, Object> body = (Map<String, Object>) response.getBody();
+            if (body == null || !body.containsKey("id")) {
+                throw new ExternalApiException(API_NAME, "No se pudo obtener el ID de la playlist creada en Spotify");
+            }
+            return (String) body.get("id");
+        } catch (HttpClientErrorException e) {
+            log.error("✗ Error {} al crear playlist en {} API: {}",
+                    e.getStatusCode().value(), API_NAME, e.getResponseBodyAsString());
+            throw new ExternalApiException(API_NAME, e.getStatusCode().value(),
+                    "Error al crear playlist en Spotify", e);
         }
-        return (String) body.get("id");
     }
 
     /**
-     * Añade tracks a una playlist existente en Spotify.
+     * Añade items a una playlist existente en Spotify.
+     * <p>
+     * Utiliza {@code POST /playlists/{id}/items} (nuevo endpoint desde feb-2026).
+     * El endpoint anterior {@code /playlists/{id}/tracks} está deprecado y devuelve 403.
+     * </p>
      *
-     * @param userToken           access token del usuario
+     * @param userToken           access token del usuario (Authorization Code Flow)
      * @param spotifyPlaylistId   identificador de la playlist en Spotify
-     * @param trackUris           lista de URIs de tracks con formato {@code spotify:track:{id}}
+     * @param trackUris           lista de URIs con formato {@code spotify:track:{spotifyId}}
      */
     @Override
     public void addTracksToPlaylist(String userToken, String spotifyPlaylistId, java.util.List<String> trackUris) {
@@ -260,7 +312,7 @@ public class SpotifyClient implements SpotifyPlaylistPort {
             log.warn("No hay tracks para añadir a la playlist de Spotify {}", spotifyPlaylistId);
             return;
         }
-        String url = API_BASE_URL + "/playlists/" + spotifyPlaylistId + "/tracks";
+        java.net.URI uri = java.net.URI.create(API_BASE_URL + "/playlists/" + spotifyPlaylistId + "/items");
         log.info("Añadiendo {} tracks a playlist {} en {} API", trackUris.size(), spotifyPlaylistId, API_NAME);
 
         HttpHeaders headers = new HttpHeaders();
@@ -270,9 +322,16 @@ public class SpotifyClient implements SpotifyPlaylistPort {
         Map<String, Object> requestBody = Map.of("uris", trackUris);
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        restTemplate.postForEntity(url, entity, Map.class);
-        log.info("✓ {} tracks añadidos exitosamente a playlist {} en {} API",
-                trackUris.size(), spotifyPlaylistId, API_NAME);
+        try {
+            restTemplate.exchange(uri, HttpMethod.POST, entity, Map.class);
+            log.info("✓ {} tracks añadidos exitosamente a playlist {} en {} API",
+                    trackUris.size(), spotifyPlaylistId, API_NAME);
+        } catch (HttpClientErrorException e) {
+            log.error("✗ Error {} al añadir tracks a playlist {} en {} API: {}",
+                    e.getStatusCode().value(), spotifyPlaylistId, API_NAME, e.getResponseBodyAsString());
+            throw new ExternalApiException(API_NAME, e.getStatusCode().value(),
+                    "Error al añadir tracks a la playlist de Spotify", e);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -322,12 +381,13 @@ public class SpotifyClient implements SpotifyPlaylistPort {
      * Renueva el token automáticamente si recibe un 401.
      */
     private <T> T executeApiRequest(String url, Class<T> responseType, String operationDescription) {
+        java.net.URI uri = java.net.URI.create(url);
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(getAccessToken());
             HttpEntity<?> entity = new HttpEntity<>(headers);
 
-            ResponseEntity<T> response = restTemplate.exchange(url, HttpMethod.GET, entity, responseType);
+            ResponseEntity<T> response = restTemplate.exchange(uri, HttpMethod.GET, entity, responseType);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 log.info("✓ {} obtenidos exitosamente de {} API", operationDescription, API_NAME);
@@ -346,7 +406,7 @@ public class SpotifyClient implements SpotifyPlaylistPort {
                     HttpHeaders headers = new HttpHeaders();
                     headers.setBearerAuth(getAccessToken());
                     HttpEntity<?> entity = new HttpEntity<>(headers);
-                    ResponseEntity<T> response = restTemplate.exchange(url, HttpMethod.GET, entity, responseType);
+                    ResponseEntity<T> response = restTemplate.exchange(uri, HttpMethod.GET, entity, responseType);
                     if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                         return response.getBody();
                     }
