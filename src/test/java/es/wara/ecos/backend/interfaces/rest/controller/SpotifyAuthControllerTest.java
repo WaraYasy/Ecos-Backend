@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -66,6 +67,18 @@ class SpotifyAuthControllerTest {
                         .param("state", "test-state-uuid"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Cuenta Spotify vinculada"));
+    }
+
+    @Test
+    void callback_invalidOrExpiredState_returns404() throws Exception {
+        doThrow(new IllegalArgumentException("Estado OAuth inválido o expirado"))
+                .when(spotifyAuthPort).exchangeCodeForToken("code", "bad-state");
+
+        mockMvc.perform(get("/callback/spotify")
+                        .param("code", "code")
+                        .param("state", "bad-state"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
     }
 
 }
