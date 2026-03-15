@@ -3,7 +3,9 @@ package es.wara.ecos.backend.infrastructure.persistence.repository;
 import es.wara.ecos.backend.application.usecase.search.SearchParams;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.SongRepository;
+import es.wara.ecos.backend.infrastructure.persistence.entity.ArtistEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.SongEntity;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaArtistRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongRepository;
 import es.wara.ecos.backend.infrastructure.persistence.mapper.SongMapper;
 import es.wara.ecos.backend.infrastructure.persistence.specification.SongSpecification;
@@ -11,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,24 +37,29 @@ import java.util.UUID;
 public class SongRepositoryImpl implements SongRepository {
 
     private final JpaSongRepository jpa;
+    private final JpaArtistRepository artistJpa;
     private final SongMapper mapper;
 
-    public SongRepositoryImpl(JpaSongRepository jpa, SongMapper mapper) {
+    public SongRepositoryImpl(JpaSongRepository jpa, JpaArtistRepository artistJpa, SongMapper mapper) {
         this.jpa = jpa;
+        this.artistJpa = artistJpa;
         this.mapper = mapper;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Song> findById(UUID id) {
         return jpa.findById(id).map(mapper::toModel);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Song> findBySpotifyId(String spotifyId) {
         return jpa.findBySpotifyId(spotifyId).map(mapper::toModel);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Song> findByIsrc(String isrc) {
         return jpa.findByIsrc(isrc).map(mapper::toModel);
     }
@@ -66,6 +74,7 @@ public class SongRepositoryImpl implements SongRepository {
      * </ol>
      */
     @Override
+    @Transactional
     public Song save(Song song) {
         // 1. Dedup por ISRC (grabación física)
         if (song.getIsrc() != null) {
@@ -91,11 +100,28 @@ public class SongRepositoryImpl implements SongRepository {
             }
         }
 
-        // 3. Nueva canción — insertar
-        return mapper.toModel(jpa.save(mapper.toEntity(song)));
+        // 3. Nueva canción — insertar con artistas vinculados
+        SongEntity entity = mapper.toEntity(song);
+
+        if (song.getArtists() != null) {
+            for (es.wara.ecos.backend.domain.model.Artist artist : song.getArtists()) {
+                if (artist.getSpotifyId() == null) continue;
+                ArtistEntity artistEntity = artistJpa.findBySpotifyId(artist.getSpotifyId())
+                        .orElseGet(() -> {
+                            ArtistEntity a = new ArtistEntity();
+                            a.setSpotifyId(artist.getSpotifyId());
+                            a.setName(artist.getName());
+                            return artistJpa.save(a);
+                        });
+                entity.getArtists().add(artistEntity);
+            }
+        }
+
+        return mapper.toModel(jpa.save(entity));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Song> findByTitleContaining(String title) {
         return jpa.findByTitleContainingIgnoreCase(title).stream()
                 .map(mapper::toModel)
@@ -103,6 +129,7 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Song> search(SearchParams params) {
         Specification<SongEntity> spec = SongSpecification.from(params);
         int pageNumber = params.limit() > 0 ? params.offset() / params.limit() : 0;

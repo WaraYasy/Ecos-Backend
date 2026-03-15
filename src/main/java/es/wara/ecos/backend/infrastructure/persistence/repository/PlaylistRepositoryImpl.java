@@ -9,6 +9,8 @@ import es.wara.ecos.backend.infrastructure.persistence.entity.PlaylistEntity;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaPlaylistRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaPlaylistSongRepository;
 import es.wara.ecos.backend.infrastructure.persistence.mapper.PlaylistMapper;
+import es.wara.ecos.backend.infrastructure.persistence.mapper.SongMapper;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -28,24 +30,45 @@ public class PlaylistRepositoryImpl implements PlaylistRepository {
     private final JpaPlaylistRepository jpa;
     private final JpaPlaylistSongRepository jpaPlaylistSong;
     private final PlaylistMapper mapper;
+    private final SongMapper songMapper;
 
     public PlaylistRepositoryImpl(JpaPlaylistRepository jpa,
                                   JpaPlaylistSongRepository jpaPlaylistSong,
-                                  PlaylistMapper mapper) {
+                                  PlaylistMapper mapper,
+                                  SongMapper songMapper) {
         this.jpa = jpa;
         this.jpaPlaylistSong = jpaPlaylistSong;
         this.mapper = mapper;
+        this.songMapper = songMapper;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Playlist> findById(UUID id) {
-        return jpa.findById(id).map(mapper::toModel);
+        return jpa.findById(id).map(entity -> {
+            Playlist playlist = mapper.toModel(entity);
+            List<es.wara.ecos.backend.domain.model.Song> songs =
+                    jpaPlaylistSong.findById_PlaylistIdOrderByPosition(id).stream()
+                            .map(ps -> songMapper.toModel(ps.getSong()))
+                            .toList();
+            playlist.setSongs(songs);
+            return playlist;
+        });
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Playlist> findByUserId(UUID userId) {
         return jpa.findByUser_Id(userId).stream()
-                .map(mapper::toModel)
+                .map(entity -> {
+                    Playlist playlist = mapper.toModel(entity);
+                    List<es.wara.ecos.backend.domain.model.Song> songs =
+                            jpaPlaylistSong.findById_PlaylistIdOrderByPosition(entity.getId()).stream()
+                                    .map(ps -> songMapper.toModel(ps.getSong()))
+                                    .toList();
+                    playlist.setSongs(songs);
+                    return playlist;
+                })
                 .toList();
     }
 
