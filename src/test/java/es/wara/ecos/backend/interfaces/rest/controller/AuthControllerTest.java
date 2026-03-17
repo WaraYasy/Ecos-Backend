@@ -73,4 +73,14 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void login_malformedJson_returns400Not500() throws Exception {
+        // Regresión: JSON con escape inválido caía al handler 500 en vez de devolver 400
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"email\":\"user@ecos.es\",\"password\":\"bad\\!pass\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("BAD_REQUEST"));
+    }
+
 }

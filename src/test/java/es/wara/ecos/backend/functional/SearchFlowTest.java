@@ -59,6 +59,7 @@ class SearchFlowTest extends BaseFunctionalTest {
         jdbc.update("INSERT INTO songs (id, spotify_id, title, album_id) VALUES (?, ?, ?, ?)",
                 songId, "spotify_song_search", "Chariots of Fire", albumId);
         jdbc.update("INSERT INTO song_artists (song_id, artist_id) VALUES (?, ?)", songId, artistId);
+        jdbc.update("INSERT INTO song_tags (song_id, tag) VALUES (?, ?)", songId, "dark academia");
     }
 
     private String registerAndLogin() throws Exception {
@@ -115,6 +116,19 @@ class SearchFlowTest extends BaseFunctionalTest {
     void search_withoutToken_returns401() throws Exception {
         mockMvc.perform(get("/v1/search").param("q", "Vangelis"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void search_byAesthetic_doesNotThrow500() throws Exception {
+        // Regresión: Subquery<Long> en SongSpecification causaba
+        // "Cannot compare UUID with Long" al filtrar por aesthetic
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("aesthetic", "dark academia")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
     }
 
 }
