@@ -17,6 +17,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Especificaciones JPA para la búsqueda multidimensional de canciones en los 5 cuadrantes de ECOS.
@@ -62,7 +63,7 @@ public class SongSpecification {
 
             // ── Cuadrante 2: Estética ─────────────────────────────────────────
             if (params.aesthetic() != null && !params.aesthetic().isBlank()) {
-                Subquery<Long> sub = query.subquery(Long.class);
+                Subquery<UUID> sub = query.subquery(UUID.class);
                 Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
                 sub.select(tagRoot.get("id").get("songId"));
                 sub.where(cb.equal(tagRoot.get("id").get("tag"), params.aesthetic().toLowerCase()));
@@ -122,7 +123,7 @@ public class SongSpecification {
                 if (params.texture() != null && !params.texture().isBlank()) {
                     List<String> textureTags = resolveTextureTags(params.texture());
                     if (!textureTags.isEmpty()) {
-                        Subquery<Long> sub = query.subquery(Long.class);
+                        Subquery<UUID> sub = query.subquery(UUID.class);
                         Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
                         sub.select(tagRoot.get("id").get("songId"));
                         sub.where(tagRoot.get("id").get("tag").in(textureTags));
