@@ -1,12 +1,24 @@
 package es.wara.ecos.backend.infrastructure.persistence.repository;
 
 import es.wara.ecos.backend.application.usecase.search.SearchParams;
+import es.wara.ecos.backend.domain.model.Movie;
 import es.wara.ecos.backend.domain.model.Song;
+import es.wara.ecos.backend.domain.model.Tag;
 import es.wara.ecos.backend.domain.port.SongRepository;
+import es.wara.ecos.backend.infrastructure.persistence.entity.AlbumEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.ArtistEntity;
+import es.wara.ecos.backend.infrastructure.persistence.entity.AudioFeaturesEntity;
+import es.wara.ecos.backend.infrastructure.persistence.entity.MovieEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.SongEntity;
+import es.wara.ecos.backend.infrastructure.persistence.entity.SongTagEntity;
+import es.wara.ecos.backend.infrastructure.persistence.entity.SongTagId;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaAlbumRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaArtistRepository;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaAudioFeaturesRepository;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaMovieRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongRepository;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongTagRepository;
+import es.wara.ecos.backend.infrastructure.persistence.mapper.AudioFeaturesMapper;
 import es.wara.ecos.backend.infrastructure.persistence.mapper.SongMapper;
 import es.wara.ecos.backend.infrastructure.persistence.specification.SongSpecification;
 import lombok.extern.slf4j.Slf4j;
@@ -38,12 +50,27 @@ public class SongRepositoryImpl implements SongRepository {
 
     private final JpaSongRepository jpa;
     private final JpaArtistRepository artistJpa;
-    private final SongMapper mapper;
 
-    public SongRepositoryImpl(JpaSongRepository jpa, JpaArtistRepository artistJpa, SongMapper mapper) {
+    private final JpaAlbumRepository albumJpa;
+    private final JpaMovieRepository movieJpa;
+    private final JpaAudioFeaturesRepository audioFeaturesJpa;
+    private final JpaSongTagRepository songTagJpa;
+    private final SongMapper mapper;
+    private final AudioFeaturesMapper audioFeaturesMapper;
+
+    public SongRepositoryImpl(JpaSongRepository jpa, JpaArtistRepository artistJpa,
+                               JpaAlbumRepository albumJpa, JpaMovieRepository movieJpa,
+                               JpaAudioFeaturesRepository audioFeaturesJpa,
+                               JpaSongTagRepository songTagJpa,
+                               SongMapper mapper, AudioFeaturesMapper audioFeaturesMapper) {
         this.jpa = jpa;
         this.artistJpa = artistJpa;
+        this.albumJpa = albumJpa;
+        this.movieJpa = movieJpa;
+        this.audioFeaturesJpa = audioFeaturesJpa;
+        this.songTagJpa = songTagJpa;
         this.mapper = mapper;
+        this.audioFeaturesMapper = audioFeaturesMapper;
     }
 
     @Override
@@ -100,9 +127,26 @@ public class SongRepositoryImpl implements SongRepository {
             }
         }
 
-        // 3. Nueva canción — insertar con artistas vinculados
+        // 3. Nueva canción — insertar con todas sus relaciones
         SongEntity entity = mapper.toEntity(song);
 
+        // Álbum: find-or-create por spotifyId
+        if (song.getAlbum() != null && song.getAlbum().getSpotifyId() != null) {
+            AlbumEntity albumEntity = albumJpa.findBySpotifyId(song.getAlbum().getSpotifyId())
+                    .orElseGet(() -> {
+                        AlbumEntity a = new AlbumEntity();
+                        a.setSpotifyId(song.getAlbum().getSpotifyId());
+                        a.setTitle(song.getAlbum().getTitle());
+                        if (song.getAlbum().getYear() != null) {
+                            a.setYear(song.getAlbum().getYear().shortValue());
+                        }
+                        a.setCoverUrl(song.getAlbum().getCoverUrl());
+                        return albumJpa.save(a);
+                    });
+            entity.setAlbum(albumEntity);
+        }
+
+        // Artistas: find-or-create por spotifyId
         if (song.getArtists() != null) {
             for (es.wara.ecos.backend.domain.model.Artist artist : song.getArtists()) {
                 if (artist.getSpotifyId() == null) continue;
@@ -117,7 +161,47 @@ public class SongRepositoryImpl implements SongRepository {
             }
         }
 
-        return mapper.toModel(jpa.save(entity));
+        // Películas: find-or-create por tmdbId
+        if (song.getMovies() != null) {
+            for (Movie movie : song.getMovies()) {
+                if (movie.getTitle() == null) continue;
+                MovieEntity movieEntity = movieJpa.findByTmdbId(movie.getTmdbId())
+                        .orElseGet(() -> {
+                            MovieEntity m = new MovieEntity();
+                            m.setTmdbId(movie.getTmdbId());
+                            m.setTitle(movie.getTitle());
+                            if (movie.getYear() != null) m.setYear(movie.getYear().shortValue());
+                            m.setDirector(movie.getDirector());
+                            m.setGenres(movie.getGenres());
+                            return movieJpa.save(m);
+                        });
+                entity.getMovies().add(movieEntity);
+            }
+        }
+
+        // Guardar la canción (necesario antes de las relaciones con @MapsId)
+        SongEntity saved = jpa.save(entity);
+
+        // Audio features: @MapsId requiere el song ya persistido
+        if (song.getAudioFeatures() != null) {
+            AudioFeaturesEntity af = audioFeaturesMapper.toEntity(song.getAudioFeatures());
+            af.setSong(saved);
+            audioFeaturesJpa.save(af);
+        }
+
+        // Tags: @MapsId requiere el song ya persistido
+        if (song.getTags() != null) {
+            for (Tag tag : song.getTags()) {
+                if (tag.getName() == null || tag.getName().isBlank()) continue;
+                SongTagEntity tagEntity = new SongTagEntity();
+                tagEntity.setId(new SongTagId(saved.getId(), tag.getName()));
+                tagEntity.setSong(saved);
+                tagEntity.setWeight(tag.getWeight());
+                songTagJpa.save(tagEntity);
+            }
+        }
+
+        return mapper.toModel(saved);
     }
 
     @Override
