@@ -1,14 +1,17 @@
 package es.wara.ecos.backend.application.usecase.search;
 
+import es.wara.ecos.backend.application.service.MusicAggregationService;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.MusicProvider;
 import es.wara.ecos.backend.domain.port.SongRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import static org.mockito.Mockito.lenient;
 
 import java.util.List;
 
@@ -25,7 +28,14 @@ class SearchSongsUseCaseTest {
 
     @Mock SongRepository songRepository;
     @Mock MusicProvider musicProvider;
+    @Mock MusicAggregationService musicAggregationService;
     @InjectMocks SearchSongsUseCase useCase;
+
+    @BeforeEach
+    void stubEnrich() {
+        // lenient: no todos los tests llaman a enrich() (los que van por BD no lo hacen)
+        lenient().when(musicAggregationService.enrich(any(Song.class))).thenAnswer(inv -> inv.getArgument(0));
+    }
 
     private Song song(String title) {
         Song s = new Song();
