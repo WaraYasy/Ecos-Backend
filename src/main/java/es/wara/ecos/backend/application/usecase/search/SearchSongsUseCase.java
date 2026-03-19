@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.application.usecase.search;
 
+import es.wara.ecos.backend.application.service.MusicAggregationService;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.MusicProvider;
 import es.wara.ecos.backend.domain.port.SongRepository;
@@ -28,10 +29,13 @@ public class SearchSongsUseCase {
 
     private final SongRepository songRepository;
     private final MusicProvider musicProvider;
+    private final MusicAggregationService musicAggregationService;
 
-    public SearchSongsUseCase(SongRepository songRepository, MusicProvider musicProvider) {
+    public SearchSongsUseCase(SongRepository songRepository, MusicProvider musicProvider,
+                               MusicAggregationService musicAggregationService) {
         this.songRepository = songRepository;
         this.musicProvider = musicProvider;
+        this.musicAggregationService = musicAggregationService;
     }
 
     /**
@@ -51,7 +55,9 @@ public class SearchSongsUseCase {
         // 2. Sin resultados: si hay cuadrantes no-técnicos activos, buscar en APIs externas
         if (hasNonTechnicalQuadrant(params)) {
             List<Song> external = fetchFromExternalApis(params);
-            external.forEach(songRepository::save);
+            external.stream()
+                    .map(musicAggregationService::enrich)
+                    .forEach(songRepository::save);
 
             // Re-query con los datos ya persistidos
             songs = songRepository.search(params);
