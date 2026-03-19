@@ -108,13 +108,20 @@ public class SongRepositoryImpl implements SongRepository {
             Optional<SongEntity> byIsrc = jpa.findByIsrc(song.getIsrc());
             if (byIsrc.isPresent()) {
                 SongEntity existing = byIsrc.get();
+                boolean updated = false;
                 if (song.getSpotifyId() != null
                         && !song.getSpotifyId().equals(existing.getSpotifyId())) {
                     log.info("ISRC {} ya existe con spotifyId={}, actualizando a {}",
                             song.getIsrc(), existing.getSpotifyId(), song.getSpotifyId());
                     existing.setSpotifyId(song.getSpotifyId());
-                    jpa.save(existing);
+                    updated = true;
                 }
+                if (existing.getAlbum() == null && song.getAlbum() != null
+                        && song.getAlbum().getSpotifyId() != null) {
+                    existing.setAlbum(findOrCreateAlbum(song.getAlbum()));
+                    updated = true;
+                }
+                if (updated) jpa.save(existing);
                 return mapper.toModel(existing);
             }
         }
@@ -123,7 +130,13 @@ public class SongRepositoryImpl implements SongRepository {
         if (song.getSpotifyId() != null) {
             Optional<SongEntity> bySpotifyId = jpa.findBySpotifyId(song.getSpotifyId());
             if (bySpotifyId.isPresent()) {
-                return mapper.toModel(bySpotifyId.get());
+                SongEntity existing = bySpotifyId.get();
+                if (existing.getAlbum() == null && song.getAlbum() != null
+                        && song.getAlbum().getSpotifyId() != null) {
+                    existing.setAlbum(findOrCreateAlbum(song.getAlbum()));
+                    jpa.save(existing);
+                }
+                return mapper.toModel(existing);
             }
         }
 
@@ -132,18 +145,7 @@ public class SongRepositoryImpl implements SongRepository {
 
         // Álbum: find-or-create por spotifyId
         if (song.getAlbum() != null && song.getAlbum().getSpotifyId() != null) {
-            AlbumEntity albumEntity = albumJpa.findBySpotifyId(song.getAlbum().getSpotifyId())
-                    .orElseGet(() -> {
-                        AlbumEntity a = new AlbumEntity();
-                        a.setSpotifyId(song.getAlbum().getSpotifyId());
-                        a.setTitle(song.getAlbum().getTitle());
-                        if (song.getAlbum().getYear() != null) {
-                            a.setYear(song.getAlbum().getYear().shortValue());
-                        }
-                        a.setCoverUrl(song.getAlbum().getCoverUrl());
-                        return albumJpa.save(a);
-                    });
-            entity.setAlbum(albumEntity);
+            entity.setAlbum(findOrCreateAlbum(song.getAlbum()));
         }
 
         // Artistas: find-or-create por spotifyId
@@ -210,6 +212,18 @@ public class SongRepositoryImpl implements SongRepository {
         return jpa.findByTitleContainingIgnoreCase(title).stream()
                 .map(mapper::toModel)
                 .toList();
+    }
+
+    private AlbumEntity findOrCreateAlbum(es.wara.ecos.backend.domain.model.Album album) {
+        return albumJpa.findBySpotifyId(album.getSpotifyId())
+                .orElseGet(() -> {
+                    AlbumEntity a = new AlbumEntity();
+                    a.setSpotifyId(album.getSpotifyId());
+                    a.setTitle(album.getTitle());
+                    if (album.getYear() != null) a.setYear(album.getYear().shortValue());
+                    a.setCoverUrl(album.getCoverUrl());
+                    return albumJpa.save(a);
+                });
     }
 
     @Override
