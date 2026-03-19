@@ -96,7 +96,7 @@ public class MusicAggregationService {
         CompletableFuture<Void> tagsFuture = CompletableFuture.runAsync(() -> {
             if (!artist.isBlank() && !title.isBlank()) {
                 try {
-                    List<Tag> tags = musicProvider.getSongTags(artist, title);
+                    List<Tag> tags = musicProvider.getSongTags(artist, cleanTitle(title));
                     song.setTags(tags);
                 } catch (Exception e) {
                     log.warn("No se pudieron obtener tags para '{} - {}': {}", artist, title, e.getMessage());
@@ -164,6 +164,20 @@ public class MusicAggregationService {
     // ─────────────────────────────────────────────────────────────────────────
     // Métodos privados
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Elimina sufijos de remasterización/edición que Last.fm no reconoce.
+     * Ejemplos: "Dreams - 2004 Remaster" → "Dreams", "Don't Stop Me Now - Remastered 2011" → "Don't Stop Me Now"
+     */
+    private static String cleanTitle(String title) {
+        return title
+                .replaceAll("(?i)\\s*[-–]\\s*(Remastered|Remaster)(\\s+\\d{4})?.*$", "")
+                .replaceAll("(?i)\\s*[-–]\\s*\\d{4}\\s+(Remastered|Remaster).*$", "")
+                .replaceAll("(?i)\\s*\\((Remastered|Remaster)[^)]*\\)", "")
+                .replaceAll("(?i)\\s*\\((Live|Radio Edit|Single Version|Album Version)[^)]*\\)", "")
+                .replaceAll("(?i)\\s*-\\s*(Live|Radio Edit|Single Version|Album Version)\\s*$", "")
+                .trim();
+    }
 
     /** Extrae el nombre del artista principal de la canción, o cadena vacía si no hay. */
     private String extractPrimaryArtist(Song song) {
