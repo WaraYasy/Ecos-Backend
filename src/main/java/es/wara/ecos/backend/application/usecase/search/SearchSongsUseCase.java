@@ -2,26 +2,26 @@ package es.wara.ecos.backend.application.usecase.search;
 
 import es.wara.ecos.backend.application.service.MusicAggregationService;
 import es.wara.ecos.backend.domain.model.Song;
+import es.wara.ecos.backend.domain.model.Tag;
 import es.wara.ecos.backend.domain.port.MusicProvider;
 import es.wara.ecos.backend.domain.port.SongRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Caso de uso para búsqueda multidimensional de canciones usando los 5 cuadrantes de ECOS.
+ * Caso de uso para búsqueda multidimensional de canciones usando los cuadrantes de ECOS.
  *
- * <p>Implementa una estrategia <b>BD-primero</b>: consulta siempre la base de datos local con
- * {@link SongRepository#search(SearchParams)} y solo recurre a APIs externas si no hay resultados
- * y hay al menos un cuadrante no-técnico activo. Las canciones nuevas se persisten para futuras
- * consultas.</p>
+ * <p>Implementa una estrategia <b>BD-primero</b>: consulta siempre la base de datos local y
+ * solo recurre a APIs externas si no hay resultados y hay al menos un cuadrante activo.</p>
  *
- * <p>Si únicamente están activos cuadrantes técnicos (audio features), no se llama a ninguna
- * API externa — solo canciones ya enriquecidas en BD pueden satisfacer esos filtros.</p>
+ * <p>Jerarquía de fuentes externas: movie → aesthetic → texture → q/decade.
+ * Solo una fuente trae canciones; los demás cuadrantes actúan como filtros en la re-query.</p>
  *
  * @author Wara Pacheco
- * @version 2.0
+ * @version 3.0
  * @since 1.0.0
  */
 @Service
@@ -38,32 +38,23 @@ public class SearchSongsUseCase {
         this.musicAggregationService = musicAggregationService;
     }
 
-    /**
-     * Ejecuta la búsqueda multidimensional con estrategia BD-primero.
-     *
-     * @param params parámetros con los cuadrantes activos y paginación
-     * @return lista de canciones que satisfacen todos los cuadrantes activos, nunca null
-     */
     public List<Song> execute(SearchParams params) {
-        // 1. Consultar siempre BD primero
         List<Song> songs = songRepository.search(params);
 
         if (!songs.isEmpty()) {
             return songs;
         }
 
-        // 2. Sin resultados: si hay cuadrantes no-técnicos activos, buscar en APIs externas
-        if (hasNonTechnicalQuadrant(params)) {
+        if (hasActiveQuadrant(params)) {
             List<Song> external = fetchFromExternalApis(params);
             external.stream()
                     .map(musicAggregationService::enrich)
+                    .peek(song -> ensureSearchTags(song, params))
                     .forEach(songRepository::save);
 
-            // Re-query con los datos ya persistidos
             songs = songRepository.search(params);
         }
 
-        // 3. Solo cuadrante técnico activo → devolver [] (no hay datos de audio features externos)
         return songs;
     }
 
@@ -71,58 +62,75 @@ public class SearchSongsUseCase {
     // PRIVADOS
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Devuelve true si al menos un cuadrante no-técnico tiene valor. */
-    private boolean hasNonTechnicalQuadrant(SearchParams params) {
+    /** Devuelve true si al menos un cuadrante activo puede disparar búsqueda externa. */
+    private boolean hasActiveQuadrant(SearchParams params) {
         return (params.q() != null && !params.q().isBlank())
                 || (params.aesthetic() != null && !params.aesthetic().isBlank())
                 || (params.decade() != null && !params.decade().isBlank())
-                || (params.movie() != null && !params.movie().isBlank());
+                || (params.movie() != null && !params.movie().isBlank())
+                || (params.texture() != null && !params.texture().isBlank());
     }
 
     /**
-     * Llama a las APIs externas según los cuadrantes no-técnicos activos y recoge todos los resultados.
-     *
-     * <ul>
-     *   <li>Cinematográfico → {@link MusicProvider#getSoundtrackSongs(String)}</li>
-     *   <li>Estética → {@link MusicProvider#searchSongsByTag(String, int)}</li>
-     *   <li>Texto / Temporal → {@link MusicProvider#searchSongs(String, int)}</li>
-     * </ul>
+     * Fetch con jerarquía: solo una fuente trae canciones, el resto son filtros.
+     * movie → aesthetic → texture → q/decade
      */
     private List<Song> fetchFromExternalApis(SearchParams params) {
-        List<Song> result = new ArrayList<>();
         int limit = params.limit();
 
-        if (params.movie() != null && !params.movie().isBlank()) {
-            result.addAll(musicProvider.getSoundtrackSongs(params.movie()));
-        }
-
-        if (params.aesthetic() != null && !params.aesthetic().isBlank()) {
-            result.addAll(musicProvider.searchSongsByTag(params.aesthetic(), limit));
-        }
-
+        boolean hasMovie     = params.movie()     != null && !params.movie().isBlank();
+        boolean hasAesthetic = params.aesthetic() != null && !params.aesthetic().isBlank();
+        boolean hasTexture   = params.texture()   != null && !params.texture().isBlank();
         boolean hasTextOrDecade = (params.q() != null && !params.q().isBlank())
-                || (params.decade() != null && !params.decade().isBlank());
+                               || (params.decade() != null && !params.decade().isBlank());
+
+        if (hasMovie) {
+            return new ArrayList<>(musicProvider.getSoundtrackSongs(params.movie()));
+        }
+
+        if (hasAesthetic) {
+            return new ArrayList<>(musicProvider.searchSongsByTag(params.aesthetic(), limit));
+        }
+
+        if (hasTexture) {
+            return new ArrayList<>(musicProvider.searchSongsByTag(params.texture(), limit));
+        }
+
         if (hasTextOrDecade) {
             String spotifyQuery = buildSpotifyQuery(params);
             if (!spotifyQuery.isBlank()) {
-                result.addAll(musicProvider.searchSongs(spotifyQuery, limit));
+                return new ArrayList<>(musicProvider.searchSongs(spotifyQuery, limit));
             }
         }
 
-        return result;
+        return new ArrayList<>();
     }
 
     /**
-     * Construye la query de Spotify combinando texto libre y filtro temporal.
-     *
-     * <p>Ejemplos:
-     * <ul>
-     *   <li>{@code q="Vangelis", decade="1980s"} → {@code "Vangelis year:1980-1989"}</li>
-     *   <li>{@code decade="1990s"} → {@code "year:1990-1999"}</li>
-     *   <li>{@code q="Blade Runner"} → {@code "Blade Runner"}</li>
-     * </ul>
-     * </p>
+     * Garantiza que las canciones tengan el tag del cuadrante por el que se buscaron,
+     * independientemente de si Last.fm lo devolvió o no en el enriquecimiento.
      */
+    private void ensureSearchTags(Song song, SearchParams params) {
+        if (params.aesthetic() != null && !params.aesthetic().isBlank()) {
+            addTagIfMissing(song, params.aesthetic().toLowerCase().trim());
+        }
+        if (params.texture() != null && !params.texture().isBlank()) {
+            addTagIfMissing(song, params.texture().toLowerCase().trim());
+        }
+    }
+
+    private void addTagIfMissing(Song song, String tagName) {
+        List<Tag> current = song.getTags() != null ? new ArrayList<>(song.getTags()) : new ArrayList<>();
+        boolean exists = current.stream().anyMatch(t -> tagName.equals(t.getName()));
+        if (!exists) {
+            Tag tag = new Tag();
+            tag.setName(tagName);
+            tag.setWeight(BigDecimal.ONE);
+            current.add(tag);
+            song.setTags(current);
+        }
+    }
+
     private String buildSpotifyQuery(SearchParams params) {
         StringBuilder sb = new StringBuilder();
 
