@@ -1,6 +1,5 @@
 package es.wara.ecos.backend.application.service;
 
-import es.wara.ecos.backend.domain.model.AudioFeatures;
 import es.wara.ecos.backend.domain.model.Movie;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.model.Tag;
@@ -9,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -75,24 +73,12 @@ public class MusicAggregationService {
     public Song enrich(Song song) {
         if (song == null) return null;
 
-        String spotifyId = song.getSpotifyId();
-        String artist    = extractPrimaryArtist(song);
-        String title     = song.getTitle() != null ? song.getTitle() : "";
+        String artist = extractPrimaryArtist(song);
+        String title  = song.getTitle() != null ? song.getTitle() : "";
 
-        log.debug("Enriqueciendo canción: '{}' - '{}' (spotifyId={})", artist, title, spotifyId);
+        log.debug("Enriqueciendo canción: '{}' - '{}'", artist, title);
 
-        // Lanzar las tres fuentes en paralelo
-        CompletableFuture<Void> featuresFuture = CompletableFuture.runAsync(() -> {
-            if (spotifyId != null && !spotifyId.isBlank()) {
-                try {
-                    Optional<AudioFeatures> features = musicProvider.getAudioFeatures(spotifyId);
-                    features.ifPresent(song::setAudioFeatures);
-                } catch (Exception e) {
-                    log.warn("No se pudieron obtener audio features para spotifyId='{}': {}", spotifyId, e.getMessage());
-                }
-            }
-        });
-
+        // Lanzar las fuentes en paralelo
         CompletableFuture<Void> tagsFuture = CompletableFuture.runAsync(() -> {
             if (!artist.isBlank() && !title.isBlank()) {
                 try {
@@ -105,7 +91,8 @@ public class MusicAggregationService {
         });
 
         CompletableFuture<Void> moviesFuture = CompletableFuture.runAsync(() -> {
-            if (!artist.isBlank() && !title.isBlank()) {
+            if (!artist.isBlank() && !title.isBlank()
+                    && (song.getMovies() == null || song.getMovies().isEmpty())) {
                 try {
                     List<Movie> movies = musicProvider.getMoviesForSong(artist, title);
                     song.setMovies(movies);
@@ -117,7 +104,7 @@ public class MusicAggregationService {
 
         // Esperar todas las fuentes con timeout global
         try {
-            CompletableFuture.allOf(featuresFuture, tagsFuture, moviesFuture)
+            CompletableFuture.allOf(tagsFuture, moviesFuture)
                     .get(ENRICH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
             log.warn("Timeout al enriquecer '{}': alguna fuente no respondió en {}s", title, ENRICH_TIMEOUT_SECONDS);
@@ -125,9 +112,8 @@ public class MusicAggregationService {
             log.warn("Error al esperar enriquecimiento de '{}': {}", title, e.getMessage());
         }
 
-        log.debug("Enriquecimiento completado para '{}': features={}, tags={}, movies={}",
+        log.debug("Enriquecimiento completado para '{}': tags={}, movies={}",
                 title,
-                song.getAudioFeatures() != null,
                 song.getTags() != null ? song.getTags().size() : 0,
                 song.getMovies() != null ? song.getMovies().size() : 0);
 
