@@ -126,6 +126,7 @@ public class SongRepositoryImpl implements SongRepository {
                     updated = true;
                 }
                 if (updated) jpa.save(existing);
+                addMissingTags(existing, song.getTags());
                 return mapper.toModel(existing);
             }
         }
@@ -146,6 +147,7 @@ public class SongRepositoryImpl implements SongRepository {
                     updated = true;
                 }
                 if (updated) jpa.save(existing);
+                addMissingTags(existing, song.getTags());
                 return mapper.toModel(existing);
             }
         }
@@ -238,6 +240,22 @@ public class SongRepositoryImpl implements SongRepository {
                         return movieJpa.save(m);
                     });
             songEntity.getMovies().add(movieEntity);
+        }
+    }
+
+    /** Persiste los tags nuevos de una canción ya existente, ignorando los que ya tenga. */
+    private void addMissingTags(SongEntity song, List<Tag> tags) {
+        if (tags == null || tags.isEmpty()) return;
+        for (Tag tag : tags) {
+            if (tag.getName() == null || tag.getName().isBlank()) continue;
+            SongTagId id = new SongTagId(song.getId(), tag.getName());
+            if (!songTagJpa.existsById(id)) {
+                SongTagEntity tagEntity = new SongTagEntity();
+                tagEntity.setId(id);
+                tagEntity.setSong(song);
+                tagEntity.setWeight(tag.getWeight());
+                songTagJpa.save(tagEntity);
+            }
         }
     }
 

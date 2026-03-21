@@ -97,10 +97,24 @@ public class SearchSongsUseCase {
         }
 
         if (hasAesthetic) {
+            // Si hay también decade/q, usar Spotify como fuente para respetar el filtro temporal.
+            // ensureSearchTags añadirá el tag aesthetic a todas las canciones resultantes.
+            if (hasTextOrDecade) {
+                String spotifyQuery = buildSpotifyQuery(params);
+                if (!spotifyQuery.isBlank()) {
+                    return new ArrayList<>(musicProvider.searchSongs(spotifyQuery, limit));
+                }
+            }
             return new ArrayList<>(musicProvider.searchSongsByTag(params.aesthetic(), limit));
         }
 
         if (hasTexture) {
+            if (hasTextOrDecade) {
+                String spotifyQuery = buildSpotifyQuery(params);
+                if (!spotifyQuery.isBlank()) {
+                    return new ArrayList<>(musicProvider.searchSongs(spotifyQuery, limit));
+                }
+            }
             return new ArrayList<>(musicProvider.searchSongsByTag(params.texture(), limit));
         }
 
