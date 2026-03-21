@@ -121,6 +121,10 @@ public class SongRepositoryImpl implements SongRepository {
                     existing.setAlbum(findOrCreateAlbum(song.getAlbum()));
                     updated = true;
                 }
+                if (existing.getMovies().isEmpty() && song.getMovies() != null && !song.getMovies().isEmpty()) {
+                    addMoviesToSong(existing, song.getMovies());
+                    updated = true;
+                }
                 if (updated) jpa.save(existing);
                 return mapper.toModel(existing);
             }
@@ -131,11 +135,17 @@ public class SongRepositoryImpl implements SongRepository {
             Optional<SongEntity> bySpotifyId = jpa.findBySpotifyId(song.getSpotifyId());
             if (bySpotifyId.isPresent()) {
                 SongEntity existing = bySpotifyId.get();
+                boolean updated = false;
                 if (existing.getAlbum() == null && song.getAlbum() != null
                         && song.getAlbum().getSpotifyId() != null) {
                     existing.setAlbum(findOrCreateAlbum(song.getAlbum()));
-                    jpa.save(existing);
+                    updated = true;
                 }
+                if (existing.getMovies().isEmpty() && song.getMovies() != null && !song.getMovies().isEmpty()) {
+                    addMoviesToSong(existing, song.getMovies());
+                    updated = true;
+                }
+                if (updated) jpa.save(existing);
                 return mapper.toModel(existing);
             }
         }
@@ -212,6 +222,23 @@ public class SongRepositoryImpl implements SongRepository {
         return jpa.findByTitleContainingIgnoreCase(title).stream()
                 .map(mapper::toModel)
                 .toList();
+    }
+
+    private void addMoviesToSong(SongEntity songEntity, List<Movie> movies) {
+        for (Movie movie : movies) {
+            if (movie.getTmdbId() == null || movie.getTitle() == null) continue;
+            MovieEntity movieEntity = movieJpa.findByTmdbId(movie.getTmdbId())
+                    .orElseGet(() -> {
+                        MovieEntity m = new MovieEntity();
+                        m.setTmdbId(movie.getTmdbId());
+                        m.setTitle(movie.getTitle());
+                        if (movie.getYear() != null) m.setYear(movie.getYear().shortValue());
+                        m.setDirector(movie.getDirector());
+                        m.setGenres(movie.getGenres());
+                        return movieJpa.save(m);
+                    });
+            songEntity.getMovies().add(movieEntity);
+        }
     }
 
     private AlbumEntity findOrCreateAlbum(es.wara.ecos.backend.domain.model.Album album) {
