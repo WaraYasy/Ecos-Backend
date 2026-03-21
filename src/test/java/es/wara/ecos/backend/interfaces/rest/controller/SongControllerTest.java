@@ -2,7 +2,6 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.search.GetSimilarSongsUseCase;
 import es.wara.ecos.backend.application.usecase.song.GetSongByIdUseCase;
-import es.wara.ecos.backend.domain.model.AudioFeatures;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -82,30 +80,6 @@ class SongControllerTest {
                 .thenThrow(new IllegalArgumentException("Canción no encontrada: " + UNKNOWN_ID));
 
         mockMvc.perform(get("/v1/songs/" + UNKNOWN_ID + "/related"))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void getAudioFeatures_songWithFeatures_returns200() throws Exception {
-        Song song = buildSong();
-        AudioFeatures features = new AudioFeatures();
-        features.setSongId(SONG_ID);
-        features.setEnergy(new BigDecimal("0.85"));
-        features.setTempo(new BigDecimal("140.0"));
-        song.setAudioFeatures(features);
-        when(getSongByIdUseCase.execute(SONG_ID)).thenReturn(song);
-
-        mockMvc.perform(get("/v1/songs/" + SONG_ID + "/audio-features"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.energy").value(0.85));
-    }
-
-    @Test
-    void getAudioFeatures_songWithoutFeatures_returns404() throws Exception {
-        Song song = buildSong(); // audioFeatures = null
-        when(getSongByIdUseCase.execute(SONG_ID)).thenReturn(song);
-
-        mockMvc.perform(get("/v1/songs/" + SONG_ID + "/audio-features"))
                 .andExpect(status().isNotFound());
     }
 

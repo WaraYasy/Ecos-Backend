@@ -3,7 +3,6 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 import es.wara.ecos.backend.application.usecase.search.GetSimilarSongsUseCase;
 import es.wara.ecos.backend.application.usecase.song.GetSongByIdUseCase;
 import es.wara.ecos.backend.domain.model.Song;
-import es.wara.ecos.backend.interfaces.rest.dto.AudioFeaturesResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.SongResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -64,28 +63,6 @@ public class SongController {
                 .map(SongResponse::from)
                 .toList();
         return ResponseEntity.ok(related);
-    }
-
-    /**
-     * Devuelve las características de audio de una canción (energía, valencia, BPM, etc.).
-     * <p>
-     * Responde {@code 404} si la canción existe pero aún no tiene características
-     * de audio calculadas (p.ej. no fue encontrada en Spotify).
-     * </p>
-     *
-     * @param id identificador de la canción
-     * @return {@code 200 OK} con las características de audio, o {@code 404} si no están disponibles
-     */
-    @GetMapping("/{id}/audio-features")
-    public ResponseEntity<AudioFeaturesResponse> getAudioFeatures(@PathVariable UUID id) {
-        Song song = getSongByIdUseCase.execute(id);
-        AudioFeaturesResponse response = AudioFeaturesResponse.from(song.getAudioFeatures());
-
-        // getAudioFeatures() puede ser null si Spotify no devolvió datos para esta canción
-        if (response == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(response);
     }
 
 }

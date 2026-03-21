@@ -112,16 +112,6 @@ class SongFlowTest extends BaseFunctionalTest {
     }
 
     @Test
-    void getAudioFeatures_songWithoutFeatures_returns404() throws Exception {
-        String token = registerAndLogin();
-
-        // La canción existe pero no tiene audio features insertadas → 404
-        mockMvc.perform(get("/v1/songs/" + songId + "/audio-features")
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
     void getSong_withoutToken_returns401() throws Exception {
         mockMvc.perform(get("/v1/songs/" + songId))
                 .andExpect(status().isUnauthorized());
