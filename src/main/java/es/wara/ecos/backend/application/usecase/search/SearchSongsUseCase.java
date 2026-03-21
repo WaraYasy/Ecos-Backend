@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Caso de uso para búsqueda multidimensional de canciones usando los cuadrantes de ECOS.
@@ -47,8 +48,15 @@ public class SearchSongsUseCase {
 
         if (hasActiveQuadrant(params)) {
             List<Song> external = fetchFromExternalApis(params);
-            external.stream()
-                    .map(musicAggregationService::enrich)
+
+            List<CompletableFuture<Song>> futures = external.stream()
+                    .map(song -> CompletableFuture.supplyAsync(() -> musicAggregationService.enrich(song)))
+                    .toList();
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+            futures.stream()
+                    .map(CompletableFuture::join)
                     .peek(song -> ensureSearchTags(song, params))
                     .forEach(songRepository::save);
 
