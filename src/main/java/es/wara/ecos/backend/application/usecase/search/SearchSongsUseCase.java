@@ -13,16 +13,26 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Caso de uso para búsqueda multidimensional de canciones usando los cuadrantes de ECOS.
+ * Caso de uso para búsqueda multidimensional de canciones usando los 5 cuadrantes de ECOS.
  *
- * <p>Implementa una estrategia <b>BD-primero</b>: consulta siempre la base de datos local y
- * solo recurre a APIs externas si no hay resultados y hay al menos un cuadrante activo.</p>
+ * <p><b>Estrategia BD-primero:</b> consulta siempre la base de datos local y solo recurre
+ * a APIs externas si no hay resultados y hay al menos un cuadrante activo. Tras enriquecer
+ * y persistir los resultados externos, re-ejecuta la búsqueda en BD para devolver datos
+ * coherentes con el modelo de respuesta.</p>
  *
- * <p>Jerarquía de fuentes externas: movie → aesthetic → texture → q/decade.
- * Solo una fuente trae canciones; los demás cuadrantes actúan como filtros en la re-query.</p>
+ * <p><b>Jerarquía de fuentes externas:</b> {@code movie → aesthetic → texture → q/decade}.
+ * Solo una fuente trae canciones; los demás cuadrantes actúan como filtros en la re-query.
+ * Excepción: si {@code aesthetic} y {@code decade/q} están activos simultáneamente, se usa
+ * Spotify con filtro temporal como fuente primaria para garantizar que la re-query encuentre
+ * canciones que satisfagan ambos cuadrantes. {@link #ensureSearchTags} añade el tag aesthetic
+ * a los resultados.</p>
+ *
+ * <p><b>Tags garantizados:</b> {@link #ensureSearchTags} asegura que todas las canciones
+ * devueltas tengan el tag del cuadrante por el que se buscó, independientemente de si
+ * Last.fm lo devolvió durante el enriquecimiento.</p>
  *
  * @author Wara Pacheco
- * @version 3.0
+ * @version 3.1
  * @since 1.0.0
  */
 @Service

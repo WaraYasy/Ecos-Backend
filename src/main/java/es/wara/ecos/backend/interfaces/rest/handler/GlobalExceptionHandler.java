@@ -14,10 +14,26 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
  * Manejador global de excepciones para la API REST de ECOS.
- * Transforma excepciones de dominio e infraestructura en respuestas HTTP estándar.
+ *
+ * <p>Intercepta excepciones de todas las capas y las transforma en respuestas HTTP
+ * con un cuerpo JSON uniforme {@code {error, message, status}}:</p>
+ *
+ * <table>
+ *   <tr><th>Excepción</th><th>HTTP</th><th>Cuándo</th></tr>
+ *   <tr><td>{@link es.wara.ecos.backend.domain.exception.ConflictException}</td><td>409</td><td>Recurso duplicado (ej. email ya registrado)</td></tr>
+ *   <tr><td>{@link es.wara.ecos.backend.domain.exception.ForbiddenException}</td><td>403</td><td>El usuario no es propietario del recurso (IDOR)</td></tr>
+ *   <tr><td>{@link IllegalStateException}</td><td>401</td><td>Credenciales incorrectas en login</td></tr>
+ *   <tr><td>{@link IllegalArgumentException}</td><td>404</td><td>Recurso no encontrado por ID</td></tr>
+ *   <tr><td>{@link org.springframework.web.bind.MissingServletRequestParameterException}</td><td>400</td><td>Parámetro requerido ausente</td></tr>
+ *   <tr><td>{@link org.springframework.web.bind.MethodArgumentNotValidException}</td><td>400</td><td>Validación de bean fallida (@Valid)</td></tr>
+ *   <tr><td>{@link org.springframework.http.converter.HttpMessageNotReadableException}</td><td>400</td><td>JSON malformado o tipo incorrecto</td></tr>
+ *   <tr><td>{@link UnsupportedOperationException}</td><td>501</td><td>Funcionalidad no implementada (stub)</td></tr>
+ *   <tr><td>{@link es.wara.ecos.backend.infrastructure.exception.ApiRateLimitException}</td><td>429</td><td>Rate limit de una API externa</td></tr>
+ *   <tr><td>{@link Exception}</td><td>500</td><td>Error inesperado (mensaje sanitizado, detalle en log)</td></tr>
+ * </table>
  *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 1.1
  * @since 1.0.0
  */
 @Slf4j

@@ -26,6 +26,19 @@ import java.util.UUID;
 /**
  * Controlador REST para gestión de usuarios de ECOS.
  *
+ * <p>Endpoints:
+ * <ul>
+ *   <li>{@code POST /v1/users} — registro (público, sin token)</li>
+ *   <li>{@code GET /v1/users/{id}} — perfil público del usuario</li>
+ *   <li>{@code PUT /v1/users/{id}/preferences} — actualización de preferencias (solo el propio usuario)</li>
+ *   <li>{@code GET /v1/users/{id}/profile} — perfil musical calculado a partir del historial</li>
+ * </ul>
+ * </p>
+ *
+ * <p>La protección IDOR en {@code PUT /preferences} compara el {@code id} del path con
+ * el {@code userId} extraído del JWT mediante {@link es.wara.ecos.backend.infrastructure.security.SecurityUtils},
+ * lanzando {@link es.wara.ecos.backend.domain.exception.ForbiddenException} (→ 403) si no coinciden.</p>
+ *
  * @author Wara Pacheco
  * @version 1.0
  * @since 1.0.0

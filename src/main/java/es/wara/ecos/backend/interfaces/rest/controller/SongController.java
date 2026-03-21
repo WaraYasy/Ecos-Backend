@@ -16,6 +16,13 @@ import java.util.UUID;
 /**
  * Controlador REST para operaciones sobre canciones individuales.
  *
+ * <p>Endpoints:
+ * <ul>
+ *   <li>{@code GET /v1/songs/{id}} — detalle completo de una canción (SongResponse)</li>
+ *   <li>{@code GET /v1/songs/{id}/related} — canciones similares vía Last.fm</li>
+ * </ul>
+ * Todos los endpoints requieren autenticación JWT.</p>
+ *
  * @author Wara Pacheco
  * @version 1.0
  * @since 1.0.0

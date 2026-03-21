@@ -5,28 +5,25 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * Clase principal de la aplicación Ecos Backend.
- * <p>
- * Esta aplicación proporciona un backend para la gestión de recomendaciones
- * de contenido multimedia (música, películas, series) integrando múltiples
- * API externas como Spotify, Last.fm y TMDB.
- * </p>
- * <p>
- * <b>Características principales:</b>
+ * Punto de entrada del backend de ECOS — app móvil de descubrimiento musical.
+ *
+ * <p><b>Arquitectura:</b> hexagonal (Ports &amp; Adapters) con Spring Boot 4 sobre Java 21.
+ * Las capas son {@code interfaces/rest} → {@code application} → {@code domain} ←→ {@code infrastructure}.</p>
+ *
+ * <p><b>Integraciones externas:</b>
  * <ul>
- *   <li>Integración con Spotify API para datos musicales</li>
- *   <li>Integración con Last.fm para información de artistas y canciones</li>
- *   <li>Integración con TMDB para películas y series</li>
- *   <li>Carga automática de variables de entorno desde archivo .env</li>
- *   <li>Sistema robusto de manejo de errores de APIs</li>
- *   <li>Logging completo con rotación de archivos</li>
+ *   <li><b>Spotify Web API</b> — búsqueda de tracks, audio features, gestión de playlists</li>
+ *   <li><b>Last.fm API</b> — tags de género/mood/estética, canciones similares</li>
+ *   <li><b>MusicBrainz API</b> — puente bidireccional canción↔película (OST)</li>
+ *   <li><b>TMDb API</b> — metadatos de películas (director, géneros, año)</li>
  * </ul>
  * </p>
- * <p>
- * La aplicación carga automáticamente las credenciales de las API desde un
- * archivo {@code .env} en el directorio raíz del proyecto antes de iniciar
- * el contexto de Spring Boot.
- * </p>
+ *
+ * <p><b>Variables de entorno:</b> se cargan desde un archivo {@code .env} en la raíz
+ * del proyecto mediante {@code dotenv-java} antes de arrancar el contexto de Spring.
+ * En producción se inyectan directamente como variables del sistema (Railway, etc.).</p>
+ *
+ * <p>Puerto por defecto: {@code 3000}. Swagger UI disponible en {@code /swagger-ui.html}.</p>
  *
  * @author Wara Pacheco
  * @version 1.0

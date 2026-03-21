@@ -32,16 +32,27 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Implementación del puerto de dominio SongRepository usando JPA.
- * <p>
- * El método {@link #save(Song)} aplica deduplicación por ISRC antes de insertar:
- * si ya existe una canción con el mismo ISRC, se devuelve la existente (actualizando
- * el spotifyId si cambió). Esto evita duplicados entre versiones remasterizadas o
- * regionales de la misma grabación.
- * </p>
+ * Implementación del puerto de dominio {@link SongRepository} usando JPA.
+ *
+ * <p><b>Deduplicación en tres niveles en {@link #save(Song)}:</b>
+ * <ol>
+ *   <li>ISRC (grabación física): si ya existe, actualiza spotifyId, álbum y películas si
+ *       cambiaron, y añade los tags nuevos que no estuvieran en BD.</li>
+ *   <li>spotifyId (edición de Spotify): si ya existe, mismo comportamiento de actualización
+ *       parcial + merge de tags.</li>
+ *   <li>Nueva canción: inserta con todas sus relaciones (álbum, artistas, películas,
+ *       audio features, tags).</li>
+ * </ol>
+ * El merge de tags ({@link #addMissingTags}) garantiza que los tags asignados por
+ * {@code SearchSongsUseCase.ensureSearchTags} se persistan incluso cuando la canción
+ * ya existía en BD sin ese tag.</p>
+ *
+ * <p><b>Búsqueda multidimensional:</b> {@link #search(SearchParams)} delega en
+ * {@link SongSpecification#from(SearchParams)} para combinar con AND los predicados
+ * de los 5 cuadrantes activos, con paginación.</p>
  *
  * @author Wara Pacheco
- * @version 1.1
+ * @version 1.2
  * @since 1.0.0
  */
 @Slf4j

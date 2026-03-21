@@ -12,9 +12,16 @@ import java.util.Date;
 import java.util.UUID;
 
 /**
- * Servicio de generación y validación de tokens JWT para autenticación stateless.
- * <p>
- * El sujeto del token es el {@code userId} en formato String.
+ * Servicio de generación y validación de tokens JWT para autenticación stateless en ECOS.
+ *
+ * <p>Usa la librería <b>jjwt 0.12.6</b> con algoritmo HMAC-SHA256. El claim {@code sub}
+ * almacena el {@code userId} como String UUID; {@code iat} y {@code exp} siguen el estándar JWT.</p>
+ *
+ * <p>Configuración (variables de entorno / properties):
+ * <ul>
+ *   <li>{@code JWT_SECRET} — secreto HMAC en texto plano (mínimo 32 caracteres recomendado)</li>
+ *   <li>{@code JWT_EXPIRATION_MS} — tiempo de vida en ms; por defecto 86 400 000 (24 h)</li>
+ * </ul>
  * </p>
  *
  * @author Wara Pacheco
