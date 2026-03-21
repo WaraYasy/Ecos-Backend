@@ -93,15 +93,26 @@ public class SongSpecification {
                 predicates.add(cb.like(cb.lower(movieJoin.get("title")), pattern));
             }
 
-            // ── Cuadrante 5: Técnico (INNER JOIN — excluye canciones sin audio features) ──
-            boolean hasTechnical = params.instrumental() != null
+            // ── Cuadrante 5a: Textura (filtro por tags — independiente de audio features) ──
+            if (params.texture() != null && !params.texture().isBlank()) {
+                List<String> textureTags = resolveTextureTags(params.texture());
+                if (!textureTags.isEmpty()) {
+                    Subquery<UUID> sub = query.subquery(UUID.class);
+                    Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
+                    sub.select(tagRoot.get("id").get("songId"));
+                    sub.where(tagRoot.get("id").get("tag").in(textureTags));
+                    predicates.add(root.get("id").in(sub));
+                }
+            }
+
+            // ── Cuadrante 5b: Técnico numérico (INNER JOIN — excluye canciones sin audio features) ──
+            boolean hasAudioFeatureFilters = params.instrumental() != null
                     || params.mode() != null
-                    || (params.texture() != null && !params.texture().isBlank())
                     || params.energyMin() != null || params.energyMax() != null
                     || params.valenceMin() != null || params.valenceMax() != null
                     || params.bpmMin() != null || params.bpmMax() != null;
 
-            if (hasTechnical) {
+            if (hasAudioFeatureFilters) {
                 Join<SongEntity, AudioFeaturesEntity> afJoin = root.join("audioFeatures", JoinType.INNER);
 
                 if (params.instrumental() != null) {
@@ -117,17 +128,6 @@ public class SongSpecification {
                         predicates.add(cb.equal(afJoin.<Short>get("mode"), (short) 1));
                     } else if ("minor".equalsIgnoreCase(params.mode())) {
                         predicates.add(cb.equal(afJoin.<Short>get("mode"), (short) 0));
-                    }
-                }
-
-                if (params.texture() != null && !params.texture().isBlank()) {
-                    List<String> textureTags = resolveTextureTags(params.texture());
-                    if (!textureTags.isEmpty()) {
-                        Subquery<UUID> sub = query.subquery(UUID.class);
-                        Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
-                        sub.select(tagRoot.get("id").get("songId"));
-                        sub.where(tagRoot.get("id").get("tag").in(textureTags));
-                        predicates.add(root.get("id").in(sub));
                     }
                 }
 
