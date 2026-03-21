@@ -302,6 +302,15 @@ public class MusicProviderAdapter implements MusicProvider {
                     }
                 }
             }
+
+            // Adjuntar la película a todas las canciones para que la búsqueda por movie funcione
+            if (!songs.isEmpty()) {
+                Movie movie = fetchMovieFromTmdb(movieTitle);
+                if (movie != null) {
+                    songs.forEach(s -> s.setMovies(List.of(movie)));
+                }
+            }
+
             return songs;
 
         } catch (ExternalApiException e) {
@@ -440,6 +449,33 @@ public class MusicProviderAdapter implements MusicProvider {
         } catch (ExternalApiException e) {
             log.warn("Error al buscar por tag '{}' en Last.fm, devolviendo vacío: {}", tag, e.getMessage());
             return List.of();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HELPERS INTERNOS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Busca una película en TMDb por título y devuelve un Movie con sus datos básicos. */
+    private Movie fetchMovieFromTmdb(String movieTitle) {
+        try {
+            TMDBSearchResponseDTO search = tmdbClient.searchMovies(movieTitle, 1);
+            if (search == null || search.getResults() == null || search.getResults().isEmpty()) {
+                return null;
+            }
+            TMDBMovieDTO dto = search.getResults().get(0);
+            Movie movie = new Movie();
+            movie.setTmdbId(dto.getId().intValue());
+            movie.setTitle(dto.getTitle());
+            if (dto.getReleaseDate() != null && dto.getReleaseDate().length() >= 4) {
+                try {
+                    movie.setYear(Integer.parseInt(dto.getReleaseDate().substring(0, 4)));
+                } catch (NumberFormatException ignored) {}
+            }
+            return movie;
+        } catch (ExternalApiException e) {
+            log.debug("No se pudo obtener info de película '{}' en TMDb: {}", movieTitle, e.getMessage());
+            return null;
         }
     }
 
