@@ -20,7 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * <p><b>Cadena de filtros:</b> {@link JwtAuthFilter} se ejecuta antes de
  * {@code UsernamePasswordAuthenticationFilter}. Extrae el {@code userId} del token JWT
  * y lo registra en el {@code SecurityContextHolder} para que los controladores puedan
- * leerlo vía {@link es.wara.ecos.backend.infrastructure.security.SecurityUtils}.</p>
+ * leerlo vía {@link SecurityUtils}.</p>
  *
  * <p><b>Rutas públicas</b> (sin token requerido):
  * <ul>
@@ -34,7 +34,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * {@code AuthenticationEntryPoint} devuelve {@code 401} con cuerpo JSON.</p>
  *
  * <p>CSRF está deshabilitado (API stateless). CORS se configura en
- * {@link es.wara.ecos.backend.config.WebConfig}.</p>
+ * {@link WebConfig}.</p>
  *
  * @author Wara Pacheco
  * @version 1.0

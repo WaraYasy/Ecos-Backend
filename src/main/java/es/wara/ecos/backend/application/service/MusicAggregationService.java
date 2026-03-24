@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeUnit;import java.util.concurrent.TimeoutException;
 
 /**
  * Servicio de aplicación que orquesta el enriquecimiento de canciones y la importación
@@ -106,7 +106,7 @@ public class MusicAggregationService {
         try {
             CompletableFuture.allOf(tagsFuture, moviesFuture)
                     .get(ENRICH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (java.util.concurrent.TimeoutException e) {
+        } catch (TimeoutException e) {
             log.warn("Timeout al enriquecer '{}': alguna fuente no respondió en {}s", title, ENRICH_TIMEOUT_SECONDS);
         } catch (Exception e) {
             log.warn("Error al esperar enriquecimiento de '{}': {}", title, e.getMessage());

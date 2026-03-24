@@ -334,7 +334,7 @@ public class MusicProviderAdapter implements MusicProvider {
     @Override
     public List<Movie> getMoviesForSong(String artist, String title) {
         try {
-            java.util.Optional<String> mbid = musicBrainzClient.searchRecordingByArtistAndTitle(artist, title);
+            Optional<String> mbid = musicBrainzClient.searchRecordingByArtistAndTitle(artist, title);
             if (mbid.isEmpty()) return List.of();
 
             List<MusicBrainzReleaseGroupDTO> soundtracks = musicBrainzClient.getMoviesForRecording(mbid.get());
