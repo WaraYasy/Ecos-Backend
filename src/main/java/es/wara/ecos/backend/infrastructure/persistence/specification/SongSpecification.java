@@ -27,6 +27,7 @@ import java.util.UUID;
  * <ul>
  *   <li><b>Texto libre</b> ({@code q}): busca en título de la canción y nombre del artista</li>
  *   <li><b>Estética</b> ({@code aesthetic}): filtra por tag en {@code song_tags}</li>
+ *   <li><b>Género musical</b> ({@code genre}): filtra por tag en {@code song_tags} (coincidencia parcial)</li>
  *   <li><b>Temporal</b> ({@code decade}): filtra por año del álbum (ej. "1980s" → 1980-1989)</li>
  *   <li><b>Cinematográfico</b> ({@code movie}): busca canciones asociadas a una película</li>
  *   <li><b>Técnico</b>: filtra por audio features (INNER JOIN, excluye canciones sin datos)</li>
@@ -67,6 +68,16 @@ public class SongSpecification {
                 Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
                 sub.select(tagRoot.get("id").get("songId"));
                 sub.where(cb.equal(tagRoot.get("id").get("tag"), params.aesthetic().toLowerCase()));
+                predicates.add(root.get("id").in(sub));
+            }
+
+            // ── Cuadrante 2b: Género musical ─────────────────────────────────
+            if (params.genre() != null && !params.genre().isBlank()) {
+                Subquery<UUID> sub = query.subquery(UUID.class);
+                Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
+                sub.select(tagRoot.get("id").get("songId"));
+                String pattern = "%" + params.genre().toLowerCase() + "%";
+                sub.where(cb.like(tagRoot.get("id").get("tag"), pattern));
                 predicates.add(root.get("id").in(sub));
             }
 

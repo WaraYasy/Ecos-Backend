@@ -83,4 +83,27 @@ class SearchControllerTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void search_withGenre_passesGenreToUseCase() throws Exception {
+        when(searchSongsUseCase.execute(argThat(p -> "jazz".equals(p.genre()))))
+                .thenReturn(List.of(buildSong("Kind of Blue")));
+
+        mockMvc.perform(get("/v1/search").param("genre", "jazz"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Kind of Blue"));
+    }
+
+    @Test
+    void search_withGenreAndAesthetic_passesBothToUseCase() throws Exception {
+        when(searchSongsUseCase.execute(argThat(p ->
+                "rock".equals(p.genre()) && "dark academia".equals(p.aesthetic()))))
+                .thenReturn(List.of(buildSong("Creep")));
+
+        mockMvc.perform(get("/v1/search")
+                        .param("genre", "rock")
+                        .param("aesthetic", "dark academia"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Creep"));
+    }
+
 }

@@ -10,6 +10,7 @@ import java.math.BigDecimal;
  * <ul>
  *   <li><b>Texto libre:</b> {@code q}</li>
  *   <li><b>Estética:</b> {@code aesthetic}</li>
+ *   <li><b>Género musical:</b> {@code genre} (ej. "rock", "jazz", "indie")</li>
  *   <li><b>Temporal:</b> {@code decade} (ej. "1980s")</li>
  *   <li><b>Cinematográfico:</b> {@code movie}</li>
  *   <li><b>Técnico:</b> {@code instrumental}, {@code texture}, {@code mode},
@@ -23,6 +24,7 @@ import java.math.BigDecimal;
 public record SearchParams(
         String q,
         String aesthetic,
+        String genre,
         String decade,
         String movie,
         Boolean instrumental,

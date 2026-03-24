@@ -84,6 +84,7 @@ public class SearchSongsUseCase {
     private boolean hasActiveQuadrant(SearchParams params) {
         return (params.q() != null && !params.q().isBlank())
                 || (params.aesthetic() != null && !params.aesthetic().isBlank())
+                || (params.genre() != null && !params.genre().isBlank())
                 || (params.decade() != null && !params.decade().isBlank())
                 || (params.movie() != null && !params.movie().isBlank())
                 || (params.texture() != null && !params.texture().isBlank());
@@ -98,6 +99,7 @@ public class SearchSongsUseCase {
 
         boolean hasMovie     = params.movie()     != null && !params.movie().isBlank();
         boolean hasAesthetic = params.aesthetic() != null && !params.aesthetic().isBlank();
+        boolean hasGenre     = params.genre()     != null && !params.genre().isBlank();
         boolean hasTexture   = params.texture()   != null && !params.texture().isBlank();
         boolean hasTextOrDecade = (params.q() != null && !params.q().isBlank())
                                || (params.decade() != null && !params.decade().isBlank());
@@ -116,6 +118,14 @@ public class SearchSongsUseCase {
                 }
             }
             return new ArrayList<>(musicProvider.searchSongsByTag(params.aesthetic(), limit));
+        }
+
+        if (hasGenre) {
+            // Spotify soporta el filtro nativo genre: en su query de búsqueda.
+            String spotifyQuery = buildSpotifyQuery(params);
+            if (!spotifyQuery.isBlank()) {
+                return new ArrayList<>(musicProvider.searchSongs(spotifyQuery, limit));
+            }
         }
 
         if (hasTexture) {
@@ -146,6 +156,9 @@ public class SearchSongsUseCase {
         if (params.aesthetic() != null && !params.aesthetic().isBlank()) {
             addTagIfMissing(song, params.aesthetic().toLowerCase().trim());
         }
+        if (params.genre() != null && !params.genre().isBlank()) {
+            addTagIfMissing(song, params.genre().toLowerCase().trim());
+        }
         if (params.texture() != null && !params.texture().isBlank()) {
             addTagIfMissing(song, params.texture().toLowerCase().trim());
         }
@@ -168,6 +181,11 @@ public class SearchSongsUseCase {
 
         if (params.q() != null && !params.q().isBlank()) {
             sb.append(params.q().trim());
+        }
+
+        if (params.genre() != null && !params.genre().isBlank()) {
+            if (!sb.isEmpty()) sb.append(" ");
+            sb.append("genre:").append(params.genre().trim());
         }
 
         if (params.decade() != null && !params.decade().isBlank()) {

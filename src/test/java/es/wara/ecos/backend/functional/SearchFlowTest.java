@@ -60,6 +60,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                 songId, "spotify_song_search", "Chariots of Fire", albumId);
         jdbc.update("INSERT INTO song_artists (song_id, artist_id) VALUES (?, ?)", songId, artistId);
         jdbc.update("INSERT INTO song_tags (song_id, tag) VALUES (?, ?)", songId, "dark academia");
+        jdbc.update("INSERT INTO song_tags (song_id, tag) VALUES (?, ?)", songId, "indie rock");
     }
 
     private String registerAndLogin() throws Exception {
@@ -129,6 +130,66 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+    }
+
+    @Test
+    void search_byGenreExactMatch_returnsSong() throws Exception {
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("genre", "indie rock")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+    }
+
+    @Test
+    void search_byGenrePartialMatch_returnsSong() throws Exception {
+        // "indie" debe hacer match parcial sobre el tag "indie rock"
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("genre", "indie")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+    }
+
+    @Test
+    void search_byGenreNoMatch_returnsEmptyList() throws Exception {
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("genre", "heavy metal")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void search_byGenreAndAesthetic_andLogicReturnsSong() throws Exception {
+        // La canción tiene los dos tags — debe aparecer con ambos filtros
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("genre", "indie")
+                        .param("aesthetic", "dark academia")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+    }
+
+    @Test
+    void search_byGenreAndAesthetic_andLogicReturnsEmpty_whenOnlyOneTagMatches() throws Exception {
+        // Canción tiene "indie rock" pero no tiene aesthetic "cottagecore" → sin resultados
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("genre", "indie")
+                        .param("aesthetic", "cottagecore")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
 }

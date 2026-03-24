@@ -48,6 +48,7 @@ public class SearchController {
      *
      * @param q            texto libre para búsqueda por título, artista o letra
      * @param aesthetic    estilo o movimiento estético (p.ej. "dark academia", "cottagecore")
+     * @param genre        género musical (p.ej. "rock", "jazz", "indie pop")
      * @param decade       década musical (p.ej. "1980s", "2000s")
      * @param movie        película o serie asociada
      * @param instrumental {@code true} para canciones sin letra
@@ -67,6 +68,7 @@ public class SearchController {
     public ResponseEntity<List<SongResponse>> search(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String aesthetic,
+            @RequestParam(required = false) String genre,
             @RequestParam(required = false) String decade,
             @RequestParam(required = false) String movie,
             @RequestParam(required = false) Boolean instrumental,
@@ -83,7 +85,7 @@ public class SearchController {
     ) {
         // Empaquetar todos los filtros en un objeto de parámetros para el use case
         SearchParams params = new SearchParams(
-                q, aesthetic, decade, movie, instrumental, texture, mode,
+                q, aesthetic, genre, decade, movie, instrumental, texture, mode,
                 energyMin, energyMax, valenceMin, valenceMax, bpmMin, bpmMax,
                 limit, offset
         );
