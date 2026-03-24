@@ -9,6 +9,7 @@ import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.model.MusicProfile;
 import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,9 @@ class UserControllerTest {
 
     @MockitoBean
     JwtAuthFilter jwtAuthFilter;
+
+    @MockitoBean
+    RateLimitFilter rateLimitFilter;
 
     @MockitoBean
     RegisterUserUseCase registerUserUseCase;

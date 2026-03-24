@@ -1,6 +1,8 @@
 package es.wara.ecos.backend.config;
 
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
+import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,7 +48,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   JwtAuthFilter jwtAuthFilter) throws Exception {
+                                                   JwtAuthFilter jwtAuthFilter,
+                                                   RateLimitFilter rateLimitFilter) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -67,7 +70,8 @@ public class SecurityConfig {
                         "{\"error\":\"UNAUTHORIZED\",\"message\":\"Token requerido\",\"status\":401}");
                 })
             )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(rateLimitFilter, JwtAuthFilter.class);
 
         return http.build();
     }

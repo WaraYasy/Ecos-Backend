@@ -3,6 +3,7 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 import es.wara.ecos.backend.application.usecase.search.SearchSongsUseCase;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -26,6 +27,7 @@ class SearchControllerTest {
     @Autowired MockMvc mockMvc;
 
     @MockitoBean JwtAuthFilter jwtAuthFilter;
+    @MockitoBean RateLimitFilter rateLimitFilter;
     @MockitoBean SearchSongsUseCase searchSongsUseCase;
 
     private Song buildSong(String title) {

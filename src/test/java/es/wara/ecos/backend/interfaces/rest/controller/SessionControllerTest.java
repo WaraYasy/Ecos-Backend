@@ -8,6 +8,7 @@ import es.wara.ecos.backend.domain.model.ExplorationSession;
 import es.wara.ecos.backend.domain.model.SessionNode;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,9 @@ class SessionControllerTest {
 
     @MockitoBean
     JwtAuthFilter jwtAuthFilter;
+
+    @MockitoBean
+    RateLimitFilter rateLimitFilter;
 
     @MockitoBean
     GetSessionByIdUseCase getSessionByIdUseCase;

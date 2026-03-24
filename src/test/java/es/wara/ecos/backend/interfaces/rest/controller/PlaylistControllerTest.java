@@ -10,6 +10,7 @@ import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistU
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,9 @@ class PlaylistControllerTest {
 
     @MockitoBean
     JwtAuthFilter jwtAuthFilter;
+
+    @MockitoBean
+    RateLimitFilter rateLimitFilter;
 
     @MockitoBean
     GetPlaylistByIdUseCase getPlaylistByIdUseCase;

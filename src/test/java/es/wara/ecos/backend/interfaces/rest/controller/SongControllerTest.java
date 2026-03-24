@@ -4,6 +4,7 @@ import es.wara.ecos.backend.application.usecase.search.GetSimilarSongsUseCase;
 import es.wara.ecos.backend.application.usecase.song.GetSongByIdUseCase;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -26,6 +27,7 @@ class SongControllerTest {
     @Autowired MockMvc mockMvc;
 
     @MockitoBean JwtAuthFilter jwtAuthFilter;
+    @MockitoBean RateLimitFilter rateLimitFilter;
     @MockitoBean GetSongByIdUseCase getSongByIdUseCase;
     @MockitoBean GetSimilarSongsUseCase getSimilarSongsUseCase;
 

@@ -2,6 +2,7 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.user.LoginUseCase;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import es.wara.ecos.backend.infrastructure.security.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,9 @@ class AuthControllerTest {
 
     @MockitoBean
     JwtAuthFilter jwtAuthFilter;
+
+    @MockitoBean
+    RateLimitFilter rateLimitFilter;
 
     @MockitoBean
     LoginUseCase loginUseCase;

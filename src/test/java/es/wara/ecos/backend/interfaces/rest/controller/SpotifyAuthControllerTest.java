@@ -2,6 +2,7 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
+import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ class SpotifyAuthControllerTest {
 
     @MockitoBean
     JwtAuthFilter jwtAuthFilter;
+
+    @MockitoBean
+    RateLimitFilter rateLimitFilter;
 
     @MockitoBean
     SpotifyAuthPort spotifyAuthPort;
