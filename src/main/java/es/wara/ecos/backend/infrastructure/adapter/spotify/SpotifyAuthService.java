@@ -131,6 +131,12 @@ public class SpotifyAuthService implements SpotifyAuthPort {
     // ─────────────────────────────────────────────────────────────────────────
 
     private SpotifyTokenEntity refreshToken(SpotifyTokenEntity current) {
+        if (current.getRefreshToken() == null) {
+            log.error("Refresh token ausente en BD para userId={} — el usuario debe reautorizar Spotify",
+                    current.getUserId());
+            throw new IllegalArgumentException(
+                    "Token de Spotify expirado. Por favor vincula tu cuenta de Spotify de nuevo.");
+        }
         String refreshToken = encryptor.decrypt(current.getRefreshToken());
 
         HttpHeaders headers = buildBasicAuthHeaders();
@@ -143,8 +149,9 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
         Map<?, ?> rb = response.getBody();
         if (rb == null || !rb.containsKey("access_token")) {
+            log.error("Respuesta inválida al refrescar token para userId={}", current.getUserId());
             throw new IllegalArgumentException(
-                    "Respuesta inválida al refrescar token para userId=" + current.getUserId());
+                    "Error al refrescar token de Spotify. Por favor intenta de nuevo.");
         }
 
         String newAccess   = (String)  rb.get("access_token");
@@ -165,8 +172,9 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
     private void persistToken(UUID userId, Map<?, ?> body) {
         if (body == null || !body.containsKey("access_token")) {
+            log.error("Respuesta inválida de Spotify al obtener token para userId={}", userId);
             throw new IllegalArgumentException(
-                    "Respuesta inválida de Spotify al obtener token para userId=" + userId);
+                    "Error al obtener token de Spotify. Por favor intenta de nuevo.");
         }
 
         String accessToken  = (String)  body.get("access_token");
