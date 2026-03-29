@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.application.usecase.search;
 
 import es.wara.ecos.backend.application.service.MusicAggregationService;
+import es.wara.ecos.backend.domain.model.Page;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.MusicProvider;
 import es.wara.ecos.backend.domain.port.SongRepository;
@@ -49,16 +50,24 @@ class SearchSongsUseCaseTest {
                 null, null, null, null, null, null, 20, 0);
     }
 
+    private static <T> Page<T> pageOf(List<T> items) {
+        return new Page<>(items, 0, 20, items.size());
+    }
+
+    private static <T> Page<T> emptyPage() {
+        return new Page<>(List.of(), 0, 20, 0);
+    }
+
     // ── estrategia BD-primero ────────────────────────────────────────────────
 
     @Test
     void execute_bdHasResults_returnsThemWithoutCallingExternalApis() {
         SearchParams p = params("Vangelis");
-        when(songRepository.search(p)).thenReturn(List.of(song("Chariots of Fire")));
+        when(songRepository.search(p)).thenReturn(pageOf(List.of(song("Chariots of Fire"))));
 
-        List<Song> result = useCase.execute(p);
+        Page<Song> result = useCase.execute(p);
 
-        assertThat(result).hasSize(1);
+        assertThat(result.items()).hasSize(1);
         verify(musicProvider, never()).searchSongs(anyString(), anyInt());
     }
 
@@ -66,13 +75,13 @@ class SearchSongsUseCaseTest {
     void execute_bdEmptyWithTextQuery_callsSpotifySearchAndPersists() {
         SearchParams p = params("Vangelis");
         when(songRepository.search(p))
-                .thenReturn(List.of())          // primera llamada: vacío
-                .thenReturn(List.of(song("X"))); // segunda tras persistir
+                .thenReturn(emptyPage())
+                .thenReturn(pageOf(List.of(song("X"))));
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of(song("X")));
 
-        List<Song> result = useCase.execute(p);
+        Page<Song> result = useCase.execute(p);
 
-        assertThat(result).hasSize(1);
+        assertThat(result.items()).hasSize(1);
         verify(musicProvider).searchSongs("Vangelis", 20);
         verify(songRepository).save(any(Song.class));
     }
@@ -82,11 +91,11 @@ class SearchSongsUseCaseTest {
         // Solo cuadrante técnico (energyMin) — no hay q, aesthetic, genre, decade ni movie
         SearchParams p = new SearchParams(null, null, null, null, null, null, null, null,
                 new java.math.BigDecimal("0.5"), null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(List.of());
+        when(songRepository.search(p)).thenReturn(emptyPage());
 
-        List<Song> result = useCase.execute(p);
+        Page<Song> result = useCase.execute(p);
 
-        assertThat(result).isEmpty();
+        assertThat(result.items()).isEmpty();
         verify(musicProvider, never()).searchSongs(anyString(), anyInt());
         verify(musicProvider, never()).searchSongsByTag(anyString(), anyInt());
         verify(musicProvider, never()).getSoundtrackSongs(anyString());
@@ -98,7 +107,7 @@ class SearchSongsUseCaseTest {
     void execute_decadeOnly_buildsYearRangeQuery() {
         SearchParams p = new SearchParams(null, null, null, "1980s", null, null, null, null,
                 null, null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(List.of()).thenReturn(List.of());
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
         useCase.execute(p);
@@ -112,7 +121,7 @@ class SearchSongsUseCaseTest {
     void execute_textAndDecade_combinesQueryWithYearRange() {
         SearchParams p = new SearchParams("Vangelis", null, null, "1980s", null, null, null, null,
                 null, null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(List.of()).thenReturn(List.of());
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
         useCase.execute(p);
@@ -126,7 +135,7 @@ class SearchSongsUseCaseTest {
     void execute_aestheticQuadrant_callsSearchByTag() {
         SearchParams p = new SearchParams(null, "dark academia", null, null, null, null, null, null,
                 null, null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(List.of()).thenReturn(List.of());
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongsByTag("dark academia", 20)).thenReturn(List.of());
 
         useCase.execute(p);
@@ -138,7 +147,7 @@ class SearchSongsUseCaseTest {
     void execute_movieQuadrant_callsGetSoundtrackSongs() {
         SearchParams p = new SearchParams(null, null, null, null, "Blade Runner", null, null, null,
                 null, null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(List.of()).thenReturn(List.of());
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.getSoundtrackSongs("Blade Runner")).thenReturn(List.of());
 
         useCase.execute(p);
@@ -152,7 +161,7 @@ class SearchSongsUseCaseTest {
     void execute_genreOnly_buildsSpotifyQueryWithGenreFilter() {
         SearchParams p = new SearchParams(null, null, "rock", null, null, null, null, null,
                 null, null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(List.of()).thenReturn(List.of());
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
         useCase.execute(p);
@@ -166,7 +175,7 @@ class SearchSongsUseCaseTest {
     void execute_genreAndText_combinesQueryAndGenreFilter() {
         SearchParams p = new SearchParams("Miles Davis", null, "jazz", null, null, null, null, null,
                 null, null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(List.of()).thenReturn(List.of());
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
         useCase.execute(p);
@@ -180,7 +189,7 @@ class SearchSongsUseCaseTest {
     void execute_genreAndDecade_combinesGenreAndYearRange() {
         SearchParams p = new SearchParams(null, null, "jazz", "1960s", null, null, null, null,
                 null, null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(List.of()).thenReturn(List.of());
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
         useCase.execute(p);
@@ -194,11 +203,11 @@ class SearchSongsUseCaseTest {
     void execute_genreWithBdResults_doesNotCallExternalApis() {
         SearchParams p = new SearchParams(null, null, "rock", null, null, null, null, null,
                 null, null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(List.of(song("Bohemian Rhapsody")));
+        when(songRepository.search(p)).thenReturn(pageOf(List.of(song("Bohemian Rhapsody"))));
 
-        List<Song> result = useCase.execute(p);
+        Page<Song> result = useCase.execute(p);
 
-        assertThat(result).hasSize(1);
+        assertThat(result.items()).hasSize(1);
         verify(musicProvider, never()).searchSongs(anyString(), anyInt());
     }
 
@@ -208,8 +217,8 @@ class SearchSongsUseCaseTest {
                 null, null, null, null, null, null, 20, 0);
         Song externalSong = song("Float On");
         when(songRepository.search(p))
-                .thenReturn(List.of())
-                .thenReturn(List.of(externalSong));
+                .thenReturn(emptyPage())
+                .thenReturn(pageOf(List.of(externalSong)));
         when(musicProvider.searchSongs("genre:indie", 20)).thenReturn(List.of(externalSong));
 
         useCase.execute(p);

@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.domain.port;
 
 import es.wara.ecos.backend.application.usecase.search.SearchParams;
+import es.wara.ecos.backend.domain.model.Page;
 import es.wara.ecos.backend.domain.model.Song;
 
 import java.util.List;
@@ -60,8 +61,8 @@ public interface SongRepository {
      * Búsqueda multidimensional usando los 5 cuadrantes de ECOS.
      *
      * @param params parámetros de búsqueda con cuadrantes activos y paginación
-     * @return lista paginada de canciones que satisfacen todos los criterios activos
+     * @return página de canciones que satisfacen todos los criterios activos
      */
-    List<Song> search(SearchParams params);
+    Page<Song> search(SearchParams params);
 
 }

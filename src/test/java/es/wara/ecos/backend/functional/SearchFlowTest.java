@@ -87,8 +87,8 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("q", "Chariots")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
     }
 
     @Test
@@ -99,7 +99,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("q", "Vangelis")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
     }
 
     @Test
@@ -110,7 +110,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("q", "XyzNoExiste999")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$.items").isEmpty());
     }
 
     @Test
@@ -129,7 +129,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("aesthetic", "dark academia")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
     }
 
     @Test
@@ -140,7 +140,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("genre", "indie rock")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
     }
 
     @Test
@@ -152,7 +152,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("genre", "indie")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
     }
 
     @Test
@@ -163,7 +163,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("genre", "heavy metal")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$.items").isEmpty());
     }
 
     @Test
@@ -176,7 +176,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("aesthetic", "dark academia")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("Chariots of Fire"));
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
     }
 
     @Test
@@ -189,7 +189,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("aesthetic", "cottagecore")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$.items").isEmpty());
     }
 
 }

@@ -2,6 +2,7 @@ package es.wara.ecos.backend.infrastructure.persistence.repository;
 
 import es.wara.ecos.backend.application.usecase.search.SearchParams;
 import es.wara.ecos.backend.domain.model.Movie;
+import es.wara.ecos.backend.domain.model.Page;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.model.Tag;
 import es.wara.ecos.backend.domain.port.SongRepository;
@@ -284,13 +285,12 @@ public class SongRepositoryImpl implements SongRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Song> search(SearchParams params) {
+    public Page<Song> search(SearchParams params) {
         Specification<SongEntity> spec = SongSpecification.from(params);
-        int pageNumber = params.limit() > 0 ? params.offset() / params.limit() : 0;
-        PageRequest page = PageRequest.of(pageNumber, Math.max(params.limit(), 1));
-        return jpa.findAll(spec, page).stream()
-                .map(mapper::toModel)
-                .toList();
+        PageRequest pageRequest = PageRequest.of(params.page(), params.pageSize());
+        org.springframework.data.domain.Page<SongEntity> result = jpa.findAll(spec, pageRequest);
+        List<Song> items = result.stream().map(mapper::toModel).toList();
+        return new Page<>(items, params.page(), params.pageSize(), result.getTotalElements());
     }
 
 }

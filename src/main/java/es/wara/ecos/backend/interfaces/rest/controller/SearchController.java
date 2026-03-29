@@ -2,6 +2,7 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.search.SearchParams;
 import es.wara.ecos.backend.application.usecase.search.SearchSongsUseCase;
+import es.wara.ecos.backend.interfaces.rest.dto.PageResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.SongResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 /**
  * Controlador REST para la búsqueda multidimensional de canciones (5 cuadrantes de ECOS).
@@ -60,12 +60,12 @@ public class SearchController {
      * @param valenceMax   valencia máxima [0.0 – 1.0]
      * @param bpmMin       BPM mínimo
      * @param bpmMax       BPM máximo
-     * @param limit        número máximo de resultados (por defecto 20)
-     * @param offset       desplazamiento para paginación (por defecto 0)
-     * @return {@code 200 OK} con la lista de canciones que coinciden con los parámetros
+     * @param pageSize     número de resultados por página (por defecto 20, máximo 50)
+     * @param page         número de página 0-indexed (por defecto 0)
+     * @return {@code 200 OK} con la página de canciones que coinciden con los parámetros
      */
     @GetMapping
-    public ResponseEntity<List<SongResponse>> search(
+    public ResponseEntity<PageResponse<SongResponse>> search(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String aesthetic,
             @RequestParam(required = false) String genre,
@@ -80,22 +80,20 @@ public class SearchController {
             @RequestParam(required = false) BigDecimal valenceMax,
             @RequestParam(required = false) BigDecimal bpmMin,
             @RequestParam(required = false) BigDecimal bpmMax,
-            @RequestParam(defaultValue = "20") int limit,
-            @RequestParam(defaultValue = "0") int offset
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(defaultValue = "0") int page
     ) {
-        // Empaquetar todos los filtros en un objeto de parámetros para el use case
         SearchParams params = new SearchParams(
                 q, aesthetic, genre, decade, movie, instrumental, texture, mode,
                 energyMin, energyMax, valenceMin, valenceMax, bpmMin, bpmMax,
-                limit, offset
+                pageSize, page
         );
 
-        List<SongResponse> results = searchSongsUseCase.execute(params)
-                .stream()
-                .map(SongResponse::from)
-                .toList();
+        PageResponse<SongResponse> response = PageResponse.from(
+                searchSongsUseCase.execute(params).map(SongResponse::from)
+        );
 
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(response);
     }
 
 }

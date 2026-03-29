@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.application.usecase.search;
 
 import es.wara.ecos.backend.application.service.MusicAggregationService;
+import es.wara.ecos.backend.domain.model.Page;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.model.Tag;
 import es.wara.ecos.backend.domain.port.MusicProvider;
@@ -49,11 +50,11 @@ public class SearchSongsUseCase {
         this.musicAggregationService = musicAggregationService;
     }
 
-    public List<Song> execute(SearchParams params) {
-        List<Song> songs = songRepository.search(params);
+    public Page<Song> execute(SearchParams params) {
+        Page<Song> result = songRepository.search(params);
 
-        if (!songs.isEmpty()) {
-            return songs;
+        if (!result.items().isEmpty()) {
+            return result;
         }
 
         if (hasActiveQuadrant(params)) {
@@ -70,10 +71,10 @@ public class SearchSongsUseCase {
                     .peek(song -> ensureSearchTags(song, params))
                     .forEach(songRepository::save);
 
-            songs = songRepository.search(params);
+            result = songRepository.search(params);
         }
 
-        return songs;
+        return result;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ public class SearchSongsUseCase {
      * movie → aesthetic → texture → q/decade
      */
     private List<Song> fetchFromExternalApis(SearchParams params) {
-        int limit = params.limit();
+        int limit = params.pageSize();
 
         boolean hasMovie     = params.movie()     != null && !params.movie().isBlank();
         boolean hasAesthetic = params.aesthetic() != null && !params.aesthetic().isBlank();

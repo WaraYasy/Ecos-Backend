@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 /**
  * Parámetros de búsqueda multidimensional para el sistema de 5 cuadrantes de ECOS.
  *
- * <p>Todos los campos son opcionales salvo {@code limit} y {@code offset}.
+ * <p>Todos los campos son opcionales salvo {@code pageSize} y {@code page}.
  * Los cuadrantes activos son los que tienen valor no nulo:</p>
  * <ul>
  *   <li><b>Texto libre:</b> {@code q}</li>
@@ -18,7 +18,7 @@ import java.math.BigDecimal;
  * </ul>
  *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 2.0
  * @since 1.0.0
  */
 public record SearchParams(
@@ -33,13 +33,14 @@ public record SearchParams(
         BigDecimal energyMin, BigDecimal energyMax,
         BigDecimal valenceMin, BigDecimal valenceMax,
         BigDecimal bpmMin,    BigDecimal bpmMax,
-        int limit,
-        int offset
+        int pageSize,
+        int page
 ) {
 
-    /** Constructor con valores por defecto para limit (20) y offset (0). */
+    /** pageSize por defecto 20, máximo 50. page por defecto 0. */
     public SearchParams {
-        if (limit <= 0) limit = 20;
-        if (offset < 0) offset = 0;
+        if (pageSize <= 0) pageSize = 20;
+        if (pageSize > 50) pageSize = 50;
+        if (page < 0) page = 0;
     }
 }

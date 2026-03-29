@@ -19,19 +19,27 @@ public record PlaylistResponse(
         String description,
         UUID userId,
         LocalDateTime createdAt,
+        String coverImageUrl,
         List<SongResponse> songs
 ) {
 
     public static PlaylistResponse from(Playlist playlist) {
+        List<SongResponse> songs = playlist.getSongs() != null
+                ? playlist.getSongs().stream().map(SongResponse::from).toList()
+                : List.of();
+        String coverImageUrl = songs.stream()
+                .map(SongResponse::imageUrl)
+                .filter(url -> url != null)
+                .findFirst()
+                .orElse(null);
         return new PlaylistResponse(
                 playlist.getId(),
                 playlist.getName(),
                 playlist.getDescription(),
                 playlist.getUserId(),
                 playlist.getCreatedAt(),
-                playlist.getSongs() != null
-                        ? playlist.getSongs().stream().map(SongResponse::from).toList()
-                        : List.of()
+                coverImageUrl,
+                songs
         );
     }
 
