@@ -4,7 +4,11 @@ import es.wara.ecos.backend.application.usecase.search.SearchParams;
 import es.wara.ecos.backend.application.usecase.search.SearchSongsUseCase;
 import es.wara.ecos.backend.interfaces.rest.dto.PageResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.SongResponse;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +23,7 @@ import java.math.BigDecimal;
  * @version 1.0
  * @since 1.0.0
  */
+@Validated
 @RestController
 @RequestMapping("/v1/search")
 public class SearchController {
@@ -74,12 +79,12 @@ public class SearchController {
             @RequestParam(required = false) Boolean instrumental,
             @RequestParam(required = false) String texture,
             @RequestParam(required = false) String mode,
-            @RequestParam(required = false) BigDecimal energyMin,
-            @RequestParam(required = false) BigDecimal energyMax,
-            @RequestParam(required = false) BigDecimal valenceMin,
-            @RequestParam(required = false) BigDecimal valenceMax,
-            @RequestParam(required = false) BigDecimal bpmMin,
-            @RequestParam(required = false) BigDecimal bpmMax,
+            @RequestParam(required = false) @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal energyMin,
+            @RequestParam(required = false) @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal energyMax,
+            @RequestParam(required = false) @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal valenceMin,
+            @RequestParam(required = false) @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal valenceMax,
+            @RequestParam(required = false) @Min(0) BigDecimal bpmMin,
+            @RequestParam(required = false) @Min(0) BigDecimal bpmMax,
             @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(defaultValue = "0") int page
     ) {

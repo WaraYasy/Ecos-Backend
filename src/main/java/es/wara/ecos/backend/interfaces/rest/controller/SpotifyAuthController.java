@@ -2,7 +2,9 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +23,7 @@ import java.util.UUID;
  * @version 1.0
  * @since 1.0.0
  */
+@Validated
 @RestController
 public class SpotifyAuthController {
 
@@ -63,7 +66,9 @@ public class SpotifyAuthController {
      * @return {@code 200 OK} con mensaje de confirmación de vinculación
      */
     @GetMapping("/callback/spotify")
-    public ResponseEntity<String> callback(@RequestParam String code, @RequestParam String state) {
+    public ResponseEntity<String> callback(
+            @RequestParam @NotBlank String code,
+            @RequestParam @NotBlank String state) {
         spotifyAuthPort.exchangeCodeForToken(code, state);
         return ResponseEntity.ok("Cuenta Spotify vinculada");
     }
