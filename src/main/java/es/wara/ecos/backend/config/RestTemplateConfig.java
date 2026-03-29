@@ -180,16 +180,20 @@ public class RestTemplateConfig {
      */
     private ClientHttpRequestInterceptor loggingInterceptor() {
         return (request, body, execution) -> {
-            log.debug("→ HTTP {} {}", request.getMethod(), request.getURI());
+            String uri = sanitizeUri(request.getURI().toString());
+            log.debug("→ HTTP {} {}", request.getMethod(), uri);
 
             var response = execution.execute(request, body);
 
-            log.debug("← HTTP {} {} → {}",
-                    request.getMethod(),
-                    request.getURI(),
-                    response.getStatusCode().value());
+            log.debug("← HTTP {} {} → {}", request.getMethod(), uri, response.getStatusCode().value());
 
             return response;
         };
+    }
+
+    /** Elimina valores de parámetros sensibles de la URI antes de loguearla. */
+    private String sanitizeUri(String uri) {
+        return uri.replaceAll("api_key=[^&]+", "api_key=***")
+                  .replaceAll("code=[^&]+", "code=***");
     }
 }
