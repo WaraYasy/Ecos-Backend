@@ -12,6 +12,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 /**
  * Caso de uso para búsqueda multidimensional de canciones usando los 5 cuadrantes de ECOS.
@@ -39,6 +41,9 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class SearchSongsUseCase {
 
+    private static final Executor ENRICHMENT_EXECUTOR =
+            Executors.newVirtualThreadPerTaskExecutor();
+
     private final SongRepository songRepository;
     private final MusicProvider musicProvider;
     private final MusicAggregationService musicAggregationService;
@@ -61,7 +66,8 @@ public class SearchSongsUseCase {
             List<Song> external = fetchFromExternalApis(params);
 
             List<CompletableFuture<Song>> futures = external.stream()
-                    .map(song -> CompletableFuture.supplyAsync(() -> musicAggregationService.enrich(song)))
+                    .map(song -> CompletableFuture.supplyAsync(
+                            () -> musicAggregationService.enrich(song), ENRICHMENT_EXECUTOR))
                     .toList();
 
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
