@@ -32,11 +32,23 @@ public class LoginUseCase {
      * @return identificador del usuario autenticado
      * @throws IllegalArgumentException si las credenciales son incorrectas
      */
+
+    // Hash de relleno: evita timing attack normalizando el tiempo de CPU
+    // cuando el email no existe (BCrypt tarda ~80 ms; sin esto, la ausencia
+    // de usuario es detectable por tiempo de respuesta).
+    private static final String DUMMY_HASH =
+            "$2a$12$dummyhashfortimingprotectionXXXXXXXXXXXXXXXXXXXXXXXXXX";
+
     public UUID execute(String email, String password) {
-        return userRepository.findByEmail(email)
-                .filter(user -> passwordHasher.matches(password, user.getPasswordHash()))
-                .map(user -> user.getId())
-                .orElseThrow(() -> new IllegalStateException("Credenciales incorrectas"));
+        var user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            passwordHasher.matches(password, DUMMY_HASH);
+            throw new IllegalStateException("Credenciales incorrectas");
+        }
+        if (!passwordHasher.matches(password, user.getPasswordHash())) {
+            throw new IllegalStateException("Credenciales incorrectas");
+        }
+        return user.getId();
     }
 
 }
