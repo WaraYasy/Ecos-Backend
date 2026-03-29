@@ -5,6 +5,7 @@ import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.domain.port.SongRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -35,6 +36,7 @@ public class AddSongToPlaylistUseCase {
      * @throws IllegalArgumentException si la playlist o la canción no existen
      * @throws ForbiddenException       si el usuario no es el propietario
      */
+    @Transactional
     public void execute(UUID playlistId, UUID songId, UUID currentUserId) {
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new IllegalArgumentException("Playlist no encontrada: " + playlistId));
