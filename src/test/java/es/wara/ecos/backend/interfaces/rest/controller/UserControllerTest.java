@@ -76,12 +76,12 @@ class UserControllerTest {
 
     @Test
     void register_validBody_returns201WithUserResponse() throws Exception {
-        when(registerUserUseCase.execute("wara", "wara@ecos.es", "pass123", "es")).thenReturn(USER);
+        when(registerUserUseCase.execute("wara", "wara@ecos.es", "pass1234", "es")).thenReturn(USER);
 
         mockMvc.perform(post("/v1/users")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"username": "wara", "email": "wara@ecos.es", "password": "pass123", "language": "es"}
+                                {"username": "wara", "email": "wara@ecos.es", "password": "pass1234", "language": "es"}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(USER_ID.toString()))
@@ -94,7 +94,7 @@ class UserControllerTest {
         mockMvc.perform(post("/v1/users")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"email": "wara@ecos.es", "password": "pass123"}
+                                {"email": "wara@ecos.es", "password": "pass1234"}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
@@ -108,7 +108,7 @@ class UserControllerTest {
         mockMvc.perform(post("/v1/users")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"username": "wara", "email": "x@x.es", "password": "pass123"}
+                                {"username": "wara", "email": "x@x.es", "password": "pass1234"}
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("CONFLICT"));
