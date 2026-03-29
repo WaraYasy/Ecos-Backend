@@ -3,6 +3,7 @@ package es.wara.ecos.backend;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Punto de entrada del backend de ECOS — app móvil de descubrimiento musical.
@@ -29,6 +30,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @version 1.0
  * @since 1.0.0
  */
+@EnableScheduling
 @SpringBootApplication
 public class BackendApplication {
 
