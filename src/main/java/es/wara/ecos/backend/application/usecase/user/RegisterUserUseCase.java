@@ -4,6 +4,7 @@ import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.PasswordHasher;
 import es.wara.ecos.backend.domain.port.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
  * @version 1.0
  * @since 1.0.0
  */
+@Slf4j
 @Service
 public class RegisterUserUseCase {
 
@@ -37,10 +39,14 @@ public class RegisterUserUseCase {
      * @throws IllegalArgumentException si el nombre de usuario o el email ya están en uso
      */
     public User execute(String username, String email, String password, String language) {
+        log.info("Intento de registro: username='{}', email='{}'", username, email);
+
         if (userRepository.findByUsername(username).isPresent()) {
+            log.warn("Registro rechazado — username ya en uso: '{}'", username);
             throw new ConflictException("El nombre de usuario ya está en uso: " + username);
         }
         if (userRepository.findByEmail(email).isPresent()) {
+            log.warn("Registro rechazado — email ya en uso: '{}'", email);
             throw new ConflictException("El email ya está en uso: " + email);
         }
 
@@ -50,7 +56,9 @@ public class RegisterUserUseCase {
         user.setPasswordHash(passwordHasher.hash(password));
         user.setLanguage(language);
         user.setCreatedAt(LocalDateTime.now());
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        log.info("Usuario registrado: id='{}', username='{}', language='{}'", saved.getId(), username, language);
+        return saved;
     }
 
 }

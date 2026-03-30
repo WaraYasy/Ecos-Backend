@@ -1,8 +1,12 @@
 package es.wara.ecos.backend;
 
 import io.github.cdimascio.dotenv.Dotenv;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -30,9 +34,26 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @version 1.0
  * @since 1.0.0
  */
+@Slf4j
 @EnableScheduling
 @SpringBootApplication
 public class BackendApplication {
+
+	@Value("${server.port:8080}")
+	private int port;
+
+	@Value("${spring.profiles.active:default}")
+	private String activeProfile;
+
+	@EventListener(ApplicationReadyEvent.class)
+	public void onReady() {
+		log.info("========================================");
+		log.info("  ECOS Backend arrancado correctamente");
+		log.info("  Perfil activo : {}", activeProfile);
+		log.info("  Puerto        : {}", port);
+		log.info("  Swagger UI    : http://localhost:{}/swagger-ui.html", port);
+		log.info("========================================");
+	}
 
 	/**
 	 * Punto de entrada de la aplicación.
@@ -62,9 +83,9 @@ public class BackendApplication {
 			// Establecer las variables como propiedades del sistema
 			dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
 
-			System.out.println("✓ Variables de entorno cargadas desde .env");
+			System.out.println("[ECOS] Variables de entorno cargadas desde .env");
 		} catch (Exception e) {
-			System.err.println("⚠ No se pudo cargar el archivo .env: " + e.getMessage());
+			System.err.println("[ECOS] No se pudo cargar .env (normal en prod): " + e.getMessage());
 		}
 
 		SpringApplication.run(BackendApplication.class, args);
