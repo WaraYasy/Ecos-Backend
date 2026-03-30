@@ -2,7 +2,6 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.search.GetSimilarSongsUseCase;
 import es.wara.ecos.backend.application.usecase.song.GetSongByIdUseCase;
-import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.interfaces.rest.dto.SongResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
