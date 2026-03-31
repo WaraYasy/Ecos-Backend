@@ -6,6 +6,7 @@ import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.model.Tag;
 import es.wara.ecos.backend.domain.port.MusicProvider;
 import es.wara.ecos.backend.domain.port.SongRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -38,11 +39,18 @@ import java.util.concurrent.Executors;
  * @version 3.1
  * @since 1.0.0
  */
+@Slf4j
 @Service
 public class SearchSongsUseCase {
 
     private static final Executor ENRICHMENT_EXECUTOR =
             Executors.newVirtualThreadPerTaskExecutor();
+
+    /**
+     * Mínimo de resultados en BD para considerar la búsqueda satisfecha sin ir a APIs externas.
+     * Por debajo de este umbral se fuerza un fetch externo aunque la BD no esté vacía.
+     */
+    private static final int MIN_RESULTS_THRESHOLD = 5;
 
     private final SongRepository songRepository;
     private final MusicProvider musicProvider;
@@ -58,7 +66,15 @@ public class SearchSongsUseCase {
     public Page<Song> execute(SearchParams params) {
         Page<Song> result = songRepository.search(params);
 
-        if (!result.items().isEmpty()) {
+        if (result.items().size() >= MIN_RESULTS_THRESHOLD) {
+            // BD tiene suficientes resultados — devolver inmediatamente.
+            // Si la página está incompleta, lanzar refresco en background para enriquecer
+            // el corpus y que la próxima búsqueda tenga más variedad.
+            if (params.page() == 0
+                    && result.items().size() < params.pageSize()
+                    && hasActiveQuadrant(params)) {
+                CompletableFuture.runAsync(() -> backgroundRefresh(params), ENRICHMENT_EXECUTOR);
+            }
             return result;
         }
 
@@ -81,6 +97,23 @@ public class SearchSongsUseCase {
         }
 
         return result;
+    }
+
+    /**
+     * Fetch y guardado en background, sin bloquear la respuesta al cliente.
+     * Se usa cuando la BD ya tiene resultados suficientes pero incompletos,
+     * para ir poblando el corpus de cara a búsquedas futuras.
+     */
+    private void backgroundRefresh(SearchParams params) {
+        try {
+            List<Song> external = fetchFromExternalApis(params);
+            external.stream()
+                    .map(musicAggregationService::enrich)
+                    .peek(song -> ensureSearchTags(song, params))
+                    .forEach(songRepository::save);
+        } catch (Exception e) {
+            log.warn("Background refresh falló para params={}: {}", params, e.getMessage());
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -128,7 +161,14 @@ public class SearchSongsUseCase {
         }
 
         if (hasGenre) {
-            // Spotify soporta el filtro nativo genre: en su query de búsqueda.
+            // Last.fm como fuente primaria para géneros: tag.getTopTracks evita el
+            // rate limit de Spotify (genre: en batch dispara 429 en Development Mode).
+            // searchSongsByTag ya está @Cacheable — llamadas repetidas son gratuitas.
+            List<Song> lastFmSongs = new ArrayList<>(musicProvider.searchSongsByTag(params.genre(), limit));
+            if (!lastFmSongs.isEmpty()) {
+                return lastFmSongs;
+            }
+            // Fallback a Spotify si Last.fm no tiene el tag
             String spotifyQuery = buildSpotifyQuery(params);
             if (!spotifyQuery.isBlank()) {
                 return new ArrayList<>(musicProvider.searchSongs(spotifyQuery, limit));

@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.Mockito.lenient;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,16 +59,23 @@ class SearchSongsUseCaseTest {
         return new Page<>(List.of(), 0, 20, 0);
     }
 
+    /** Página completa (pageSize=20): satisface el umbral mínimo Y no dispara background refresh. */
+    private static <T> Page<T> fullPage(T item) {
+        List<T> items = Collections.nCopies(20, item);
+        return new Page<>(items, 0, 20, 20);
+    }
+
     // ── estrategia BD-primero ────────────────────────────────────────────────
 
     @Test
     void execute_bdHasResults_returnsThemWithoutCallingExternalApis() {
         SearchParams p = params("Vangelis");
-        when(songRepository.search(p)).thenReturn(pageOf(List.of(song("Chariots of Fire"))));
+        // Página completa: satisface el umbral mínimo (>=5) y no dispara background refresh
+        when(songRepository.search(p)).thenReturn(fullPage(song("Chariots of Fire")));
 
         Page<Song> result = useCase.execute(p);
 
-        assertThat(result.items()).hasSize(1);
+        assertThat(result.items()).hasSize(20);
         verify(musicProvider, never()).searchSongs(anyString(), anyInt());
     }
 
@@ -203,12 +211,14 @@ class SearchSongsUseCaseTest {
     void execute_genreWithBdResults_doesNotCallExternalApis() {
         SearchParams p = new SearchParams(null, null, "rock", null, null, null, null, null,
                 null, null, null, null, null, null, 20, 0);
-        when(songRepository.search(p)).thenReturn(pageOf(List.of(song("Bohemian Rhapsody"))));
+        // Página completa: satisface el umbral mínimo (>=5) y no dispara background refresh
+        when(songRepository.search(p)).thenReturn(fullPage(song("Bohemian Rhapsody")));
 
         Page<Song> result = useCase.execute(p);
 
-        assertThat(result.items()).hasSize(1);
+        assertThat(result.items()).hasSize(20);
         verify(musicProvider, never()).searchSongs(anyString(), anyInt());
+        verify(musicProvider, never()).searchSongsByTag(anyString(), anyInt());
     }
 
     @Test

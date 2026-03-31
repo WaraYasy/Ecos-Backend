@@ -28,6 +28,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -289,7 +291,10 @@ public class SongRepositoryImpl implements SongRepository {
         Specification<SongEntity> spec = SongSpecification.from(params);
         PageRequest pageRequest = PageRequest.of(params.page(), params.pageSize());
         org.springframework.data.domain.Page<SongEntity> result = jpa.findAll(spec, pageRequest);
-        List<Song> items = result.stream().map(mapper::toModel).toList();
+        List<Song> items = new ArrayList<>(result.stream().map(mapper::toModel).toList());
+        if (params.page() == 0) {
+            Collections.shuffle(items);
+        }
         return new Page<>(items, params.page(), params.pageSize(), result.getTotalElements());
     }
 
