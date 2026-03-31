@@ -91,4 +91,17 @@ public interface MusicProvider {
      */
     List<Song> searchSongsByTag(String tag, int limit);
 
+    /**
+     * Busca una URL de preview de 30s en iTunes para la canción indicada.
+     * <p>
+     * Se usa como fuente alternativa a Spotify, que dejó de devolver {@code preview_url}
+     * en Development Mode a partir de noviembre de 2024.
+     * </p>
+     *
+     * @param title  título de la canción
+     * @param artist nombre del artista principal
+     * @return URL del preview, o {@link Optional#empty()} si no se encontró
+     */
+    Optional<String> findPreviewUrl(String title, String artist);
+
 }

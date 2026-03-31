@@ -103,9 +103,21 @@ public class MusicAggregationService {
             }
         });
 
+        // Preview de iTunes: fallback cuando Spotify no devuelve preview_url (Development Mode)
+        CompletableFuture<Void> previewFuture = CompletableFuture.runAsync(() -> {
+            if (song.getPreviewUrl() == null && !title.isBlank() && !artist.isBlank()) {
+                try {
+                    musicProvider.findPreviewUrl(title, artist)
+                            .ifPresent(song::setPreviewUrl);
+                } catch (Exception e) {
+                    log.debug("No se pudo obtener preview de iTunes para '{} - {}': {}", artist, title, e.getMessage());
+                }
+            }
+        });
+
         // Esperar todas las fuentes con timeout global
         try {
-            CompletableFuture.allOf(tagsFuture, moviesFuture)
+            CompletableFuture.allOf(tagsFuture, moviesFuture, previewFuture)
                     .get(ENRICH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             log.warn("Timeout al enriquecer '{}': alguna fuente no respondió en {}s", title, ENRICH_TIMEOUT_SECONDS);

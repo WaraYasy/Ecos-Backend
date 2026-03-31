@@ -54,6 +54,9 @@ public class CacheConfig {
     /** Nombre del cache para resultados de búsqueda de canciones (Spotify). TTL: 15 minutos. */
     public static final String CACHE_SEARCH_SONGS     = "search-songs";
 
+    /** Nombre del cache para previews de iTunes. TTL: 30 días (las URLs son estables). */
+    public static final String CACHE_ITUNES_PREVIEW   = "itunes-preview";
+
     /**
      * Configura el {@link CacheManager} con todos los caches de la aplicación.
      *
@@ -71,7 +74,8 @@ public class CacheConfig {
                 buildCache(CACHE_SONG_TAGS,        Duration.ofHours(6)),
                 buildCache(CACHE_MOVIES_FOR_SONG,  Duration.ofHours(24)),
                 buildCache(CACHE_SOUNDTRACK_SONGS, Duration.ofHours(24)),
-                buildCache(CACHE_SEARCH_SONGS,     Duration.ofMinutes(15))
+                buildCache(CACHE_SEARCH_SONGS,     Duration.ofMinutes(15)),
+                buildCache(CACHE_ITUNES_PREVIEW,   Duration.ofDays(30))
         ));
         return manager;
     }

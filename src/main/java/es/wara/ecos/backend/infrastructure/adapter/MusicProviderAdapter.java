@@ -77,13 +77,16 @@ public class MusicProviderAdapter implements MusicProvider {
     private final LastFmClient lastFmClient;
     private final TmdbClient tmdbClient;
     private final MusicBrainzClient musicBrainzClient;
+    private final es.wara.ecos.backend.infrastructure.adapter.itunes.ItunesClient itunesClient;
 
     public MusicProviderAdapter(SpotifyClient spotifyClient, LastFmClient lastFmClient,
-                                TmdbClient tmdbClient, MusicBrainzClient musicBrainzClient) {
+                                TmdbClient tmdbClient, MusicBrainzClient musicBrainzClient,
+                                es.wara.ecos.backend.infrastructure.adapter.itunes.ItunesClient itunesClient) {
         this.spotifyClient = spotifyClient;
         this.lastFmClient = lastFmClient;
         this.tmdbClient = tmdbClient;
         this.musicBrainzClient = musicBrainzClient;
+        this.itunesClient = itunesClient;
     }
 
     /**
@@ -450,6 +453,12 @@ public class MusicProviderAdapter implements MusicProvider {
             log.warn("Error al buscar por tag '{}' en Last.fm, devolviendo vacío: {}", tag, e.getMessage());
             return List.of();
         }
+    }
+
+    @Cacheable(cacheNames = "itunes-preview", key = "#title + '-' + #artist")
+    @Override
+    public Optional<String> findPreviewUrl(String title, String artist) {
+        return itunesClient.findPreviewUrl(title, artist);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
