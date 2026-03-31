@@ -47,11 +47,9 @@ public class GetSimilarSongsUseCase {
         return musicProvider.getSimilarSongs(artist, song.getTitle(), LIMIT)
                 .stream()
                 .map(s -> {
-                    if (s.getId() == null && s.getSpotifyId() != null) {
-                        songRepository.findBySpotifyId(s.getSpotifyId())
-                                .ifPresent(dbSong -> s.setId(dbSong.getId()));
-                    }
-                    return s;
+                    if (s.getId() != null) return s;
+                    // Canción externa: persistir (find-or-create) para garantizar UUID
+                    return songRepository.save(s);
                 })
                 .toList();
     }
