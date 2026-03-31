@@ -139,6 +139,10 @@ public class SongRepositoryImpl implements SongRepository {
                     addMoviesToSong(existing, song.getMovies());
                     updated = true;
                 }
+                if (existing.getPreviewUrl() == null && song.getPreviewUrl() != null) {
+                    existing.setPreviewUrl(song.getPreviewUrl());
+                    updated = true;
+                }
                 if (updated) jpa.save(existing);
                 addMissingTags(existing, song.getTags());
                 return mapper.toModel(existing);
@@ -158,6 +162,10 @@ public class SongRepositoryImpl implements SongRepository {
                 }
                 if (existing.getMovies().isEmpty() && song.getMovies() != null && !song.getMovies().isEmpty()) {
                     addMoviesToSong(existing, song.getMovies());
+                    updated = true;
+                }
+                if (existing.getPreviewUrl() == null && song.getPreviewUrl() != null) {
+                    existing.setPreviewUrl(song.getPreviewUrl());
                     updated = true;
                 }
                 if (updated) jpa.save(existing);
