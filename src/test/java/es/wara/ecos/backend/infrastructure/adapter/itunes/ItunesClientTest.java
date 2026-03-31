@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.infrastructure.adapter.itunes;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -29,7 +30,7 @@ class ItunesClientTest {
     void setUp() {
         restTemplate = new RestTemplate();
         mockServer = MockRestServiceServer.createServer(restTemplate);
-        itunesClient = new ItunesClient(restTemplate);
+        itunesClient = new ItunesClient(restTemplate, new ObjectMapper());
     }
 
     @Test

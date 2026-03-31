@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.infrastructure.adapter.itunes;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import es.wara.ecos.backend.infrastructure.adapter.itunes.dto.ItunesSearchResponseDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -32,9 +33,11 @@ public class ItunesClient {
     private static final String BASE_URL = "https://itunes.apple.com/search";
 
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
-    public ItunesClient(RestTemplate restTemplate) {
+    public ItunesClient(RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -61,9 +64,12 @@ public class ItunesClient {
                     .build()
                     .toUriString();
 
-            ItunesSearchResponseDTO response = restTemplate.getForObject(url, ItunesSearchResponseDTO.class);
+            // iTunes devuelve Content-Type: text/javascript — obtener como String y parsear manualmente
+            String raw = restTemplate.getForObject(url, String.class);
+            if (raw == null || raw.isBlank()) return Optional.empty();
+            ItunesSearchResponseDTO response = objectMapper.readValue(raw, ItunesSearchResponseDTO.class);
 
-            if (response == null || response.getResults() == null || response.getResults().isEmpty()) {
+            if (response.getResults() == null || response.getResults().isEmpty()) {
                 return Optional.empty();
             }
 
