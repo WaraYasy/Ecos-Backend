@@ -51,6 +51,21 @@ public class SongSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            // ── Artista (filtro directo por nombre de artista) ────────────────
+            if (params.artist() != null && !params.artist().isBlank()) {
+                query.distinct(true);
+                String pattern = "%" + params.artist().toLowerCase() + "%";
+                Subquery<UUID> sub = query.subquery(UUID.class);
+                Root<SongEntity> subRoot = sub.from(SongEntity.class);
+                Join<SongEntity, ArtistEntity> subArtistJoin = subRoot.join("artists");
+                sub.select(subRoot.get("id"));
+                sub.where(cb.and(
+                        cb.equal(subRoot.get("id"), root.get("id")),
+                        cb.like(cb.lower(subArtistJoin.get("name")), pattern)
+                ));
+                predicates.add(cb.exists(sub));
+            }
+
             // ── Cuadrante 1: Texto libre ──────────────────────────────────────
             if (params.q() != null && !params.q().isBlank()) {
                 query.distinct(true);
@@ -104,6 +119,21 @@ public class SongSpecification {
                 Join<SongEntity, MovieEntity> movieJoin = root.join("movies", JoinType.LEFT);
                 String pattern = "%" + params.movie().toLowerCase() + "%";
                 predicates.add(cb.like(cb.lower(movieJoin.get("title")), pattern));
+            }
+
+            // ── Cuadrante 6: Geográfico (artistas de ese país de origen) ─────
+            if (params.country() != null && !params.country().isBlank()) {
+                query.distinct(true);
+                String pattern = "%" + params.country().toLowerCase() + "%";
+                Subquery<UUID> sub = query.subquery(UUID.class);
+                Root<SongEntity> subRoot = sub.from(SongEntity.class);
+                Join<SongEntity, ArtistEntity> subArtistJoin = subRoot.join("artists");
+                sub.select(subRoot.get("id"));
+                sub.where(cb.and(
+                        cb.equal(subRoot.get("id"), root.get("id")),
+                        cb.like(cb.lower(subArtistJoin.get("country")), pattern)
+                ));
+                predicates.add(cb.exists(sub));
             }
 
             // ── Cuadrante 5a: Textura (filtro por tags — independiente de audio features) ──

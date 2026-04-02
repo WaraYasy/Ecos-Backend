@@ -3,30 +3,34 @@ package es.wara.ecos.backend.application.usecase.search;
 import java.math.BigDecimal;
 
 /**
- * Parámetros de búsqueda multidimensional para el sistema de 5 cuadrantes de ECOS.
+ * Parámetros de búsqueda multidimensional para el sistema de cuadrantes de ECOS.
  *
  * <p>Todos los campos son opcionales salvo {@code pageSize} y {@code page}.
  * Los cuadrantes activos son los que tienen valor no nulo:</p>
  * <ul>
  *   <li><b>Texto libre:</b> {@code q}</li>
+ *   <li><b>Artista:</b> {@code artist} (ej. "Radiohead", "Björk")</li>
  *   <li><b>Estética:</b> {@code aesthetic}</li>
  *   <li><b>Género musical:</b> {@code genre} (ej. "rock", "jazz", "indie")</li>
- *   <li><b>Temporal:</b> {@code decade} (ej. "1980s")</li>
+ *   <li><b>Temporal:</b> {@code decade} (ej. "1980s", "1985", "1980-1990")</li>
  *   <li><b>Cinematográfico:</b> {@code movie}</li>
+ *   <li><b>Geográfico:</b> {@code country} (ej. "Spain", "Japan", "United Kingdom")</li>
  *   <li><b>Técnico:</b> {@code instrumental}, {@code texture}, {@code mode},
  *       rangos de energía, valencia y BPM</li>
  * </ul>
  *
  * @author Wara Pacheco
- * @version 2.0
+ * @version 3.0
  * @since 1.0.0
  */
 public record SearchParams(
         String q,
+        String artist,
         String aesthetic,
         String genre,
         String decade,
         String movie,
+        String country,
         Boolean instrumental,
         String texture,
         String mode,
