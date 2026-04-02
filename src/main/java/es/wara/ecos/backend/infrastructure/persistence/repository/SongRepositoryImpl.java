@@ -1,5 +1,7 @@
 package es.wara.ecos.backend.infrastructure.persistence.repository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import es.wara.ecos.backend.application.usecase.search.SearchParams;
 import es.wara.ecos.backend.domain.model.Movie;
 import es.wara.ecos.backend.domain.model.Page;
@@ -25,6 +27,7 @@ import es.wara.ecos.backend.infrastructure.persistence.specification.SongSpecifi
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +38,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Implementación del puerto de dominio {@link SongRepository} usando JPA.
+ * Implementación del puerto de dominio {@link SongRepository} usando JPA + JdbcTemplate.
  *
  * <p><b>Deduplicación en tres niveles en {@link #save(Song)}:</b>
  * <ol>
@@ -46,16 +49,19 @@ import java.util.UUID;
  *   <li>Nueva canción: inserta con todas sus relaciones (álbum, artistas, películas,
  *       audio features, tags).</li>
  * </ol>
- * El merge de tags ({@link #addMissingTags}) garantiza que los tags asignados por
- * {@code SearchSongsUseCase.ensureSearchTags} se persistan incluso cuando la canción
- * ya existía en BD sin ese tag.</p>
+ *
+ * <p><b>Upserts thread-safe:</b> álbumes, artistas y películas se insertan con
+ * {@code INSERT ... ON CONFLICT DO NOTHING} vía {@link JdbcTemplate}. Esto garantiza
+ * que múltiples hilos concurrentes no provoquen {@code DataIntegrityViolationException}
+ * al intentar insertar el mismo registro simultáneamente: la base de datos resuelve el
+ * conflicto de forma atómica y el SELECT posterior siempre encuentra el registro.</p>
  *
  * <p><b>Búsqueda multidimensional:</b> {@link #search(SearchParams)} delega en
  * {@link SongSpecification#from(SearchParams)} para combinar con AND los predicados
  * de los 5 cuadrantes activos, con paginación.</p>
  *
  * @author Wara Pacheco
- * @version 1.2
+ * @version 1.3
  * @since 1.0.0
  */
 @Slf4j
@@ -64,19 +70,25 @@ public class SongRepositoryImpl implements SongRepository {
 
     private final JpaSongRepository jpa;
     private final JpaArtistRepository artistJpa;
-
     private final JpaAlbumRepository albumJpa;
     private final JpaMovieRepository movieJpa;
     private final JpaAudioFeaturesRepository audioFeaturesJpa;
     private final JpaSongTagRepository songTagJpa;
     private final SongMapper mapper;
     private final AudioFeaturesMapper audioFeaturesMapper;
+    private final JdbcTemplate jdbc;
+    private final ObjectMapper objectMapper;
 
-    public SongRepositoryImpl(JpaSongRepository jpa, JpaArtistRepository artistJpa,
-                               JpaAlbumRepository albumJpa, JpaMovieRepository movieJpa,
+    public SongRepositoryImpl(JpaSongRepository jpa,
+                               JpaArtistRepository artistJpa,
+                               JpaAlbumRepository albumJpa,
+                               JpaMovieRepository movieJpa,
                                JpaAudioFeaturesRepository audioFeaturesJpa,
                                JpaSongTagRepository songTagJpa,
-                               SongMapper mapper, AudioFeaturesMapper audioFeaturesMapper) {
+                               SongMapper mapper,
+                               AudioFeaturesMapper audioFeaturesMapper,
+                               JdbcTemplate jdbc,
+                               ObjectMapper objectMapper) {
         this.jpa = jpa;
         this.artistJpa = artistJpa;
         this.albumJpa = albumJpa;
@@ -85,7 +97,13 @@ public class SongRepositoryImpl implements SongRepository {
         this.songTagJpa = songTagJpa;
         this.mapper = mapper;
         this.audioFeaturesMapper = audioFeaturesMapper;
+        this.jdbc = jdbc;
+        this.objectMapper = objectMapper;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LECTURA
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
@@ -105,19 +123,32 @@ public class SongRepositoryImpl implements SongRepository {
         return jpa.findByIsrc(isrc).map(mapper::toModel);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Song> findByTitleContaining(String title) {
+        return jpa.findByTitleContainingIgnoreCase(title).stream()
+                .map(mapper::toModel)
+                .toList();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ESCRITURA
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
      * Persiste una canción aplicando deduplicación en tres niveles:
      * <ol>
-     *   <li>Si el ISRC es conocido y ya existe en BD → devolver la existente
-     *       (actualizar spotifyId si la grabación cambió de ID en Spotify).</li>
-     *   <li>Si el spotifyId ya existe en BD → devolver la existente (idempotente).</li>
-     *   <li>Si no existe → insertar nueva canción.</li>
+     *   <li>Si el ISRC ya existe → actualizar campos faltantes y merge de tags.</li>
+     *   <li>Si el spotifyId ya existe → ídem.</li>
+     *   <li>Si no existe → insertar nueva con todas sus relaciones.</li>
      * </ol>
+     * Los helper {@code upsertAlbum}, {@code upsertArtist} y {@code upsertMovie}
+     * usan {@code ON CONFLICT DO NOTHING} para ser seguros ante concurrencia.
      */
     @Override
     @Transactional
     public Song save(Song song) {
-        // 1. Dedup por ISRC (grabación física)
+        // 1. Dedup por ISRC
         if (song.getIsrc() != null) {
             Optional<SongEntity> byIsrc = jpa.findByIsrc(song.getIsrc());
             if (byIsrc.isPresent()) {
@@ -125,18 +156,15 @@ public class SongRepositoryImpl implements SongRepository {
                 boolean updated = false;
                 if (song.getSpotifyId() != null
                         && !song.getSpotifyId().equals(existing.getSpotifyId())) {
-                    log.info("ISRC {} ya existe con spotifyId={}, actualizando a {}",
-                            song.getIsrc(), existing.getSpotifyId(), song.getSpotifyId());
                     existing.setSpotifyId(song.getSpotifyId());
                     updated = true;
                 }
-                if (existing.getAlbum() == null && song.getAlbum() != null
-                        && song.getAlbum().getSpotifyId() != null) {
-                    existing.setAlbum(findOrCreateAlbum(song.getAlbum()));
-                    updated = true;
+                if (existing.getAlbum() == null && song.getAlbum() != null) {
+                    AlbumEntity album = upsertAlbum(song.getAlbum());
+                    if (album != null) { existing.setAlbum(album); updated = true; }
                 }
                 if (existing.getMovies().isEmpty() && song.getMovies() != null && !song.getMovies().isEmpty()) {
-                    addMoviesToSong(existing, song.getMovies());
+                    upsertMoviesToSong(existing, song.getMovies());
                     updated = true;
                 }
                 if (existing.getPreviewUrl() == null && song.getPreviewUrl() != null) {
@@ -149,19 +177,18 @@ public class SongRepositoryImpl implements SongRepository {
             }
         }
 
-        // 2. Dedup por spotifyId (misma edición de Spotify)
+        // 2. Dedup por spotifyId
         if (song.getSpotifyId() != null) {
             Optional<SongEntity> bySpotifyId = jpa.findBySpotifyId(song.getSpotifyId());
             if (bySpotifyId.isPresent()) {
                 SongEntity existing = bySpotifyId.get();
                 boolean updated = false;
-                if (existing.getAlbum() == null && song.getAlbum() != null
-                        && song.getAlbum().getSpotifyId() != null) {
-                    existing.setAlbum(findOrCreateAlbum(song.getAlbum()));
-                    updated = true;
+                if (existing.getAlbum() == null && song.getAlbum() != null) {
+                    AlbumEntity album = upsertAlbum(song.getAlbum());
+                    if (album != null) { existing.setAlbum(album); updated = true; }
                 }
                 if (existing.getMovies().isEmpty() && song.getMovies() != null && !song.getMovies().isEmpty()) {
-                    addMoviesToSong(existing, song.getMovies());
+                    upsertMoviesToSong(existing, song.getMovies());
                     updated = true;
                 }
                 if (existing.getPreviewUrl() == null && song.getPreviewUrl() != null) {
@@ -174,69 +201,37 @@ public class SongRepositoryImpl implements SongRepository {
             }
         }
 
-        // 3. Nueva canción — insertar con todas sus relaciones
+        // 3. Nueva canción
         SongEntity entity = mapper.toEntity(song);
 
-        // Álbum: find-or-create por spotifyId; si no hay, por coverUrl (fuentes no-Spotify)
-        if (song.getAlbum() != null
-                && (song.getAlbum().getSpotifyId() != null || song.getAlbum().getCoverUrl() != null)) {
-            entity.setAlbum(findOrCreateAlbum(song.getAlbum()));
+        if (song.getAlbum() != null) {
+            entity.setAlbum(upsertAlbum(song.getAlbum()));
         }
 
-        // Artistas: find-or-create por spotifyId; si no hay, por nombre (fuentes no-Spotify)
         if (song.getArtists() != null) {
             for (es.wara.ecos.backend.domain.model.Artist artist : song.getArtists()) {
                 if (artist.getName() == null || artist.getName().isBlank()) continue;
-                ArtistEntity artistEntity;
-                if (artist.getSpotifyId() != null) {
-                    artistEntity = artistJpa.findBySpotifyId(artist.getSpotifyId())
-                            .orElseGet(() -> {
-                                ArtistEntity a = new ArtistEntity();
-                                a.setSpotifyId(artist.getSpotifyId());
-                                a.setName(artist.getName());
-                                return artistJpa.save(a);
-                            });
-                } else {
-                    artistEntity = artistJpa.findByNameIgnoreCase(artist.getName())
-                            .orElseGet(() -> {
-                                ArtistEntity a = new ArtistEntity();
-                                a.setName(artist.getName());
-                                return artistJpa.save(a);
-                            });
-                }
-                entity.getArtists().add(artistEntity);
+                ArtistEntity artistEntity = upsertArtist(artist);
+                if (artistEntity != null) entity.getArtists().add(artistEntity);
             }
         }
 
-        // Películas: find-or-create por tmdbId
         if (song.getMovies() != null) {
             for (Movie movie : song.getMovies()) {
                 if (movie.getTitle() == null) continue;
-                MovieEntity movieEntity = movieJpa.findByTmdbId(movie.getTmdbId())
-                        .orElseGet(() -> {
-                            MovieEntity m = new MovieEntity();
-                            m.setTmdbId(movie.getTmdbId());
-                            m.setTitle(movie.getTitle());
-                            if (movie.getYear() != null) m.setYear(movie.getYear().shortValue());
-                            m.setDirector(movie.getDirector());
-                            m.setGenres(movie.getGenres());
-                            return movieJpa.save(m);
-                        });
-                entity.getMovies().add(movieEntity);
+                MovieEntity movieEntity = upsertMovie(movie);
+                if (movieEntity != null) entity.getMovies().add(movieEntity);
             }
         }
 
-        // Guardar la canción (necesario antes de las relaciones con @MapsId)
         SongEntity saved = jpa.save(entity);
 
-        // Audio features: @MapsId requiere el song ya persistido
         if (song.getAudioFeatures() != null) {
             AudioFeaturesEntity af = audioFeaturesMapper.toEntity(song.getAudioFeatures());
             af.setSong(saved);
             audioFeaturesJpa.save(af);
         }
 
-        // Tags: @MapsId requiere el song ya persistido
         if (song.getTags() != null) {
             for (Tag tag : song.getTags()) {
                 if (tag.getName() == null || tag.getName().isBlank()) continue;
@@ -251,28 +246,107 @@ public class SongRepositoryImpl implements SongRepository {
         return mapper.toModel(saved);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // BÚSQUEDA
+    // ─────────────────────────────────────────────────────────────────────────
+
     @Override
     @Transactional(readOnly = true)
-    public List<Song> findByTitleContaining(String title) {
-        return jpa.findByTitleContainingIgnoreCase(title).stream()
-                .map(mapper::toModel)
-                .toList();
+    public Page<Song> search(SearchParams params) {
+        Specification<SongEntity> spec = SongSpecification.from(params);
+        PageRequest pageRequest = PageRequest.of(params.page(), params.pageSize());
+        org.springframework.data.domain.Page<SongEntity> result = jpa.findAll(spec, pageRequest);
+        List<Song> items = new ArrayList<>(result.stream().map(mapper::toModel).toList());
+        if (params.page() == 0) {
+            Collections.shuffle(items);
+        }
+        return new Page<>(items, params.page(), params.pageSize(), result.getTotalElements());
     }
 
-    private void addMoviesToSong(SongEntity songEntity, List<Movie> movies) {
+    // ─────────────────────────────────────────────────────────────────────────
+    // UPSERTS THREAD-SAFE (ON CONFLICT DO NOTHING)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Inserta un álbum si no existe (por spotifyId o coverUrl) y devuelve la entidad.
+     * Thread-safe: usa {@code ON CONFLICT DO NOTHING} — no lanza excepción si otro hilo
+     * insertó el mismo registro simultáneamente.
+     */
+    private AlbumEntity upsertAlbum(es.wara.ecos.backend.domain.model.Album album) {
+        if (album.getSpotifyId() != null) {
+            jdbc.update(
+                "INSERT INTO albums (id, spotify_id, title, year, cover_url) " +
+                "VALUES (gen_random_uuid(), ?, ?, ?, ?) " +
+                "ON CONFLICT (spotify_id) WHERE spotify_id IS NOT NULL DO NOTHING",
+                album.getSpotifyId(),
+                album.getTitle(),
+                album.getYear() != null ? album.getYear().shortValue() : null,
+                album.getCoverUrl()
+            );
+            return albumJpa.findBySpotifyId(album.getSpotifyId()).orElse(null);
+        }
+        if (album.getCoverUrl() != null) {
+            jdbc.update(
+                "INSERT INTO albums (id, title, cover_url) " +
+                "VALUES (gen_random_uuid(), ?, ?) " +
+                "ON CONFLICT (cover_url) WHERE cover_url IS NOT NULL DO NOTHING",
+                album.getTitle(),
+                album.getCoverUrl()
+            );
+            return albumJpa.findByCoverUrl(album.getCoverUrl()).orElse(null);
+        }
+        return null;
+    }
+
+    /**
+     * Inserta un artista si no existe (por spotifyId o nombre) y devuelve la entidad.
+     * Thread-safe: usa {@code ON CONFLICT DO NOTHING}.
+     */
+    private ArtistEntity upsertArtist(es.wara.ecos.backend.domain.model.Artist artist) {
+        if (artist.getSpotifyId() != null) {
+            jdbc.update(
+                "INSERT INTO artists (id, spotify_id, name) " +
+                "VALUES (gen_random_uuid(), ?, ?) " +
+                "ON CONFLICT (spotify_id) WHERE spotify_id IS NOT NULL DO NOTHING",
+                artist.getSpotifyId(),
+                artist.getName()
+            );
+            return artistJpa.findBySpotifyId(artist.getSpotifyId()).orElse(null);
+        }
+        // Artista sin spotifyId (Deezer): dedup por nombre en minúsculas
+        jdbc.update(
+            "INSERT INTO artists (id, name) " +
+            "VALUES (gen_random_uuid(), ?) " +
+            "ON CONFLICT (lower(name)) WHERE spotify_id IS NULL DO NOTHING",
+            artist.getName()
+        );
+        return artistJpa.findByNameIgnoreCase(artist.getName()).orElse(null);
+    }
+
+    /**
+     * Inserta una película si no existe (por tmdbId) y devuelve la entidad.
+     * Thread-safe: usa {@code ON CONFLICT (tmdb_id) DO NOTHING}.
+     */
+    private MovieEntity upsertMovie(Movie movie) {
+        if (movie.getTmdbId() == null || movie.getTitle() == null) return null;
+        jdbc.update(
+            "INSERT INTO movies (id, tmdb_id, title, year, director, genres) " +
+            "VALUES (gen_random_uuid(), ?, ?, ?, ?, CAST(? AS jsonb)) " +
+            "ON CONFLICT (tmdb_id) DO NOTHING",
+            movie.getTmdbId(),
+            movie.getTitle(),
+            movie.getYear() != null ? movie.getYear().shortValue() : null,
+            movie.getDirector(),
+            toJsonb(movie.getGenres())
+        );
+        return movieJpa.findByTmdbId(movie.getTmdbId()).orElse(null);
+    }
+
+    /** Asocia películas a una canción ya existente usando upserts thread-safe. */
+    private void upsertMoviesToSong(SongEntity songEntity, List<Movie> movies) {
         for (Movie movie : movies) {
-            if (movie.getTmdbId() == null || movie.getTitle() == null) continue;
-            MovieEntity movieEntity = movieJpa.findByTmdbId(movie.getTmdbId())
-                    .orElseGet(() -> {
-                        MovieEntity m = new MovieEntity();
-                        m.setTmdbId(movie.getTmdbId());
-                        m.setTitle(movie.getTitle());
-                        if (movie.getYear() != null) m.setYear(movie.getYear().shortValue());
-                        m.setDirector(movie.getDirector());
-                        m.setGenres(movie.getGenres());
-                        return movieJpa.save(m);
-                    });
-            songEntity.getMovies().add(movieEntity);
+            MovieEntity movieEntity = upsertMovie(movie);
+            if (movieEntity != null) songEntity.getMovies().add(movieEntity);
         }
     }
 
@@ -292,43 +366,18 @@ public class SongRepositoryImpl implements SongRepository {
         }
     }
 
-    private AlbumEntity findOrCreateAlbum(es.wara.ecos.backend.domain.model.Album album) {
-        // 1. Dedup por spotifyId (Spotify)
-        if (album.getSpotifyId() != null) {
-            return albumJpa.findBySpotifyId(album.getSpotifyId())
-                    .orElseGet(() -> {
-                        AlbumEntity a = new AlbumEntity();
-                        a.setSpotifyId(album.getSpotifyId());
-                        a.setTitle(album.getTitle());
-                        if (album.getYear() != null) a.setYear(album.getYear().shortValue());
-                        a.setCoverUrl(album.getCoverUrl());
-                        return albumJpa.save(a);
-                    });
-        }
-        // 2. Dedup por coverUrl (Deezer y otras fuentes — la URL contiene el ID del álbum)
-        if (album.getCoverUrl() != null) {
-            return albumJpa.findByCoverUrl(album.getCoverUrl())
-                    .orElseGet(() -> {
-                        AlbumEntity a = new AlbumEntity();
-                        a.setTitle(album.getTitle());
-                        a.setCoverUrl(album.getCoverUrl());
-                        return albumJpa.save(a);
-                    });
-        }
-        return null;
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // UTILIDADES
+    // ─────────────────────────────────────────────────────────────────────────
 
-    @Override
-    @Transactional(readOnly = true)
-    public Page<Song> search(SearchParams params) {
-        Specification<SongEntity> spec = SongSpecification.from(params);
-        PageRequest pageRequest = PageRequest.of(params.page(), params.pageSize());
-        org.springframework.data.domain.Page<SongEntity> result = jpa.findAll(spec, pageRequest);
-        List<Song> items = new ArrayList<>(result.stream().map(mapper::toModel).toList());
-        if (params.page() == 0) {
-            Collections.shuffle(items);
+    /** Serializa una lista de strings a JSON para almacenar como JSONB en PostgreSQL. */
+    private String toJsonb(List<String> list) {
+        if (list == null || list.isEmpty()) return null;
+        try {
+            return objectMapper.writeValueAsString(list);
+        } catch (JsonProcessingException e) {
+            log.warn("No se pudo serializar genres a JSONB: {}", e.getMessage());
+            return null;
         }
-        return new Page<>(items, params.page(), params.pageSize(), result.getTotalElements());
     }
-
 }
