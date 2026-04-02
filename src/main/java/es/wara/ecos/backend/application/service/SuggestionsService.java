@@ -3,6 +3,7 @@ package es.wara.ecos.backend.application.service;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.TmdbClient;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBSearchResponseDTO;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaArtistRepository;
 import es.wara.ecos.backend.infrastructure.seed.SeedTermsProperties;
 import es.wara.ecos.backend.interfaces.rest.dto.SuggestionResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -13,11 +14,13 @@ import java.util.List;
 /**
  * Servicio de sugerencias de autocompletado para los campos de búsqueda.
  *
- * <p>Tres tipos de sugerencias:
+ * <p>Cinco tipos de sugerencias:
  * <ul>
  *   <li><b>movie</b> → consulta TMDb en tiempo real y devuelve las películas más relevantes</li>
  *   <li><b>aesthetic</b> → filtra la lista curada de estéticas de {@code seed-terms.yml}</li>
  *   <li><b>genre</b> → filtra la lista curada de géneros de {@code seed-terms.yml}</li>
+ *   <li><b>artist</b> → busca artistas en la base de datos local por nombre</li>
+ *   <li><b>country</b> → busca países de origen de artistas en la base de datos local</li>
  * </ul>
  * </p>
  *
@@ -33,10 +36,13 @@ public class SuggestionsService {
 
     private final TmdbClient tmdbClient;
     private final SeedTermsProperties terms;
+    private final JpaArtistRepository artistRepository;
 
-    public SuggestionsService(TmdbClient tmdbClient, SeedTermsProperties terms) {
+    public SuggestionsService(TmdbClient tmdbClient, SeedTermsProperties terms,
+                               JpaArtistRepository artistRepository) {
         this.tmdbClient = tmdbClient;
         this.terms = terms;
+        this.artistRepository = artistRepository;
     }
 
     /**
@@ -80,6 +86,33 @@ public class SuggestionsService {
      */
     public List<SuggestionResponse> suggestGenres(String q) {
         return suggestFromList(terms.getGenres(), q);
+    }
+
+    /**
+     * Sugiere artistas buscando en la base de datos local por nombre.
+     *
+     * @param q texto introducido por el usuario
+     * @return lista de artistas cuyo nombre contiene {@code q}; vacía si {@code q} es corto
+     */
+    public List<SuggestionResponse> suggestArtists(String q) {
+        if (q == null || q.strip().length() < 2) return List.of();
+        return artistRepository.findTop6ByNameContainingIgnoreCase(q.strip()).stream()
+                .map(a -> new SuggestionResponse(a.getName(), a.getName()))
+                .toList();
+    }
+
+    /**
+     * Sugiere países de origen de artistas desde la base de datos local.
+     *
+     * @param q texto introducido por el usuario
+     * @return lista de países que contienen {@code q}; vacía si la BD no tiene datos
+     */
+    public List<SuggestionResponse> suggestCountries(String q) {
+        String search = (q == null || q.isBlank()) ? "" : q.strip();
+        return artistRepository.findDistinctCountriesContaining(search).stream()
+                .limit(MAX_SUGGESTIONS)
+                .map(c -> new SuggestionResponse(c, c))
+                .toList();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

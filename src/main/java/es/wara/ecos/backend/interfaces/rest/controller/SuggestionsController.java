@@ -51,6 +51,8 @@ public class SuggestionsController {
             case "movie"     -> suggestionsService.suggestMovies(q);
             case "aesthetic" -> suggestionsService.suggestAesthetics(q);
             case "genre"     -> suggestionsService.suggestGenres(q);
+            case "artist"    -> suggestionsService.suggestArtists(q);
+            case "country"   -> suggestionsService.suggestCountries(q);
             default          -> List.of();
         };
         return ResponseEntity.ok(suggestions);
