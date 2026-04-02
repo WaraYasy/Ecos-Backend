@@ -92,6 +92,19 @@ public interface MusicProvider {
     List<Song> searchSongsByTag(String tag, int limit);
 
     /**
+     * Busca artistas cuyo país de origen coincide con el dado y devuelve sus nombres.
+     * <p>
+     * Fuente: MusicBrainz (búsqueda por área geográfica). Se usa como primer paso
+     * del cuadrante geográfico para luego buscar canciones de esos artistas.
+     * </p>
+     *
+     * @param country nombre del país en inglés (ej. "Spain", "Japan")
+     * @param limit   máximo de artistas a devolver
+     * @return lista de nombres de artistas del país; vacía si no hay resultados
+     */
+    List<String> getArtistNamesByCountry(String country, int limit);
+
+    /**
      * Busca una URL de preview de 30s en iTunes para la canción indicada.
      * <p>
      * Se usa como fuente alternativa a Spotify, que dejó de devolver {@code preview_url}

@@ -450,6 +450,19 @@ public class MusicProviderAdapter implements MusicProvider {
         return deezerClient.searchTrack(title, artist).map(Song::getPreviewUrl);
     }
 
+    @Override
+    public List<String> getArtistNamesByCountry(String country, int limit) {
+        try {
+            return musicBrainzClient.searchArtistsByCountry(country, limit).stream()
+                    .map(a -> a.getName())
+                    .filter(name -> name != null && !name.isBlank())
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Error buscando artistas de '{}' en MusicBrainz: {}", country, e.getMessage());
+            return List.of();
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // HELPERS INTERNOS
     // ─────────────────────────────────────────────────────────────────────────
