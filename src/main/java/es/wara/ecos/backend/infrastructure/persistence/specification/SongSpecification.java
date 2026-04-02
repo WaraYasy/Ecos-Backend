@@ -82,17 +82,19 @@ public class SongSpecification {
             }
 
             // ── Cuadrante 3: Temporal ─────────────────────────────────────────
+            // Formatos soportados:
+            //   "1980s"      → década   (1980–1989)
+            //   "1985"       → año exacto
+            //   "1980-1990"  → rango libre
             if (params.decade() != null && !params.decade().isBlank()) {
-                try {
-                    int startYear = Integer.parseInt(params.decade().replace("s", "").trim());
+                int[] range = parseTemporalRange(params.decade().trim());
+                if (range != null) {
                     Join<SongEntity, AlbumEntity> albumJoin = root.join("album", JoinType.LEFT);
                     predicates.add(cb.between(
                             albumJoin.<Short>get("year"),
-                            (short) startYear,
-                            (short) (startYear + 9)
+                            (short) range[0],
+                            (short) range[1]
                     ));
-                } catch (NumberFormatException ignored) {
-                    // Formato de decade inválido — ignorar este predicado
                 }
             }
 
@@ -164,6 +166,35 @@ public class SongSpecification {
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    /**
+     * Parsea el parámetro temporal y devuelve un array [startYear, endYear].
+     * Devuelve {@code null} si el formato no es reconocido.
+     *
+     * <ul>
+     *   <li>{@code "1980s"} → [1980, 1989]</li>
+     *   <li>{@code "1985"}  → [1985, 1985]</li>
+     *   <li>{@code "1980-1990"} → [1980, 1990]</li>
+     * </ul>
+     */
+    private static int[] parseTemporalRange(String value) {
+        try {
+            if (value.contains("-")) {
+                String[] parts = value.split("-", 2);
+                int start = Integer.parseInt(parts[0].trim());
+                int end   = Integer.parseInt(parts[1].trim());
+                return new int[]{Math.min(start, end), Math.max(start, end)};
+            } else if (value.endsWith("s")) {
+                int start = Integer.parseInt(value.substring(0, value.length() - 1));
+                return new int[]{start, start + 9};
+            } else {
+                int year = Integer.parseInt(value);
+                return new int[]{year, year};
+            }
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     /**
