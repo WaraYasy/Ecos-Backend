@@ -64,6 +64,21 @@
         </filter>
     </appender>
 
+    <!-- Archivo dedicado al seeder/cron — DEBUG+ con rotación semanal -->
+    <appender name="SEED_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/ecos-seed.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archive/ecos-seed.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
     <!-- Consola JSON — definida aquí para que logback la inicie antes     -->
     <!-- de que Spring aplique el perfil, evitando "non started appender" -->
     <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
@@ -88,6 +103,12 @@
     <logger name="org.apache.tomcat"                level="WARN"/>
     <logger name="com.github.loki4j"                level="WARN"/>
 
+    <!-- Logger dedicado al seeder — escribe solo en su propio archivo -->
+    <logger name="es.wara.ecos.backend.infrastructure.seed"
+            level="DEBUG" additivity="false">
+        <appender-ref ref="SEED_FILE"/>
+    </logger>
+
     <!-- Root por defecto (sin perfil activo) -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
@@ -102,6 +123,13 @@
         <logger name="es.wara.ecos"                 level="DEBUG"/>
         <logger name="org.hibernate.SQL"            level="DEBUG"/>
         <logger name="org.hibernate.type.descriptor.sql" level="TRACE"/>
+
+        <!-- Seed: archivo dedicado + consola en dev -->
+        <logger name="es.wara.ecos.backend.infrastructure.seed"
+                level="DEBUG" additivity="false">
+            <appender-ref ref="SEED_FILE"/>
+            <appender-ref ref="CONSOLE"/>
+        </logger>
 
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
@@ -126,6 +154,13 @@
         <!-- Nivel INFO en código propio, sin SQL en prod -->
         <logger name="es.wara.ecos"      level="INFO"/>
         <logger name="org.hibernate.SQL" level="WARN"/>
+
+        <!-- Seed: archivo dedicado + Better Stack -->
+        <logger name="es.wara.ecos.backend.infrastructure.seed"
+                level="INFO" additivity="false">
+            <appender-ref ref="SEED_FILE"/>
+            <appender-ref ref="BETTER_STACK"/>
+        </logger>
 
         <root level="WARN">
             <appender-ref ref="CONSOLE_JSON"/>
