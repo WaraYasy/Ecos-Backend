@@ -177,22 +177,33 @@ public class SongRepositoryImpl implements SongRepository {
         // 3. Nueva canción — insertar con todas sus relaciones
         SongEntity entity = mapper.toEntity(song);
 
-        // Álbum: find-or-create por spotifyId
-        if (song.getAlbum() != null && song.getAlbum().getSpotifyId() != null) {
+        // Álbum: find-or-create por spotifyId; si no hay, por coverUrl (fuentes no-Spotify)
+        if (song.getAlbum() != null
+                && (song.getAlbum().getSpotifyId() != null || song.getAlbum().getCoverUrl() != null)) {
             entity.setAlbum(findOrCreateAlbum(song.getAlbum()));
         }
 
-        // Artistas: find-or-create por spotifyId
+        // Artistas: find-or-create por spotifyId; si no hay, por nombre (fuentes no-Spotify)
         if (song.getArtists() != null) {
             for (es.wara.ecos.backend.domain.model.Artist artist : song.getArtists()) {
-                if (artist.getSpotifyId() == null) continue;
-                ArtistEntity artistEntity = artistJpa.findBySpotifyId(artist.getSpotifyId())
-                        .orElseGet(() -> {
-                            ArtistEntity a = new ArtistEntity();
-                            a.setSpotifyId(artist.getSpotifyId());
-                            a.setName(artist.getName());
-                            return artistJpa.save(a);
-                        });
+                if (artist.getName() == null || artist.getName().isBlank()) continue;
+                ArtistEntity artistEntity;
+                if (artist.getSpotifyId() != null) {
+                    artistEntity = artistJpa.findBySpotifyId(artist.getSpotifyId())
+                            .orElseGet(() -> {
+                                ArtistEntity a = new ArtistEntity();
+                                a.setSpotifyId(artist.getSpotifyId());
+                                a.setName(artist.getName());
+                                return artistJpa.save(a);
+                            });
+                } else {
+                    artistEntity = artistJpa.findByNameIgnoreCase(artist.getName())
+                            .orElseGet(() -> {
+                                ArtistEntity a = new ArtistEntity();
+                                a.setName(artist.getName());
+                                return artistJpa.save(a);
+                            });
+                }
                 entity.getArtists().add(artistEntity);
             }
         }
@@ -282,15 +293,29 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     private AlbumEntity findOrCreateAlbum(es.wara.ecos.backend.domain.model.Album album) {
-        return albumJpa.findBySpotifyId(album.getSpotifyId())
-                .orElseGet(() -> {
-                    AlbumEntity a = new AlbumEntity();
-                    a.setSpotifyId(album.getSpotifyId());
-                    a.setTitle(album.getTitle());
-                    if (album.getYear() != null) a.setYear(album.getYear().shortValue());
-                    a.setCoverUrl(album.getCoverUrl());
-                    return albumJpa.save(a);
-                });
+        // 1. Dedup por spotifyId (Spotify)
+        if (album.getSpotifyId() != null) {
+            return albumJpa.findBySpotifyId(album.getSpotifyId())
+                    .orElseGet(() -> {
+                        AlbumEntity a = new AlbumEntity();
+                        a.setSpotifyId(album.getSpotifyId());
+                        a.setTitle(album.getTitle());
+                        if (album.getYear() != null) a.setYear(album.getYear().shortValue());
+                        a.setCoverUrl(album.getCoverUrl());
+                        return albumJpa.save(a);
+                    });
+        }
+        // 2. Dedup por coverUrl (Deezer y otras fuentes — la URL contiene el ID del álbum)
+        if (album.getCoverUrl() != null) {
+            return albumJpa.findByCoverUrl(album.getCoverUrl())
+                    .orElseGet(() -> {
+                        AlbumEntity a = new AlbumEntity();
+                        a.setTitle(album.getTitle());
+                        a.setCoverUrl(album.getCoverUrl());
+                        return albumJpa.save(a);
+                    });
+        }
+        return null;
     }
 
     @Override

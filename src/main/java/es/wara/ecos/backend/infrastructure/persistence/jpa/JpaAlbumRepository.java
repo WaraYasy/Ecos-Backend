@@ -17,4 +17,6 @@ public interface JpaAlbumRepository extends JpaRepository<AlbumEntity, UUID> {
 
     Optional<AlbumEntity> findBySpotifyId(String spotifyId);
 
+    Optional<AlbumEntity> findByCoverUrl(String coverUrl);
+
 }

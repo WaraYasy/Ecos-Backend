@@ -30,7 +30,7 @@ public class ArtistEntity {
     @Column(updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "spotify_id", unique = true, nullable = false, length = 50)
+    @Column(name = "spotify_id", length = 50)
     private String spotifyId;
 
     @Column(nullable = false, length = 255)

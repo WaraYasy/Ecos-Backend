@@ -10,4 +10,6 @@ public interface JpaArtistRepository extends JpaRepository<ArtistEntity, UUID> {
 
     Optional<ArtistEntity> findBySpotifyId(String spotifyId);
 
+    Optional<ArtistEntity> findByNameIgnoreCase(String name);
+
 }
