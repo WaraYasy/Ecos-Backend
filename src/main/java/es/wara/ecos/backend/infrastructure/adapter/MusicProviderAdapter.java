@@ -28,6 +28,7 @@ import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDetailDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBSearchResponseDTO;
 import es.wara.ecos.backend.config.CacheConfig;
+import es.wara.ecos.backend.infrastructure.adapter.deezer.DeezerClient;
 import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -77,16 +78,16 @@ public class MusicProviderAdapter implements MusicProvider {
     private final LastFmClient lastFmClient;
     private final TmdbClient tmdbClient;
     private final MusicBrainzClient musicBrainzClient;
-    private final es.wara.ecos.backend.infrastructure.adapter.itunes.ItunesClient itunesClient;
+    private final DeezerClient deezerClient;
 
     public MusicProviderAdapter(SpotifyClient spotifyClient, LastFmClient lastFmClient,
                                 TmdbClient tmdbClient, MusicBrainzClient musicBrainzClient,
-                                es.wara.ecos.backend.infrastructure.adapter.itunes.ItunesClient itunesClient) {
+                                DeezerClient deezerClient) {
         this.spotifyClient = spotifyClient;
         this.lastFmClient = lastFmClient;
         this.tmdbClient = tmdbClient;
         this.musicBrainzClient = musicBrainzClient;
-        this.itunesClient = itunesClient;
+        this.deezerClient = deezerClient;
     }
 
     /**
@@ -190,14 +191,8 @@ public class MusicProviderAdapter implements MusicProvider {
                         result.add(mapTrackToSong(spotifyResult.getTracks().getItems().get(0)));
                     }
                 } catch (ExternalApiException spotifyEx) {
-                    // Si Spotify falla para este track, crear song básica con datos de Last.fm
-                    log.debug("No se encontró '{}' en Spotify, creando canción básica", trackName);
-                    Song basicSong = new Song();
-                    basicSong.setTitle(trackName);
-                    Artist basicArtist = new Artist();
-                    basicArtist.setName(artistName);
-                    basicSong.setArtists(List.of(basicArtist));
-                    result.add(basicSong);
+                    log.debug("Spotify no disponible para '{}', intentando Deezer", trackName);
+                    deezerClient.searchTrack(trackName, artistName).ifPresent(result::add);
                 }
             }
 
@@ -293,15 +288,8 @@ public class MusicProviderAdapter implements MusicProvider {
                             songs.add(mapTrackToSong(spotifyResult.getTracks().getItems().get(0)));
                         }
                     } catch (ExternalApiException e) {
-                        log.debug("No se encontró '{}' en Spotify; añadiendo canción básica", trackTitle);
-                        Song basic = new Song();
-                        basic.setTitle(trackTitle);
-                        if (artistName != null) {
-                            Artist a = new Artist();
-                            a.setName(artistName);
-                            basic.setArtists(List.of(a));
-                        }
-                        songs.add(basic);
+                        log.debug("Spotify no disponible para '{}', intentando Deezer", trackTitle);
+                        deezerClient.searchTrack(trackTitle, artistName).ifPresent(songs::add);
                     }
                 }
             }
@@ -443,7 +431,8 @@ public class MusicProviderAdapter implements MusicProvider {
                         result.add(mapTrackToSong(spotifyResult.getTracks().getItems().get(0)));
                     }
                 } catch (ExternalApiException e) {
-                    log.debug("No se encontró '{}' en Spotify al buscar por tag '{}'", trackName, tag);
+                    log.debug("Spotify no disponible para '{}' (tag '{}'), intentando Deezer", trackName, tag);
+                    deezerClient.searchTrack(trackName, artistName).ifPresent(result::add);
                 }
             }
 
@@ -455,10 +444,10 @@ public class MusicProviderAdapter implements MusicProvider {
         }
     }
 
-    @Cacheable(cacheNames = "itunes-preview", key = "#title + '-' + #artist")
+    @Cacheable(cacheNames = CacheConfig.CACHE_SEARCH_SONGS, key = "'preview-' + #title + '-' + #artist")
     @Override
     public Optional<String> findPreviewUrl(String title, String artist) {
-        return itunesClient.findPreviewUrl(title, artist);
+        return deezerClient.searchTrack(title, artist).map(Song::getPreviewUrl);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
