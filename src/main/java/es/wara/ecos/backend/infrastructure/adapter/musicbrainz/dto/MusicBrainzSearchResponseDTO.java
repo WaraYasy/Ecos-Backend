@@ -8,10 +8,10 @@ import java.util.List;
 
 /**
  * DTO raíz para las respuestas de búsqueda de MusicBrainz.
- * Cubre búsquedas de release-groups, releases y recordings.
+ * Cubre búsquedas de release-groups, releases, recordings y artistas.
  *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 1.1
  * @since 1.0.0
  */
 @Data
@@ -33,5 +33,8 @@ public class MusicBrainzSearchResponseDTO {
 
     /** Resultados de búsqueda de recordings (fallback por tags). */
     private List<MusicBrainzRecordingDTO> recordings;
+
+    /** Resultados de búsqueda de artistas por área geográfica. */
+    private List<MusicBrainzArtistDTO> artists;
 
 }

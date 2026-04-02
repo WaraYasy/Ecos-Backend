@@ -24,4 +24,7 @@ public class MusicBrainzArtistDTO {
     @JsonProperty("sort-name")
     private String sortName;
 
+    /** País o región de origen del artista. */
+    private MusicBrainzAreaDTO area;
+
 }

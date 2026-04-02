@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.infrastructure.adapter.musicbrainz;
 
+import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzArtistDTO;
 import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzRecordingDetailDTO;
 import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzRecordingDTO;
 import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzReleaseDTO;
@@ -77,6 +78,41 @@ public class MusicBrainzClient {
 
     public MusicBrainzClient(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FLUJO C — País → Artistas de ese origen
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Busca artistas cuya área de origen coincide con el país dado.
+     * <p>
+     * Usa la búsqueda Lucene de MusicBrainz: {@code area:"Spain" AND type:person}.
+     * Devuelve artistas con su nombre y área para permitir enriquecer el campo
+     * {@code country} de la entidad {@code artists} en la base de datos local.
+     * </p>
+     *
+     * @param country nombre del país en inglés (ej. "Spain", "Japan", "United Kingdom")
+     * @param limit   máximo de artistas a devolver
+     * @return lista de DTOs de artista con área; vacía si no hay resultados
+     */
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 2000, multiplier = 2)
+    )
+    public List<MusicBrainzArtistDTO> searchArtistsByCountry(String country, int limit) {
+        String query = "area:\"" + country + "\" AND type:person";
+        String url = UriComponentsBuilder.fromUriString(BASE_URL + "/artist")
+                .queryParam("query", query)
+                .queryParam("fmt", "json")
+                .queryParam("limit", limit)
+                .build().toUriString();
+
+        log.debug("Buscando artistas de '{}' en MusicBrainz", country);
+        MusicBrainzSearchResponseDTO response = get(url, MusicBrainzSearchResponseDTO.class);
+        var artists = response != null ? response.getArtists() : null;
+        return artists != null ? artists : Collections.emptyList();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
