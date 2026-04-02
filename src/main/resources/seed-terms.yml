@@ -1,0 +1,75 @@
+seed:
+  enabled: false
+  cron: "0 0 3 * * SUN"
+  songsPerTerm: 20
+  delayMs: 3000
+  minSongs: 200
+
+  genres:
+    # Géneros principales
+    - rock
+    - jazz
+    - pop
+    - electronic
+    - classical
+    - hiphop
+    - rnb
+    - indie
+    - latin
+    - metal
+    # Géneros de nicho
+    - shoegaze
+    - dream pop
+    - post-punk
+    - ambient
+    - bossa nova
+    - folk
+    - soul
+    - garage rock
+    - psychedelic rock
+    - synth pop
+
+  aesthetics:
+    # Estéticas principales
+    - darkAcademia
+    - cottagecore
+    - y2k
+    - vaporwave
+    - lofi
+    - cyberpunk
+    - solarpunk
+    - dreamcore
+    # Estéticas de nicho
+    - witchcore
+    - dark romance
+    - hauntology
+    - balletcore
+    - goblincore
+    - indie sleaze
+    - angelcore
+    - weirdcore
+    - fairycore
+    - academia
+
+  movies:
+    # Películas con bandas sonoras icónicas
+    - Babel
+    - Amélie
+    - Interstellar
+    - Lost in Translation
+    - The Virgin Suicides
+    - Her
+    - Drive
+    - Moonlight
+    - Call Me By Your Name
+    - The Grand Budapest Hotel
+    - Eternal Sunshine of the Spotless Mind
+    - Spirited Away
+    - Portrait of a Lady on Fire
+    - Before Sunrise
+    - Dune
+    - Annihilation
+    - Midsommar
+    - Everything Everywhere All at Once
+    - Parasite
+    - The Social Network
