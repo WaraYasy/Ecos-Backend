@@ -91,7 +91,13 @@ public class SearchSongsUseCase {
             futures.stream()
                     .map(CompletableFuture::join)
                     .peek(song -> ensureSearchTags(song, params))
-                    .forEach(songRepository::save);
+                    .forEach(song -> {
+                        try {
+                            songRepository.save(song);
+                        } catch (Exception e) {
+                            log.warn("No se pudo guardar '{}': {}", song.getTitle(), e.getMessage());
+                        }
+                    });
 
             result = songRepository.search(params);
         }
@@ -110,7 +116,13 @@ public class SearchSongsUseCase {
             external.stream()
                     .map(musicAggregationService::enrich)
                     .peek(song -> ensureSearchTags(song, params))
-                    .forEach(songRepository::save);
+                    .forEach(song -> {
+                        try {
+                            songRepository.save(song);
+                        } catch (Exception e) {
+                            log.warn("Background save falló para '{}': {}", song.getTitle(), e.getMessage());
+                        }
+                    });
         } catch (Exception e) {
             log.warn("Background refresh falló para params={}: {}", params, e.getMessage());
         }

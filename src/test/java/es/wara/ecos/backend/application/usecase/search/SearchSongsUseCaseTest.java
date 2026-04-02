@@ -43,6 +43,7 @@ class SearchSongsUseCaseTest {
     private Song song(String title) {
         Song s = new Song();
         s.setTitle(title);
+        s.setSpotifyId("spotify_" + title.toLowerCase().replace(" ", "_"));
         return s;
     }
 

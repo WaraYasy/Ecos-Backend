@@ -46,9 +46,10 @@ public class GetSimilarSongsUseCase {
 
         return musicProvider.getSimilarSongs(artist, song.getTitle(), LIMIT)
                 .stream()
+                .filter(s -> s.getTitle() != null)
                 .map(s -> {
                     if (s.getId() != null) return s;
-                    // Canción externa: persistir (find-or-create) para garantizar UUID
+                    // Persistir (find-or-create) para garantizar UUID en la respuesta
                     return songRepository.save(s);
                 })
                 .toList();

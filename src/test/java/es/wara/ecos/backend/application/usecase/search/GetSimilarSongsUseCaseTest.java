@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -44,13 +45,23 @@ class GetSimilarSongsUseCaseTest {
     @Test
     void execute_songWithArtist_callsSimilarWithArtistName() {
         Song song = buildSong("Chariots of Fire", "Vangelis");
+        // Canción similar externa sin UUID (caso habitual: viene de Last.fm/Spotify sin persistir)
+        Song similar = new Song();
+        similar.setTitle("Pulstar");
+        similar.setSpotifyId("spotify_similar_1");
+        Song persisted = new Song();
+        persisted.setId(UUID.randomUUID());
+        persisted.setTitle("Pulstar");
+        persisted.setSpotifyId("spotify_similar_1");
+
         when(songRepository.findById(SONG_ID)).thenReturn(Optional.of(song));
-        when(musicProvider.getSimilarSongs("Vangelis", "Chariots of Fire", 8))
-                .thenReturn(List.of(new Song()));
+        when(musicProvider.getSimilarSongs("Vangelis", "Chariots of Fire", 8)).thenReturn(List.of(similar));
+        when(songRepository.save(any(Song.class))).thenReturn(persisted);
 
         List<Song> result = useCase.execute(SONG_ID);
 
         assertThat(result).hasSize(1);
+        assertThat(result.get(0).getId()).isNotNull();
         verify(musicProvider).getSimilarSongs("Vangelis", "Chariots of Fire", 8);
     }
 
