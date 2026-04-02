@@ -9,11 +9,20 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Puerto de salida hacia proveedores externos de música (Spotify, Last.fm),
- * abstrayendo la obtención de canciones, características de audio y etiquetas.
+ * Puerto de salida hacia proveedores externos de música.
+ * <p>
+ * Abstrae las cuatro fuentes externas de ECOS para el dominio:
+ * </p>
+ * <ul>
+ *   <li><b>Spotify</b>: búsqueda de canciones, audio features, previews</li>
+ *   <li><b>Last.fm</b>: tags de género/mood/estética, tracks similares, top tracks por tag</li>
+ *   <li><b>MusicBrainz</b>: OSTs de películas (Flujo A), películas de una grabación (Flujo B),
+ *       artistas por país de origen (cuadrante geográfico)</li>
+ *   <li><b>TMDb</b>: metadatos de películas (título, año, director, géneros)</li>
+ * </ul>
  *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 1.1
  * @since 1.0.0
  */
 public interface MusicProvider {

@@ -20,21 +20,32 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Especificaciones JPA para la búsqueda multidimensional de canciones en los 5 cuadrantes de ECOS.
+ * Especificaciones JPA para la búsqueda multidimensional de canciones en los cuadrantes de ECOS.
  *
  * <p>Función principal {@link #from(SearchParams)} combina con {@code AND} solo los
  * predicados cuyo parámetro no es nulo. Los cuadrantes soportados son:</p>
  * <ul>
+ *   <li><b>Artista</b> ({@code artist}): EXISTS subquery sobre {@code artists.name} — evita
+ *       producto cartesiano con el cuadrante de texto libre cuando ambos están activos</li>
  *   <li><b>Texto libre</b> ({@code q}): busca en título de la canción y nombre del artista</li>
- *   <li><b>Estética</b> ({@code aesthetic}): filtra por tag en {@code song_tags}</li>
+ *   <li><b>Estética</b> ({@code aesthetic}): filtra por tag exacto en {@code song_tags}</li>
  *   <li><b>Género musical</b> ({@code genre}): filtra por tag en {@code song_tags} (coincidencia parcial)</li>
- *   <li><b>Temporal</b> ({@code decade}): filtra por año del álbum (ej. "1980s" → 1980-1989)</li>
+ *   <li><b>Temporal</b> ({@code decade}): filtra por año del álbum; soporta "1980s", "1985" y "1980-1990"</li>
  *   <li><b>Cinematográfico</b> ({@code movie}): busca canciones asociadas a una película</li>
- *   <li><b>Técnico</b>: filtra por audio features (INNER JOIN, excluye canciones sin datos)</li>
+ *   <li><b>Geográfico</b> ({@code country}): EXISTS subquery sobre {@code artists.country}</li>
+ *   <li><b>Textura</b> ({@code texture}): filtra por tags de textura sonora en {@code song_tags}</li>
+ *   <li><b>Técnico</b> ({@code energyMin/Max}, {@code valenceMin/Max}, {@code bpmMin/Max},
+ *       {@code instrumental}, {@code mode}): INNER JOIN con {@code audio_features} —
+ *       excluye automáticamente canciones sin datos de audio</li>
  * </ul>
  *
+ * <p><b>EXISTS vs JOIN para artistas/país:</b> los filtros de {@code artist} y {@code country}
+ * usan subconsultas correlacionadas {@code EXISTS} en lugar de {@code JOIN} directo sobre
+ * {@code root} para evitar producto cartesiano cuando el cuadrante de texto libre ya ha
+ * añadido un {@code JOIN} sobre la tabla {@code artists}.</p>
+ *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 1.1
  * @since 1.0.0
  */
 public class SongSpecification {

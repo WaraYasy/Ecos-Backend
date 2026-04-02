@@ -450,6 +450,19 @@ public class MusicProviderAdapter implements MusicProvider {
         return deezerClient.searchTrack(title, artist).map(Song::getPreviewUrl);
     }
 
+    /**
+     * Devuelve los nombres de artistas cuyo país de origen coincide con el indicado.
+     * <p>
+     * Delega en {@link MusicBrainzClient#searchArtistsByCountry(String, int)} usando la búsqueda
+     * Lucene {@code area:"country" AND type:person}. Los nombres se usan después en
+     * {@code SearchSongsUseCase} para buscar sus top tracks en Spotify y poblar la BD con
+     * canciones que tengan {@code artist.country} ya informado.
+     * </p>
+     *
+     * @param country nombre del país en inglés (ej. "Spain", "Japan")
+     * @param limit   número máximo de artistas a devolver
+     * @return lista de nombres de artistas; vacía si MusicBrainz no devuelve resultados o hay error
+     */
     @Override
     public List<String> getArtistNamesByCountry(String country, int limit) {
         try {
