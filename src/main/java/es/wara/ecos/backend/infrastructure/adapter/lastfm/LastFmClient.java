@@ -106,7 +106,7 @@ public class LastFmClient {
 
         log.info("Obteniendo tags de '{} - {}' en {} API", artist, title, API_NAME);
 
-        String url = buildUrl("track.getTopTags", Map.of(
+        java.net.URI url = buildUrl("track.getTopTags", Map.of(
             "artist", artist,
             "track", title,
             "autocorrect", "1"
@@ -151,7 +151,7 @@ public class LastFmClient {
             params.put("limit", String.valueOf(Math.min(limit, 100)));
         }
 
-        String url = buildUrl("track.getSimilar", params);
+        java.net.URI url = buildUrl("track.getSimilar", params);
         Map<String, Object> response = executeRequest(url, "tracks similares");
         return parseSimilarTracks(response);
     }
@@ -193,7 +193,7 @@ public class LastFmClient {
             params.put("limit", String.valueOf(Math.min(limit, 50)));
         }
 
-        String url = buildUrl("tag.getTopTracks", params);
+        java.net.URI url = buildUrl("tag.getTopTracks", params);
 
         try {
             Map<String, Object> response = executeRequest(url, "top tracks del tag");
@@ -225,7 +225,7 @@ public class LastFmClient {
             throw new IllegalArgumentException("El nombre del artista no puede estar vacío");
         }
 
-        String url = buildUrl("artist.getInfo", Map.of("artist", artistName));
+        java.net.URI url = buildUrl("artist.getInfo", Map.of("artist", artistName));
         return executeRequest(url, "información del artista");
     }
 
@@ -243,7 +243,7 @@ public class LastFmClient {
             throw new IllegalArgumentException("El nombre del track y artista no pueden estar vacíos");
         }
 
-        String url = buildUrl("track.getInfo", Map.of(
+        java.net.URI url = buildUrl("track.getInfo", Map.of(
             "track", trackName,
             "artist", artistName
         ));
@@ -269,7 +269,7 @@ public class LastFmClient {
             params.put("limit", String.valueOf(limit));
         }
 
-        String url = buildUrl("artist.getTopTracks", params);
+        java.net.URI url = buildUrl("artist.getTopTracks", params);
         return executeRequest(url, "top tracks del artista");
     }
 
@@ -420,8 +420,11 @@ public class LastFmClient {
     // MÉTODOS PRIVADOS — HTTP
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Construye la URL de la API de Last.fm con el método y parámetros indicados. */
-    private String buildUrl(String method, Map<String, String> additionalParams) {
+    /**
+     * Construye la URI de la API de Last.fm. Devuelve {@link java.net.URI} (ya codificada)
+     * para que {@code RestTemplate} no vuelva a codificar los parámetros (evita %2520).
+     */
+    private java.net.URI buildUrl(String method, Map<String, String> additionalParams) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(API_BASE_URL)
                 .queryParam("method", method)
                 .queryParam("api_key", apiKey)
@@ -431,16 +434,16 @@ public class LastFmClient {
             additionalParams.forEach(builder::queryParam);
         }
 
-        return builder.toUriString();
+        return builder.build().encode().toUri();
     }
 
     /**
      * Ejecuta la petición HTTP y maneja errores HTTP y errores de negocio de Last.fm.
      * Last.fm devuelve errores con HTTP 200 pero con un campo {@code error} en el body.
      */
-    private Map<String, Object> executeRequest(String url, String operationDescription) {
+    private Map<String, Object> executeRequest(java.net.URI url, String operationDescription) {
         try {
-            log.debug("Realizando petición GET a: {}", url.replaceAll("api_key=[^&]+", "api_key=***"));
+            log.debug("Realizando petición GET a: {}", url.toString().replaceAll("api_key=[^&]+", "api_key=***"));
 
             ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
 
