@@ -130,7 +130,7 @@ public class DatabaseSeeder implements ApplicationRunner {
 
     private int searchByGenre(String genre) {
         SearchParams params = new SearchParams(
-                null, null, genre, null, null,
+                null, null, null, genre, null, null, null,
                 null, null, null,
                 null, null, null, null, null, null,
                 terms.getSongsPerTerm(), 0
@@ -140,7 +140,7 @@ public class DatabaseSeeder implements ApplicationRunner {
 
     private int searchByAesthetic(String aesthetic) {
         SearchParams params = new SearchParams(
-                null, aesthetic, null, null, null,
+                null, null, aesthetic, null, null, null, null,
                 null, null, null,
                 null, null, null, null, null, null,
                 terms.getSongsPerTerm(), 0
@@ -150,7 +150,7 @@ public class DatabaseSeeder implements ApplicationRunner {
 
     private int searchByMovie(String movie) {
         SearchParams params = new SearchParams(
-                null, null, null, null, movie,
+                null, null, null, null, null, movie, null,
                 null, null, null,
                 null, null, null, null, null, null,
                 terms.getSongsPerTerm(), 0

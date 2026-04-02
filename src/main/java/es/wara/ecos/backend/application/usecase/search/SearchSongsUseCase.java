@@ -135,21 +135,25 @@ public class SearchSongsUseCase {
     /** Devuelve true si al menos un cuadrante activo puede disparar búsqueda externa. */
     private boolean hasActiveQuadrant(SearchParams params) {
         return (params.q() != null && !params.q().isBlank())
+                || (params.artist() != null && !params.artist().isBlank())
                 || (params.aesthetic() != null && !params.aesthetic().isBlank())
                 || (params.genre() != null && !params.genre().isBlank())
                 || (params.decade() != null && !params.decade().isBlank())
                 || (params.movie() != null && !params.movie().isBlank())
+                || (params.country() != null && !params.country().isBlank())
                 || (params.texture() != null && !params.texture().isBlank());
     }
 
     /**
      * Fetch con jerarquía: solo una fuente trae canciones, el resto son filtros.
-     * movie → aesthetic → texture → q/decade
+     * movie → country → aesthetic → genre → texture → artist/q/decade
      */
     private List<Song> fetchFromExternalApis(SearchParams params) {
         int limit = params.pageSize();
 
         boolean hasMovie     = params.movie()     != null && !params.movie().isBlank();
+        boolean hasCountry   = params.country()   != null && !params.country().isBlank();
+        boolean hasArtist    = params.artist()    != null && !params.artist().isBlank();
         boolean hasAesthetic = params.aesthetic() != null && !params.aesthetic().isBlank();
         boolean hasGenre     = params.genre()     != null && !params.genre().isBlank();
         boolean hasTexture   = params.texture()   != null && !params.texture().isBlank();
@@ -158,6 +162,33 @@ public class SearchSongsUseCase {
 
         if (hasMovie) {
             return new ArrayList<>(musicProvider.getSoundtrackSongs(params.movie()));
+        }
+
+        if (hasCountry) {
+            // Cuadrante geográfico: busca artistas de ese país en MusicBrainz,
+            // luego obtiene sus top tracks de Spotify para popularlos en BD.
+            // El artista.country queda grabado antes del save para que el filtro en BD funcione.
+            String country = params.country().trim();
+            List<String> artistNames = musicProvider.getArtistNamesByCountry(country, 5);
+            if (!artistNames.isEmpty()) {
+                List<Song> songs = new ArrayList<>();
+                int perArtist = Math.max(limit / artistNames.size(), 5);
+                for (String artistName : artistNames) {
+                    List<Song> artistSongs = musicProvider.searchSongs("artist:" + artistName, perArtist);
+                    // Inyectar country en los artistas que coincidan por nombre
+                    artistSongs.forEach(song -> {
+                        if (song.getArtists() != null) {
+                            song.getArtists().stream()
+                                    .filter(a -> artistName.equalsIgnoreCase(a.getName()))
+                                    .forEach(a -> a.setCountry(country));
+                        }
+                    });
+                    songs.addAll(artistSongs);
+                }
+                return songs;
+            }
+            // Fallback: si MusicBrainz no devuelve artistas, buscar por nombre de país directamente
+            return new ArrayList<>(musicProvider.searchSongs(country, limit));
         }
 
         if (hasAesthetic) {
@@ -173,14 +204,18 @@ public class SearchSongsUseCase {
         }
 
         if (hasGenre) {
-            // Last.fm como fuente primaria para géneros: tag.getTopTracks evita el
-            // rate limit de Spotify (genre: en batch dispara 429 en Development Mode).
-            // searchSongsByTag ya está @Cacheable — llamadas repetidas son gratuitas.
-            List<Song> lastFmSongs = new ArrayList<>(musicProvider.searchSongsByTag(params.genre(), limit));
-            if (!lastFmSongs.isEmpty()) {
-                return lastFmSongs;
+            // Si hay artista activo, ir directamente a Spotify con query combinada:
+            // Last.fm ignora el filtro de artista y devolvería canciones incorrectas.
+            if (!hasArtist) {
+                // Last.fm como fuente primaria para géneros puros: tag.getTopTracks evita el
+                // rate limit de Spotify (genre: en batch dispara 429 en Development Mode).
+                // searchSongsByTag ya está @Cacheable — llamadas repetidas son gratuitas.
+                List<Song> lastFmSongs = new ArrayList<>(musicProvider.searchSongsByTag(params.genre(), limit));
+                if (!lastFmSongs.isEmpty()) {
+                    return lastFmSongs;
+                }
             }
-            // Fallback a Spotify si Last.fm no tiene el tag
+            // Con artista activo, o si Last.fm no tiene el tag: Spotify con query combinada
             String spotifyQuery = buildSpotifyQuery(params);
             if (!spotifyQuery.isBlank()) {
                 return new ArrayList<>(musicProvider.searchSongs(spotifyQuery, limit));
@@ -197,7 +232,7 @@ public class SearchSongsUseCase {
             return new ArrayList<>(musicProvider.searchSongsByTag(params.texture(), limit));
         }
 
-        if (hasTextOrDecade) {
+        if (hasArtist || hasTextOrDecade) {
             String spotifyQuery = buildSpotifyQuery(params);
             if (!spotifyQuery.isBlank()) {
                 return new ArrayList<>(musicProvider.searchSongs(spotifyQuery, limit));
@@ -240,6 +275,11 @@ public class SearchSongsUseCase {
 
         if (params.q() != null && !params.q().isBlank()) {
             sb.append(params.q().trim());
+        }
+
+        if (params.artist() != null && !params.artist().isBlank()) {
+            if (!sb.isEmpty()) sb.append(" ");
+            sb.append("artist:").append(params.artist().trim());
         }
 
         if (params.genre() != null && !params.genre().isBlank()) {

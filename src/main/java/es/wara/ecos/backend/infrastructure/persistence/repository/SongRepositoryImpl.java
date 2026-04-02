@@ -303,23 +303,37 @@ public class SongRepositoryImpl implements SongRepository {
      * Thread-safe: usa {@code ON CONFLICT DO NOTHING}.
      */
     private ArtistEntity upsertArtist(es.wara.ecos.backend.domain.model.Artist artist) {
+        String country = artist.getCountry();
+
         if (artist.getSpotifyId() != null) {
             jdbc.update(
-                "INSERT INTO artists (id, spotify_id, name) " +
-                "VALUES (gen_random_uuid(), ?, ?) " +
+                "INSERT INTO artists (id, spotify_id, name, country) " +
+                "VALUES (gen_random_uuid(), ?, ?, ?) " +
                 "ON CONFLICT (spotify_id) WHERE spotify_id IS NOT NULL DO NOTHING",
-                artist.getSpotifyId(),
-                artist.getName()
+                artist.getSpotifyId(), artist.getName(), country
             );
+            // Si el artista ya existía sin country y ahora tenemos uno, lo actualizamos
+            if (country != null) {
+                jdbc.update(
+                    "UPDATE artists SET country = ? WHERE spotify_id = ? AND country IS NULL",
+                    country, artist.getSpotifyId()
+                );
+            }
             return artistJpa.findBySpotifyId(artist.getSpotifyId()).orElse(null);
         }
         // Artista sin spotifyId (Deezer): dedup por nombre en minúsculas
         jdbc.update(
-            "INSERT INTO artists (id, name) " +
-            "VALUES (gen_random_uuid(), ?) " +
+            "INSERT INTO artists (id, name, country) " +
+            "VALUES (gen_random_uuid(), ?, ?) " +
             "ON CONFLICT (lower(name)) WHERE spotify_id IS NULL DO NOTHING",
-            artist.getName()
+            artist.getName(), country
         );
+        if (country != null) {
+            jdbc.update(
+                "UPDATE artists SET country = ? WHERE lower(name) = lower(?) AND country IS NULL",
+                country, artist.getName()
+            );
+        }
         return artistJpa.findByNameIgnoreCase(artist.getName()).orElse(null);
     }
 

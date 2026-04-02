@@ -72,10 +72,12 @@ public class SearchController {
     @GetMapping
     public ResponseEntity<PageResponse<SongResponse>> search(
             @RequestParam(required = false) String q,
+            @RequestParam(required = false) String artist,
             @RequestParam(required = false) String aesthetic,
             @RequestParam(required = false) String genre,
             @RequestParam(required = false) String decade,
             @RequestParam(required = false) String movie,
+            @RequestParam(required = false) String country,
             @RequestParam(required = false) Boolean instrumental,
             @RequestParam(required = false) String texture,
             @RequestParam(required = false) String mode,
@@ -89,7 +91,8 @@ public class SearchController {
             @RequestParam(defaultValue = "0") int page
     ) {
         SearchParams params = new SearchParams(
-                q, aesthetic, genre, decade, movie, instrumental, texture, mode,
+                q, artist, aesthetic, genre, decade, movie, country,
+                instrumental, texture, mode,
                 energyMin, energyMax, valenceMin, valenceMax, bpmMin, bpmMax,
                 pageSize, page
         );
