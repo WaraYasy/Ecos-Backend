@@ -115,4 +115,37 @@ class SearchControllerTest {
                 .andExpect(jsonPath("$.items[0].title").value("Creep"));
     }
 
+    @Test
+    void search_withArtist_passesArtistToUseCase() throws Exception {
+        when(searchSongsUseCase.execute(argThat(p -> "Radiohead".equals(p.artist()))))
+                .thenReturn(pageOf(List.of(buildSong("Creep"))));
+
+        mockMvc.perform(get("/v1/search").param("artist", "Radiohead"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].title").value("Creep"));
+    }
+
+    @Test
+    void search_withCountry_passesCountryToUseCase() throws Exception {
+        when(searchSongsUseCase.execute(argThat(p -> "Spain".equals(p.country()))))
+                .thenReturn(pageOf(List.of(buildSong("Malamente"))));
+
+        mockMvc.perform(get("/v1/search").param("country", "Spain"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].title").value("Malamente"));
+    }
+
+    @Test
+    void search_withArtistAndCountry_passesBothToUseCase() throws Exception {
+        when(searchSongsUseCase.execute(argThat(p ->
+                "Rosalía".equals(p.artist()) && "Spain".equals(p.country()))))
+                .thenReturn(pageOf(List.of(buildSong("Con Altura"))));
+
+        mockMvc.perform(get("/v1/search")
+                        .param("artist", "Rosalía")
+                        .param("country", "Spain"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].title").value("Con Altura"));
+    }
+
 }

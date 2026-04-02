@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.application.usecase.search;
 
 import es.wara.ecos.backend.application.service.MusicAggregationService;
+import es.wara.ecos.backend.domain.model.Artist;
 import es.wara.ecos.backend.domain.model.Page;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.MusicProvider;
@@ -14,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.Mockito.lenient;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -22,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,7 +51,7 @@ class SearchSongsUseCaseTest {
     }
 
     private SearchParams params(String q) {
-        return new SearchParams(q, null, null, null, null, null, null, null,
+        return new SearchParams(q, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, 20, 0);
     }
 
@@ -98,7 +101,7 @@ class SearchSongsUseCaseTest {
     @Test
     void execute_bdEmptyWithOnlyTechnicalQuadrant_returnsEmptyWithoutApiCall() {
         // Solo cuadrante técnico (energyMin) — no hay q, aesthetic, genre, decade ni movie
-        SearchParams p = new SearchParams(null, null, null, null, null, null, null, null,
+        SearchParams p = new SearchParams(null, null, null, null, null, null, null, null, null, null,
                 new java.math.BigDecimal("0.5"), null, null, null, null, null, 20, 0);
         when(songRepository.search(p)).thenReturn(emptyPage());
 
@@ -114,8 +117,8 @@ class SearchSongsUseCaseTest {
 
     @Test
     void execute_decadeOnly_buildsYearRangeQuery() {
-        SearchParams p = new SearchParams(null, null, null, "1980s", null, null, null, null,
-                null, null, null, null, null, null, 20, 0);
+        SearchParams p = new SearchParams(null, null, null, null, "1980s", null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
         when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
@@ -128,8 +131,8 @@ class SearchSongsUseCaseTest {
 
     @Test
     void execute_textAndDecade_combinesQueryWithYearRange() {
-        SearchParams p = new SearchParams("Vangelis", null, null, "1980s", null, null, null, null,
-                null, null, null, null, null, null, 20, 0);
+        SearchParams p = new SearchParams("Vangelis", null, null, null, "1980s", null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
         when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
@@ -142,8 +145,8 @@ class SearchSongsUseCaseTest {
 
     @Test
     void execute_aestheticQuadrant_callsSearchByTag() {
-        SearchParams p = new SearchParams(null, "dark academia", null, null, null, null, null, null,
-                null, null, null, null, null, null, 20, 0);
+        SearchParams p = new SearchParams(null, null, "dark academia", null, null, null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
         when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongsByTag("dark academia", 20)).thenReturn(List.of());
 
@@ -154,8 +157,8 @@ class SearchSongsUseCaseTest {
 
     @Test
     void execute_movieQuadrant_callsGetSoundtrackSongs() {
-        SearchParams p = new SearchParams(null, null, null, null, "Blade Runner", null, null, null,
-                null, null, null, null, null, null, 20, 0);
+        SearchParams p = new SearchParams(null, null, null, null, null, "Blade Runner", null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
         when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.getSoundtrackSongs("Blade Runner")).thenReturn(List.of());
 
@@ -168,8 +171,8 @@ class SearchSongsUseCaseTest {
 
     @Test
     void execute_genreOnly_buildsSpotifyQueryWithGenreFilter() {
-        SearchParams p = new SearchParams(null, null, "rock", null, null, null, null, null,
-                null, null, null, null, null, null, 20, 0);
+        SearchParams p = new SearchParams(null, null, null, "rock", null, null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
         when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
@@ -182,8 +185,8 @@ class SearchSongsUseCaseTest {
 
     @Test
     void execute_genreAndText_combinesQueryAndGenreFilter() {
-        SearchParams p = new SearchParams("Miles Davis", null, "jazz", null, null, null, null, null,
-                null, null, null, null, null, null, 20, 0);
+        SearchParams p = new SearchParams("Miles Davis", null, null, "jazz", null, null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
         when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
@@ -196,8 +199,8 @@ class SearchSongsUseCaseTest {
 
     @Test
     void execute_genreAndDecade_combinesGenreAndYearRange() {
-        SearchParams p = new SearchParams(null, null, "jazz", "1960s", null, null, null, null,
-                null, null, null, null, null, null, 20, 0);
+        SearchParams p = new SearchParams(null, null, null, "jazz", "1960s", null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
         when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
@@ -210,8 +213,8 @@ class SearchSongsUseCaseTest {
 
     @Test
     void execute_genreWithBdResults_doesNotCallExternalApis() {
-        SearchParams p = new SearchParams(null, null, "rock", null, null, null, null, null,
-                null, null, null, null, null, null, 20, 0);
+        SearchParams p = new SearchParams(null, null, null, "rock", null, null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
         // Página completa: satisface el umbral mínimo (>=5) y no dispara background refresh
         when(songRepository.search(p)).thenReturn(fullPage(song("Bohemian Rhapsody")));
 
@@ -224,8 +227,8 @@ class SearchSongsUseCaseTest {
 
     @Test
     void execute_genreEnsuresTagOnExternalSongs() {
-        SearchParams p = new SearchParams(null, null, "indie", null, null, null, null, null,
-                null, null, null, null, null, null, 20, 0);
+        SearchParams p = new SearchParams(null, null, null, "indie", null, null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
         Song externalSong = song("Float On");
         when(songRepository.search(p))
                 .thenReturn(emptyPage())
@@ -238,5 +241,116 @@ class SearchSongsUseCaseTest {
         verify(songRepository).save(argThat(s ->
                 s.getTags() != null && s.getTags().stream().anyMatch(t -> "indie".equals(t.getName()))
         ));
+    }
+
+    // ── cuadrante artista ─────────────────────────────────────────────────────
+
+    @Test
+    void execute_artistQuadrant_buildsSpotifyQueryWithArtistPrefix() {
+        SearchParams p = new SearchParams(null, "Radiohead", null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
+        when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
+
+        useCase.execute(p);
+
+        ArgumentCaptor<String> queryCaptor = ArgumentCaptor.forClass(String.class);
+        verify(musicProvider).searchSongs(queryCaptor.capture(), anyInt());
+        assertThat(queryCaptor.getValue()).isEqualTo("artist:Radiohead");
+    }
+
+    @Test
+    void execute_artistWithBdResults_doesNotCallExternalApis() {
+        SearchParams p = new SearchParams(null, "Pink Floyd", null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
+        when(songRepository.search(p)).thenReturn(fullPage(song("Comfortably Numb")));
+
+        Page<Song> result = useCase.execute(p);
+
+        assertThat(result.items()).hasSize(20);
+        verify(musicProvider, never()).searchSongs(anyString(), anyInt());
+    }
+
+    @Test
+    void execute_artistAndGenre_combinesArtistAndGenreInSpotifyQuery() {
+        SearchParams p = new SearchParams(null, "Coltrane", null, "jazz", null, null, null,
+                null, null, null, null, null, null, null, null, null, 20, 0);
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
+        // Con artista activo, Last.fm se omite — Spotify se usa directamente
+        when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
+
+        useCase.execute(p);
+
+        ArgumentCaptor<String> queryCaptor = ArgumentCaptor.forClass(String.class);
+        verify(musicProvider).searchSongs(queryCaptor.capture(), anyInt());
+        assertThat(queryCaptor.getValue()).contains("artist:Coltrane").contains("genre:jazz");
+    }
+
+    // ── cuadrante geográfico ──────────────────────────────────────────────────
+
+    @Test
+    void execute_countryQuadrant_callsGetArtistsByCountryAndSearchesSongs() {
+        SearchParams p = new SearchParams(null, null, null, null, null, null, "Spain",
+                null, null, null, null, null, null, null, null, null, 20, 0);
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
+        when(musicProvider.getArtistNamesByCountry("Spain", 5))
+                .thenReturn(List.of("Rosalía", "Enrique Iglesias"));
+        when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
+
+        useCase.execute(p);
+
+        verify(musicProvider).getArtistNamesByCountry("Spain", 5);
+        verify(musicProvider, atLeastOnce()).searchSongs(anyString(), anyInt());
+    }
+
+    @Test
+    void execute_countryWithNoArtistsFound_fallsBackToDirectNameSearch() {
+        SearchParams p = new SearchParams(null, null, null, null, null, null, "Japan",
+                null, null, null, null, null, null, null, null, null, 20, 0);
+        when(songRepository.search(p)).thenReturn(emptyPage()).thenReturn(emptyPage());
+        when(musicProvider.getArtistNamesByCountry("Japan", 5)).thenReturn(List.of());
+        when(musicProvider.searchSongs("Japan", 20)).thenReturn(List.of());
+
+        useCase.execute(p);
+
+        verify(musicProvider).getArtistNamesByCountry("Japan", 5);
+        verify(musicProvider).searchSongs("Japan", 20);
+    }
+
+    @Test
+    void execute_countrySetsCountryOnMatchingArtists() {
+        Artist artist = new Artist();
+        artist.setName("Rosalía");
+        Song externalSong = song("Malamente");
+        externalSong.setArtists(new ArrayList<>(List.of(artist)));
+
+        SearchParams p = new SearchParams(null, null, null, null, null, null, "Spain",
+                null, null, null, null, null, null, null, null, null, 20, 0);
+        when(songRepository.search(p))
+                .thenReturn(emptyPage())
+                .thenReturn(pageOf(List.of(externalSong)));
+        when(musicProvider.getArtistNamesByCountry("Spain", 5)).thenReturn(List.of("Rosalía"));
+        when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of(externalSong));
+
+        useCase.execute(p);
+
+        // El artista que coincide por nombre debe tener country="Spain" al guardarse
+        verify(songRepository).save(argThat(s ->
+                s.getArtists() != null && s.getArtists().stream()
+                        .filter(a -> "Rosalía".equals(a.getName()))
+                        .anyMatch(a -> "Spain".equals(a.getCountry()))
+        ));
+    }
+
+    @Test
+    void execute_countryWithBdResults_doesNotCallExternalApis() {
+        SearchParams p = new SearchParams(null, null, null, null, null, null, "France",
+                null, null, null, null, null, null, null, null, null, 20, 0);
+        when(songRepository.search(p)).thenReturn(fullPage(song("La Vie en Rose")));
+
+        Page<Song> result = useCase.execute(p);
+
+        assertThat(result.items()).hasSize(20);
+        verify(musicProvider, never()).getArtistNamesByCountry(anyString(), anyInt());
     }
 }
