@@ -76,7 +76,8 @@ public class DeezerClient {
         Song song = new Song();
         song.setTitle(track.getTitle());
         song.setDurationMs(track.getDuration() != null ? track.getDuration() * 1000 : null);
-        song.setPreviewUrl(track.getPreview());
+        // previewUrl no se asigna desde Deezer — el CDN de Deezer bloquea AVFoundation (iOS).
+        // MusicAggregationService obtiene el preview de iTunes como fallback.
         song.setIsrc(track.getIsrc());
 
         if (track.getArtist() != null && track.getArtist().getName() != null) {

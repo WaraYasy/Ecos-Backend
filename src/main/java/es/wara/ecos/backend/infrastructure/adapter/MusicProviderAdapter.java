@@ -29,6 +29,7 @@ import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiResultDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiSearchResponseDTO;
 import es.wara.ecos.backend.config.CacheConfig;
 import es.wara.ecos.backend.infrastructure.adapter.deezer.DeezerClient;
+import es.wara.ecos.backend.infrastructure.adapter.itunes.ItunesClient;
 import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -79,15 +80,17 @@ public class MusicProviderAdapter implements MusicProvider {
     private final TmdbClient tmdbClient;
     private final MusicBrainzClient musicBrainzClient;
     private final DeezerClient deezerClient;
+    private final ItunesClient itunesClient;
 
     public MusicProviderAdapter(SpotifyClient spotifyClient, LastFmClient lastFmClient,
                                 TmdbClient tmdbClient, MusicBrainzClient musicBrainzClient,
-                                DeezerClient deezerClient) {
+                                DeezerClient deezerClient, ItunesClient itunesClient) {
         this.spotifyClient = spotifyClient;
         this.lastFmClient = lastFmClient;
         this.tmdbClient = tmdbClient;
         this.musicBrainzClient = musicBrainzClient;
         this.deezerClient = deezerClient;
+        this.itunesClient = itunesClient;
     }
 
     /**
@@ -454,7 +457,7 @@ public class MusicProviderAdapter implements MusicProvider {
     @Cacheable(cacheNames = CacheConfig.CACHE_SEARCH_SONGS, key = "'preview-' + #title + '-' + #artist")
     @Override
     public Optional<String> findPreviewUrl(String title, String artist) {
-        return deezerClient.searchTrack(title, artist).map(Song::getPreviewUrl);
+        return itunesClient.findPreviewUrl(title, artist);
     }
 
     /**
