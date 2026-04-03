@@ -111,14 +111,13 @@ class SearchFlowTest extends BaseFunctionalTest {
     }
 
     @Test
-    void search_noMatchInBd_returnsEmptyList() throws Exception {
+    void search_noMatchInBd_returns404() throws Exception {
         String token = registerAndLogin();
 
         mockMvc.perform(get("/v1/search")
                         .param("q", "XyzNoExiste999")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isEmpty());
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -164,14 +163,13 @@ class SearchFlowTest extends BaseFunctionalTest {
     }
 
     @Test
-    void search_byGenreNoMatch_returnsEmptyList() throws Exception {
+    void search_byGenreNoMatch_returns404() throws Exception {
         String token = registerAndLogin();
 
         mockMvc.perform(get("/v1/search")
                         .param("genre", "heavy metal")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isEmpty());
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -188,7 +186,7 @@ class SearchFlowTest extends BaseFunctionalTest {
     }
 
     @Test
-    void search_byGenreAndAesthetic_andLogicReturnsEmpty_whenOnlyOneTagMatches() throws Exception {
+    void search_byGenreAndAesthetic_andLogicReturns404_whenOnlyOneTagMatches() throws Exception {
         // Canción tiene "indie rock" pero no tiene aesthetic "cottagecore" → sin resultados
         String token = registerAndLogin();
 
@@ -196,8 +194,7 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .param("genre", "indie")
                         .param("aesthetic", "cottagecore")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isEmpty());
+                .andExpect(status().isNotFound());
     }
 
     // ─── cuadrante cinematográfico ─────────────────────────────────────────────
@@ -240,15 +237,14 @@ class SearchFlowTest extends BaseFunctionalTest {
     }
 
     @Test
-    void search_byMovie_noMatch_returnsEmpty() throws Exception {
+    void search_byMovie_noMatch_returns404() throws Exception {
         linkSongToMovie("Blade Runner", 78, "movie");
         String token = registerAndLogin();
 
         mockMvc.perform(get("/v1/search")
                         .param("movie", "Matrix")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isEmpty());
+                .andExpect(status().isNotFound());
     }
 
     @Test

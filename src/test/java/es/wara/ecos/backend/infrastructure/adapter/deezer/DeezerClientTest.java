@@ -74,7 +74,7 @@ class DeezerClientTest {
         Song song = result.get();
         assertThat(song.getTitle()).isEqualTo("Lose Yourself");
         assertThat(song.getDurationMs()).isEqualTo(326_000);
-        assertThat(song.getPreviewUrl()).isEqualTo("https://cdns-preview.dzcdn.net/stream/lose-yourself.mp3");
+        assertThat(song.getPreviewUrl()).isNull(); // Deezer no aporta preview — lo gestiona ItunesClient
         assertThat(song.getIsrc()).isEqualTo("USUM70209454");
         assertThat(song.getArtists()).hasSize(1);
         assertThat(song.getArtists().get(0).getName()).isEqualTo("Eminem");

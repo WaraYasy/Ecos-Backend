@@ -54,14 +54,12 @@ class SearchControllerTest {
     }
 
     @Test
-    void search_noParams_returns200WithEmptyList() throws Exception {
+    void search_noResults_returns404() throws Exception {
         when(searchSongsUseCase.execute(argThat(p -> p.q() == null)))
                 .thenReturn(new Page<>(List.of(), 0, 20, 0L));
 
         mockMvc.perform(get("/v1/search"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isArray())
-                .andExpect(jsonPath("$.items").isEmpty());
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -77,7 +75,7 @@ class SearchControllerTest {
     @Test
     void search_withCustomPageSizeAndPage_passesThemToUseCase() throws Exception {
         when(searchSongsUseCase.execute(argThat(p -> p.pageSize() == 5 && p.page() == 2)))
-                .thenReturn(new Page<>(List.of(), 2, 5, 0L));
+                .thenReturn(pageOf(List.of(buildSong("Bohemian Rhapsody"))));
 
         mockMvc.perform(get("/v1/search").param("pageSize", "5").param("page", "2"))
                 .andExpect(status().isOk());
@@ -86,7 +84,7 @@ class SearchControllerTest {
     @Test
     void search_defaultPageSizeIsTwenty() throws Exception {
         when(searchSongsUseCase.execute(argThat(p -> p.pageSize() == 20)))
-                .thenReturn(new Page<>(List.of(), 0, 20, 0L));
+                .thenReturn(pageOf(List.of(buildSong("Bohemian Rhapsody"))));
 
         mockMvc.perform(get("/v1/search"))
                 .andExpect(status().isOk());
