@@ -7,6 +7,7 @@ import es.wara.ecos.backend.interfaces.rest.dto.SongResponse;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,7 +55,8 @@ public class SearchController {
      * @param q            texto libre para búsqueda por título, artista o letra
      * @param aesthetic    estilo o movimiento estético (p.ej. "dark academia", "cottagecore")
      * @param genre        género musical (p.ej. "rock", "jazz", "indie pop")
-     * @param decade       década musical (p.ej. "1980s", "2000s")
+     * @param decade       década musical en formato "1980s" (p.ej. "1980s", "2000s") — cuadrante seed
+     * @param year         año exacto o rango (p.ej. "1985", "1980-1990") — on-demand
      * @param movie        película o serie asociada
      * @param instrumental {@code true} para canciones sin letra
      * @param texture      textura sonora (p.ej. "acoustic", "distorted")
@@ -75,7 +77,8 @@ public class SearchController {
             @RequestParam(required = false) String artist,
             @RequestParam(required = false) String aesthetic,
             @RequestParam(required = false) String genre,
-            @RequestParam(required = false) String decade,
+            @RequestParam(required = false) @Pattern(regexp = "\\d{4}s", message = "La década debe tener el formato '1980s'") String decade,
+            @RequestParam(required = false) String year,
             @RequestParam(required = false) String movie,
             @RequestParam(required = false) String country,
             @RequestParam(required = false) Boolean instrumental,
@@ -91,7 +94,7 @@ public class SearchController {
             @RequestParam(defaultValue = "0") int page
     ) {
         SearchParams params = new SearchParams(
-                q, artist, aesthetic, genre, decade, movie, country,
+                q, artist, aesthetic, genre, decade, year, movie, country,
                 instrumental, texture, mode,
                 energyMin, energyMax, valenceMin, valenceMax, bpmMin, bpmMax,
                 pageSize, page

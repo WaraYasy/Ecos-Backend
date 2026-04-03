@@ -67,6 +67,7 @@ public class SearchSongsUseCase {
     private boolean isOnDemandQuadrant(SearchParams params) {
         return (params.movie()  != null && !params.movie().isBlank())
             || (params.q()      != null && !params.q().isBlank())
-            || (params.artist() != null && !params.artist().isBlank());
+            || (params.artist() != null && !params.artist().isBlank())
+            || (params.year()   != null && !params.year().isBlank());
     }
 }

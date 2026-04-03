@@ -108,12 +108,13 @@ public class SongSpecification {
             }
 
             // ── Cuadrante 3: Temporal ─────────────────────────────────────────
-            // Formatos soportados:
-            //   "1980s"      → década   (1980–1989)
-            //   "1985"       → año exacto
-            //   "1980-1990"  → rango libre
-            if (params.decade() != null && !params.decade().isBlank()) {
-                int[] range = parseTemporalRange(params.decade().trim());
+            // decade: solo "1980s" → [1980, 1989] (cuadrante seed, validado en controller)
+            // year:   "1985" → [1985, 1985]  |  "1980-1990" → [1980, 1990]
+            String temporalParam = (params.decade() != null && !params.decade().isBlank())
+                    ? params.decade().trim()
+                    : (params.year() != null && !params.year().isBlank()) ? params.year().trim() : null;
+            if (temporalParam != null) {
+                int[] range = parseTemporalRange(temporalParam);
                 if (range != null) {
                     Join<SongEntity, AlbumEntity> albumJoin = root.join("album", JoinType.LEFT);
                     predicates.add(cb.between(
@@ -214,21 +215,21 @@ public class SongSpecification {
      * Devuelve {@code null} si el formato no es reconocido.
      *
      * <ul>
-     *   <li>{@code "1980s"} → [1980, 1989]</li>
-     *   <li>{@code "1985"}  → [1985, 1985]</li>
-     *   <li>{@code "1980-1990"} → [1980, 1990]</li>
+     *   <li>{@code "1980s"}     → [1980, 1989] (decade)</li>
+     *   <li>{@code "1985"}      → [1985, 1985] (year exacto)</li>
+     *   <li>{@code "1980-1990"} → [1980, 1990] (year rango)</li>
      * </ul>
      */
     private static int[] parseTemporalRange(String value) {
         try {
-            if (value.contains("-")) {
+            if (value.endsWith("s")) {
+                int start = Integer.parseInt(value.substring(0, value.length() - 1));
+                return new int[]{start, start + 9};
+            } else if (value.contains("-")) {
                 String[] parts = value.split("-", 2);
                 int start = Integer.parseInt(parts[0].trim());
                 int end   = Integer.parseInt(parts[1].trim());
                 return new int[]{Math.min(start, end), Math.max(start, end)};
-            } else if (value.endsWith("s")) {
-                int start = Integer.parseInt(value.substring(0, value.length() - 1));
-                return new int[]{start, start + 9};
             } else {
                 int year = Integer.parseInt(value);
                 return new int[]{year, year};

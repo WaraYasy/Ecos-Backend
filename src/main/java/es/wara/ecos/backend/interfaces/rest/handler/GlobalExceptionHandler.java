@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -65,6 +66,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleNotFound(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse("NOT_FOUND", ex.getMessage(), 404));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath().toString().replaceFirst(".*\\.", "") + ": " + v.getMessage())
+                .findFirst()
+                .orElse("Parámetro con formato inválido");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("BAD_REQUEST", message, 400));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

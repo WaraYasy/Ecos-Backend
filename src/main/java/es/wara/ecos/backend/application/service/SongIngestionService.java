@@ -203,14 +203,21 @@ public class SongIngestionService {
         if (notBlank(params.q()))      sb.append(params.q().trim());
         if (notBlank(params.artist())) { if (!sb.isEmpty()) sb.append(" "); sb.append("artist:").append(params.artist().trim()); }
         if (notBlank(params.genre()))  { if (!sb.isEmpty()) sb.append(" "); sb.append("genre:").append(params.genre().trim()); }
+        // decade: siempre "1980s" (validado en controller) → year:1980-1989
         if (notBlank(params.decade())) {
-            try {
-                int startYear = Integer.parseInt(params.decade().replace("s", "").trim());
-                if (startYear >= 1000 && startYear <= 2100) {
-                    if (!sb.isEmpty()) sb.append(" ");
-                    sb.append("year:").append(startYear).append("-").append(startYear + 9);
-                }
-            } catch (NumberFormatException ignored) {}
+            int start = Integer.parseInt(params.decade().replace("s", "").trim());
+            if (!sb.isEmpty()) sb.append(" ");
+            sb.append("year:").append(start).append("-").append(start + 9);
+        }
+        // year: "1985" → year:1985-1985  |  "1980-1990" → year:1980-1990
+        if (notBlank(params.year())) {
+            String y = params.year().trim();
+            if (!sb.isEmpty()) sb.append(" ");
+            if (y.contains("-")) {
+                sb.append("year:").append(y);
+            } else {
+                sb.append("year:").append(y).append("-").append(y);
+            }
         }
         return sb.toString();
     }
@@ -232,6 +239,7 @@ public class SongIngestionService {
         if (notBlank(params.aesthetic())) sb.append("aesthetic=").append(params.aesthetic().trim()).append(" ");
         if (notBlank(params.genre()))     sb.append("genre=").append(params.genre().trim()).append(" ");
         if (notBlank(params.decade()))    sb.append("decade=").append(params.decade().trim()).append(" ");
+        if (notBlank(params.year()))      sb.append("year=").append(params.year().trim()).append(" ");
         if (notBlank(params.movie()))     sb.append("movie=").append(params.movie().trim()).append(" ");
         if (notBlank(params.country()))   sb.append("country=").append(params.country().trim()).append(" ");
         if (notBlank(params.texture()))   sb.append("texture=").append(params.texture().trim()).append(" ");
