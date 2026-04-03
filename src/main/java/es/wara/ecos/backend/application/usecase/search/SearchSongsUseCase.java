@@ -290,8 +290,11 @@ public class SearchSongsUseCase {
         if (params.decade() != null && !params.decade().isBlank()) {
             try {
                 int startYear = Integer.parseInt(params.decade().replace("s", "").trim());
-                if (!sb.isEmpty()) sb.append(" ");
-                sb.append("year:").append(startYear).append("-").append(startYear + 9);
+                // Spotify requiere años de 4 dígitos; descartar valores inválidos
+                if (startYear >= 1000 && startYear <= 2100) {
+                    if (!sb.isEmpty()) sb.append(" ");
+                    sb.append("year:").append(startYear).append("-").append(startYear + 9);
+                }
             } catch (NumberFormatException ignored) {
                 // Formato de decade inválido — ignorar
             }

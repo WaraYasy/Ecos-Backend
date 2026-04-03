@@ -40,7 +40,7 @@ class SearchFlowTest extends BaseFunctionalTest {
 
     @BeforeEach
     void cleanDb() {
-        jdbc.execute("TRUNCATE TABLE artists, users CASCADE");
+        jdbc.execute("TRUNCATE TABLE movies, artists, users CASCADE");
         insertSongFixture();
         // Prevenir llamadas reales en tests que no las necesitan
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
@@ -61,6 +61,14 @@ class SearchFlowTest extends BaseFunctionalTest {
         jdbc.update("INSERT INTO song_artists (song_id, artist_id) VALUES (?, ?)", songId, artistId);
         jdbc.update("INSERT INTO song_tags (song_id, tag) VALUES (?, ?)", songId, "dark academia");
         jdbc.update("INSERT INTO song_tags (song_id, tag) VALUES (?, ?)", songId, "indie rock");
+    }
+
+    private void linkSongToMovie(String title, int tmdbId, String mediaType) {
+        UUID movieId = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO movies (id, tmdb_id, title, media_type) VALUES (?, ?, ?, ?)",
+                movieId, tmdbId, title, mediaType);
+        jdbc.update("INSERT INTO song_movies (song_id, movie_id) VALUES (?, ?)", songId, movieId);
     }
 
     private String registerAndLogin() throws Exception {
@@ -190,6 +198,69 @@ class SearchFlowTest extends BaseFunctionalTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    // ─── cuadrante cinematográfico ─────────────────────────────────────────────
+
+    @Test
+    void search_byMovie_findsSongLinkedToMovie() throws Exception {
+        linkSongToMovie("Blade Runner", 78, "movie");
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("movie", "Blade Runner")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
+    }
+
+    @Test
+    void search_byMovie_partialTitle_findsSong() throws Exception {
+        linkSongToMovie("Blade Runner", 78, "movie");
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("movie", "Blade")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
+    }
+
+    @Test
+    void search_byMovie_tvShow_findsSongLinkedToSeries() throws Exception {
+        // El cuadrante cinematográfico busca por título — admite series igual que películas
+        linkSongToMovie("Stranger Things", 66732, "tv");
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("movie", "Stranger Things")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
+    }
+
+    @Test
+    void search_byMovie_noMatch_returnsEmpty() throws Exception {
+        linkSongToMovie("Blade Runner", 78, "movie");
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("movie", "Matrix")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @Test
+    void search_byMovie_caseInsensitive_findsSong() throws Exception {
+        linkSongToMovie("Blade Runner", 78, "movie");
+        String token = registerAndLogin();
+
+        mockMvc.perform(get("/v1/search")
+                        .param("movie", "blade runner")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].title").value("Chariots of Fire"));
     }
 
 }

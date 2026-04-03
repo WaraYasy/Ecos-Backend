@@ -40,6 +40,18 @@ class SuggestionsControllerTest {
     }
 
     @Test
+    void suggest_movieType_tvShowIncludesSerieLabel() throws Exception {
+        when(suggestionsService.suggestMovies("tronos"))
+                .thenReturn(List.of(
+                        new SuggestionResponse("Juego de Tronos", "Juego de Tronos (2011) · Serie")));
+
+        mockMvc.perform(get("/v1/suggestions").param("type", "movie").param("q", "tronos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].value").value("Juego de Tronos"))
+                .andExpect(jsonPath("$[0].label").value("Juego de Tronos (2011) · Serie"));
+    }
+
+    @Test
     void suggest_aestheticType_returnsAestheticSuggestions() throws Exception {
         when(suggestionsService.suggestAesthetics("dark"))
                 .thenReturn(List.of(new SuggestionResponse("darkAcademia", "Dark academia")));
