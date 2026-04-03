@@ -101,6 +101,10 @@ public class SearchController {
                 searchSongsUseCase.execute(params).map(SongResponse::from)
         );
 
+        if (response.items().isEmpty()) {
+            throw new IllegalArgumentException("No se encontraron canciones para los parámetros indicados");
+        }
+
         return ResponseEntity.ok(response);
     }
 
