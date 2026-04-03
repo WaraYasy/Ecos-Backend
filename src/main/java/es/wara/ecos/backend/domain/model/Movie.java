@@ -29,5 +29,7 @@ public class Movie {
     private String director;
     /** Géneros cinematográficos de la película (fuente: TMDb). */
     private List<String> genres;
+    /** Tipo de contenido: {@code "movie"} para películas, {@code "tv"} para series. */
+    private String mediaType;
 
 }

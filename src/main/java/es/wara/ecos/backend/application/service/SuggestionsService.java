@@ -1,8 +1,8 @@
 package es.wara.ecos.backend.application.service;
 
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.TmdbClient;
-import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDTO;
-import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBSearchResponseDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiResultDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiSearchResponseDTO;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaArtistRepository;
 import es.wara.ecos.backend.infrastructure.seed.SeedTermsProperties;
 import es.wara.ecos.backend.interfaces.rest.dto.SuggestionResponse;
@@ -16,7 +16,7 @@ import java.util.List;
  *
  * <p>Cinco tipos de sugerencias:
  * <ul>
- *   <li><b>movie</b> → consulta TMDb en tiempo real y devuelve las películas más relevantes</li>
+ *   <li><b>movie</b> → consulta TMDb ({@code /search/multi}) en tiempo real y devuelve películas y series relevantes</li>
  *   <li><b>aesthetic</b> → filtra la lista curada de estéticas de {@code seed-terms.yml}</li>
  *   <li><b>genre</b> → filtra la lista curada de géneros de {@code seed-terms.yml}</li>
  *   <li><b>artist</b> → busca artistas en la base de datos local por nombre</li>
@@ -46,24 +46,28 @@ public class SuggestionsService {
     }
 
     /**
-     * Sugiere películas buscando en TMDb. Requiere al menos 2 caracteres.
+     * Sugiere películas y series buscando en TMDb con {@code /search/multi}.
+     * Requiere al menos 2 caracteres. Filtra resultados de tipo {@code "movie"} y {@code "tv"}.
      *
      * @param q texto introducido por el usuario
-     * @return lista de sugerencias con título y año; vacía si {@code q} es corto
+     * @return lista de sugerencias con título y año; vacía si {@code q} es corto o hay error
      */
     public List<SuggestionResponse> suggestMovies(String q) {
         if (q == null || q.strip().length() < 2) return List.of();
 
         try {
-            TMDBSearchResponseDTO results = tmdbClient.searchMovies(q.strip(), 1);
+            TMDBMultiSearchResponseDTO results = tmdbClient.searchMulti(q.strip(), 1);
             if (results == null || results.getResults() == null) return List.of();
 
             return results.getResults().stream()
+                    // Solo películas y series — excluir personas u otros tipos
+                    .filter(r -> "movie".equals(r.getMediaType()) || "tv".equals(r.getMediaType()))
+                    .filter(r -> r.getDisplayTitle() != null && !r.getDisplayTitle().isBlank())
                     .limit(MAX_SUGGESTIONS)
-                    .map(this::toMovieSuggestion)
+                    .map(this::toMultiSuggestion)
                     .toList();
         } catch (Exception e) {
-            log.warn("Error buscando sugerencias de película para '{}': {}", q, e.getMessage());
+            log.warn("Error buscando sugerencias de película/serie para '{}': {}", q, e.getMessage());
             return List.of();
         }
     }
@@ -132,11 +136,13 @@ public class SuggestionsService {
                 .toList();
     }
 
-    private SuggestionResponse toMovieSuggestion(TMDBMovieDTO movie) {
-        String year = movie.getReleaseDate() != null && movie.getReleaseDate().length() >= 4
-                ? " (" + movie.getReleaseDate().substring(0, 4) + ")"
-                : "";
-        return new SuggestionResponse(movie.getTitle(), movie.getTitle() + year);
+    private SuggestionResponse toMultiSuggestion(TMDBMultiResultDTO result) {
+        String displayTitle = result.getDisplayTitle();
+        String year = result.getDisplayYear();
+        // El label incluye el año y, para series, "(Serie)" para distinguirlas de películas
+        String typeSuffix = "tv".equals(result.getMediaType()) ? " · Serie" : "";
+        String label = displayTitle + (year != null ? " (" + year + ")" : "") + typeSuffix;
+        return new SuggestionResponse(displayTitle, label);
     }
 
     /** Convierte camelCase o snake_case en texto legible: "darkAcademia" → "Dark Academia" */

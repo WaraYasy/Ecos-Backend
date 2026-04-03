@@ -15,6 +15,6 @@ import java.util.UUID;
  */
 public interface JpaMovieRepository extends JpaRepository<MovieEntity, UUID> {
 
-    Optional<MovieEntity> findByTmdbId(Integer tmdbId);
+    Optional<MovieEntity> findByTmdbIdAndMediaType(Integer tmdbId, String mediaType);
 
 }

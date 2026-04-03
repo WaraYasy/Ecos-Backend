@@ -25,8 +25,8 @@ import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifyTrackDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.TmdbClient;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBCreditDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDetailDTO;
-import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDTO;
-import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBSearchResponseDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiResultDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiSearchResponseDTO;
 import es.wara.ecos.backend.config.CacheConfig;
 import es.wara.ecos.backend.infrastructure.adapter.deezer.DeezerClient;
 import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
@@ -334,47 +334,54 @@ public class MusicProviderAdapter implements MusicProvider {
             List<Movie> movies = new ArrayList<>();
             for (MusicBrainzReleaseGroupDTO rg : soundtracks) {
                 try {
-                    TMDBSearchResponseDTO search = tmdbClient.searchMovies(rg.getTitle(), 1);
+                    TMDBMultiSearchResponseDTO search = tmdbClient.searchMulti(rg.getTitle(), 1);
                     if (search == null || search.getResults() == null || search.getResults().isEmpty()) continue;
 
-                    TMDBMovieDTO movieDTO = search.getResults().get(0);
+                    TMDBMultiResultDTO result = search.getResults().stream()
+                            .filter(r -> "movie".equals(r.getMediaType()) || "tv".equals(r.getMediaType()))
+                            .findFirst()
+                            .orElse(null);
+                    if (result == null) continue;
 
-                    // Géneros con nombre completo desde el endpoint de detalles
+                    // Géneros y director: solo disponibles para películas en TMDb
                     List<String> genres = List.of();
-                    try {
-                        TMDBMovieDetailDTO details = tmdbClient.getMovieDetails(movieDTO.getId());
-                        if (details != null && details.getGenres() != null) {
-                            genres = details.getGenres().stream()
-                                    .map(TMDBMovieDetailDTO.GenreDTO::getName)
-                                    .toList();
-                        }
-                    } catch (ExternalApiException ignored) {}
-
-                    // Director desde créditos
                     String director = null;
-                    try {
-                        TMDBCreditDTO credits = tmdbClient.getMovieCredits(movieDTO.getId());
-                        if (credits != null && credits.getCrew() != null) {
-                            director = credits.getCrew().stream()
-                                    .filter(c -> "Director".equals(c.getJob()))
-                                    .findFirst()
-                                    .map(TMDBCreditDTO.CrewMember::getName)
-                                    .orElse(null);
-                        }
-                    } catch (ExternalApiException ignored) {}
+                    if ("movie".equals(result.getMediaType())) {
+                        try {
+                            TMDBMovieDetailDTO details = tmdbClient.getMovieDetails(result.getId());
+                            if (details != null && details.getGenres() != null) {
+                                genres = details.getGenres().stream()
+                                        .map(TMDBMovieDetailDTO.GenreDTO::getName)
+                                        .toList();
+                            }
+                        } catch (ExternalApiException ignored) {}
+
+                        try {
+                            TMDBCreditDTO credits = tmdbClient.getMovieCredits(result.getId());
+                            if (credits != null && credits.getCrew() != null) {
+                                director = credits.getCrew().stream()
+                                        .filter(c -> "Director".equals(c.getJob()))
+                                        .findFirst()
+                                        .map(TMDBCreditDTO.CrewMember::getName)
+                                        .orElse(null);
+                            }
+                        } catch (ExternalApiException ignored) {}
+                    }
 
                     Integer year = null;
-                    if (movieDTO.getReleaseDate() != null && movieDTO.getReleaseDate().length() >= 4) {
-                        try { year = Integer.parseInt(movieDTO.getReleaseDate().substring(0, 4)); }
+                    String displayYear = result.getDisplayYear();
+                    if (displayYear != null) {
+                        try { year = Integer.parseInt(displayYear); }
                         catch (NumberFormatException ignored) {}
                     }
 
                     Movie movie = new Movie();
-                    movie.setTmdbId(movieDTO.getId().intValue());
-                    movie.setTitle(movieDTO.getTitle());
+                    movie.setTmdbId(result.getId().intValue());
+                    movie.setTitle(result.getDisplayTitle());
                     movie.setYear(year);
                     movie.setDirector(director);
                     movie.setGenres(genres);
+                    movie.setMediaType(result.getMediaType());
                     movies.add(movie);
 
                 } catch (ExternalApiException e) {
@@ -480,25 +487,31 @@ public class MusicProviderAdapter implements MusicProvider {
     // HELPERS INTERNOS
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Busca una película en TMDb por título y devuelve un Movie con sus datos básicos. */
+    /** Busca una película o serie en TMDb por título y devuelve un Movie con sus datos básicos. */
     private Movie fetchMovieFromTmdb(String movieTitle) {
         try {
-            TMDBSearchResponseDTO search = tmdbClient.searchMovies(movieTitle, 1);
+            TMDBMultiSearchResponseDTO search = tmdbClient.searchMulti(movieTitle, 1);
             if (search == null || search.getResults() == null || search.getResults().isEmpty()) {
                 return null;
             }
-            TMDBMovieDTO dto = search.getResults().get(0);
+            TMDBMultiResultDTO result = search.getResults().stream()
+                    .filter(r -> "movie".equals(r.getMediaType()) || "tv".equals(r.getMediaType()))
+                    .findFirst()
+                    .orElse(null);
+            if (result == null) return null;
+
             Movie movie = new Movie();
-            movie.setTmdbId(dto.getId().intValue());
-            movie.setTitle(dto.getTitle());
-            if (dto.getReleaseDate() != null && dto.getReleaseDate().length() >= 4) {
-                try {
-                    movie.setYear(Integer.parseInt(dto.getReleaseDate().substring(0, 4)));
-                } catch (NumberFormatException ignored) {}
+            movie.setTmdbId(result.getId().intValue());
+            movie.setTitle(result.getDisplayTitle());
+            movie.setMediaType(result.getMediaType());
+            String displayYear = result.getDisplayYear();
+            if (displayYear != null) {
+                try { movie.setYear(Integer.parseInt(displayYear)); }
+                catch (NumberFormatException ignored) {}
             }
             return movie;
         } catch (ExternalApiException e) {
-            log.debug("No se pudo obtener info de película '{}' en TMDb: {}", movieTitle, e.getMessage());
+            log.debug("No se pudo obtener info de '{}' en TMDb: {}", movieTitle, e.getMessage());
             return null;
         }
     }

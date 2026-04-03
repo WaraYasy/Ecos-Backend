@@ -13,7 +13,9 @@ public record MovieResponse(
         Integer tmdbId,
         String title,
         Integer year,
-        String director
+        String director,
+        /** {@code "movie"} para películas, {@code "tv"} para series. */
+        String mediaType
 ) {
 
     public static MovieResponse from(Movie movie) {
@@ -21,7 +23,8 @@ public record MovieResponse(
                 movie.getTmdbId(),
                 movie.getTitle(),
                 movie.getYear(),
-                movie.getDirector()
+                movie.getDirector(),
+                movie.getMediaType()
         );
     }
 

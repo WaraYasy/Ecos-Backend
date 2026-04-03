@@ -2,6 +2,7 @@ package es.wara.ecos.backend.infrastructure.adapter.tmdb;
 
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBCreditDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDetailDTO;
+import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiSearchResponseDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBSearchResponseDTO;
 import es.wara.ecos.backend.infrastructure.exception.ApiAuthenticationException;
 import es.wara.ecos.backend.infrastructure.exception.ApiRateLimitException;
@@ -142,6 +143,38 @@ public class TmdbClient {
     // ─────────────────────────────────────────────────────────────────────────
     // MÉTODOS AUXILIARES
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Busca películas y series simultáneamente usando el endpoint {@code /search/multi} de TMDb.
+     * <p>
+     * Diseñado para autocompletado: devuelve resultados de tipo {@code "movie"} y {@code "tv"}
+     * mezclados, ordenados por relevancia según TMDb. El campo {@code media_type} de cada
+     * resultado indica si es película o serie.
+     * </p>
+     *
+     * @param query término de búsqueda
+     * @param page  número de página (null = 1)
+     * @return DTO con resultados mixtos; filtrar por {@code media_type} según necesidad
+     */
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
+    public TMDBMultiSearchResponseDTO searchMulti(String query, Integer page) {
+        log.info("Buscando películas+series (multi) con query '{}' en {} API...", query, API_NAME);
+
+        if (!StringUtils.hasText(query)) {
+            throw new IllegalArgumentException("El término de búsqueda no puede estar vacío");
+        }
+
+        String url = buildUrl("/search/multi", Map.of(
+            "query", query,
+            "page", page != null ? String.valueOf(page) : "1"
+        ));
+
+        return executeTypedRequest(url, TMDBMultiSearchResponseDTO.class, "búsqueda multi");
+    }
 
     /**
      * Busca series de TV por título.

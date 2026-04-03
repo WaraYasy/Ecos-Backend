@@ -47,4 +47,8 @@ public class MovieEntity {
     @Column(columnDefinition = "jsonb")
     private List<String> genres;
 
+    /** Tipo de contenido: {@code "movie"} para películas, {@code "tv"} para series. */
+    @Column(name = "media_type", nullable = false, length = 10)
+    private String mediaType;
+
 }
