@@ -13,14 +13,11 @@ import es.wara.ecos.backend.infrastructure.persistence.entity.ArtistEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.AudioFeaturesEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.MovieEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.SongEntity;
-import es.wara.ecos.backend.infrastructure.persistence.entity.SongTagEntity;
-import es.wara.ecos.backend.infrastructure.persistence.entity.SongTagId;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaAlbumRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaArtistRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaAudioFeaturesRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaMovieRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongRepository;
-import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongTagRepository;
 import es.wara.ecos.backend.infrastructure.persistence.mapper.AudioFeaturesMapper;
 import es.wara.ecos.backend.infrastructure.persistence.mapper.SongMapper;
 import es.wara.ecos.backend.infrastructure.persistence.specification.SongSpecification;
@@ -29,6 +26,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -73,7 +71,6 @@ public class SongRepositoryImpl implements SongRepository {
     private final JpaAlbumRepository albumJpa;
     private final JpaMovieRepository movieJpa;
     private final JpaAudioFeaturesRepository audioFeaturesJpa;
-    private final JpaSongTagRepository songTagJpa;
     private final SongMapper mapper;
     private final AudioFeaturesMapper audioFeaturesMapper;
     private final JdbcTemplate jdbc;
@@ -84,7 +81,6 @@ public class SongRepositoryImpl implements SongRepository {
                                JpaAlbumRepository albumJpa,
                                JpaMovieRepository movieJpa,
                                JpaAudioFeaturesRepository audioFeaturesJpa,
-                               JpaSongTagRepository songTagJpa,
                                SongMapper mapper,
                                AudioFeaturesMapper audioFeaturesMapper,
                                JdbcTemplate jdbc,
@@ -94,7 +90,6 @@ public class SongRepositoryImpl implements SongRepository {
         this.albumJpa = albumJpa;
         this.movieJpa = movieJpa;
         this.audioFeaturesJpa = audioFeaturesJpa;
-        this.songTagJpa = songTagJpa;
         this.mapper = mapper;
         this.audioFeaturesMapper = audioFeaturesMapper;
         this.jdbc = jdbc;
@@ -148,6 +143,12 @@ public class SongRepositoryImpl implements SongRepository {
     @Override
     @Transactional
     public Song save(Song song) {
+        // Normalizar ISRC: eliminar guiones (US-RC1-76-07839 → USRC17607839)
+        // para que siempre quede en formato compacto de 12 chars y no exceda VARCHAR(15)
+        if (song.getIsrc() != null) {
+            song.setIsrc(song.getIsrc().replace("-", ""));
+        }
+
         // 1. Dedup por ISRC
         if (song.getIsrc() != null) {
             Optional<SongEntity> byIsrc = jpa.findByIsrc(song.getIsrc());
@@ -224,7 +225,28 @@ public class SongRepositoryImpl implements SongRepository {
             }
         }
 
-        SongEntity saved = jpa.save(entity);
+        SongEntity saved;
+        try {
+            saved = jpa.save(entity);
+        } catch (DataIntegrityViolationException e) {
+            // Race condition: otro hilo insertó la misma canción simultáneamente.
+            // La canción SÍ está en BD — re-fetchear por spotifyId o ISRC y continuar.
+            if (song.getSpotifyId() != null) {
+                Optional<SongEntity> existing = jpa.findBySpotifyId(song.getSpotifyId());
+                if (existing.isPresent()) {
+                    addMissingTags(existing.get(), song.getTags());
+                    return mapper.toModel(existing.get());
+                }
+            }
+            if (song.getIsrc() != null) {
+                Optional<SongEntity> existing = jpa.findByIsrc(song.getIsrc());
+                if (existing.isPresent()) {
+                    addMissingTags(existing.get(), song.getTags());
+                    return mapper.toModel(existing.get());
+                }
+            }
+            throw e;
+        }
 
         if (song.getAudioFeatures() != null) {
             AudioFeaturesEntity af = audioFeaturesMapper.toEntity(song.getAudioFeatures());
@@ -232,16 +254,7 @@ public class SongRepositoryImpl implements SongRepository {
             audioFeaturesJpa.save(af);
         }
 
-        if (song.getTags() != null) {
-            for (Tag tag : song.getTags()) {
-                if (tag.getName() == null || tag.getName().isBlank()) continue;
-                SongTagEntity tagEntity = new SongTagEntity();
-                tagEntity.setId(new SongTagId(saved.getId(), tag.getName()));
-                tagEntity.setSong(saved);
-                tagEntity.setWeight(tag.getWeight());
-                songTagJpa.save(tagEntity);
-            }
-        }
+        addMissingTags(saved, song.getTags());
 
         return mapper.toModel(saved);
     }
@@ -338,22 +351,27 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     /**
-     * Inserta una película si no existe (por tmdbId) y devuelve la entidad.
-     * Thread-safe: usa {@code ON CONFLICT (tmdb_id) DO NOTHING}.
+     * Inserta una película o serie si no existe (por tmdbId + mediaType) y devuelve la entidad.
+     * Si ya existe, completa director y géneros solo si estaban a NULL (nunca sobreescribe datos).
+     * Thread-safe: usa {@code ON CONFLICT ... DO UPDATE} con {@code COALESCE}.
      */
     private MovieEntity upsertMovie(Movie movie) {
         if (movie.getTmdbId() == null || movie.getTitle() == null) return null;
+        String mediaType = movie.getMediaType() != null ? movie.getMediaType() : "movie";
         jdbc.update(
-            "INSERT INTO movies (id, tmdb_id, title, year, director, genres) " +
-            "VALUES (gen_random_uuid(), ?, ?, ?, ?, CAST(? AS jsonb)) " +
-            "ON CONFLICT (tmdb_id) DO NOTHING",
+            "INSERT INTO movies (id, tmdb_id, title, year, director, genres, media_type) " +
+            "VALUES (gen_random_uuid(), ?, ?, ?, ?, CAST(? AS jsonb), ?) " +
+            "ON CONFLICT (tmdb_id, media_type) DO UPDATE SET " +
+            "  director = COALESCE(movies.director, EXCLUDED.director), " +
+            "  genres   = COALESCE(movies.genres,   EXCLUDED.genres)",
             movie.getTmdbId(),
             movie.getTitle(),
             movie.getYear() != null ? movie.getYear().shortValue() : null,
             movie.getDirector(),
-            toJsonb(movie.getGenres())
+            toJsonb(movie.getGenres()),
+            mediaType
         );
-        return movieJpa.findByTmdbId(movie.getTmdbId()).orElse(null);
+        return movieJpa.findByTmdbIdAndMediaType(movie.getTmdbId(), mediaType).orElse(null);
     }
 
     /** Asocia películas a una canción ya existente usando upserts thread-safe. */
@@ -364,19 +382,19 @@ public class SongRepositoryImpl implements SongRepository {
         }
     }
 
-    /** Persiste los tags nuevos de una canción ya existente, ignorando los que ya tenga. */
+    /** Persiste los tags nuevos de una canción ya existente, ignorando los que ya tenga.
+     *  Thread-safe: usa ON CONFLICT DO NOTHING para evitar race conditions entre hilos. */
     private void addMissingTags(SongEntity song, List<Tag> tags) {
         if (tags == null || tags.isEmpty()) return;
         for (Tag tag : tags) {
             if (tag.getName() == null || tag.getName().isBlank()) continue;
-            SongTagId id = new SongTagId(song.getId(), tag.getName());
-            if (!songTagJpa.existsById(id)) {
-                SongTagEntity tagEntity = new SongTagEntity();
-                tagEntity.setId(id);
-                tagEntity.setSong(song);
-                tagEntity.setWeight(tag.getWeight());
-                songTagJpa.save(tagEntity);
-            }
+            jdbc.update(
+                "INSERT INTO song_tags (song_id, tag, weight) VALUES (?, ?, ?) " +
+                "ON CONFLICT (song_id, tag) DO NOTHING",
+                song.getId(),
+                tag.getName(),
+                tag.getWeight()
+            );
         }
     }
 
