@@ -47,4 +47,32 @@ public record SearchParams(
         if (pageSize > 50) pageSize = 50;
         if (page < 0) page = 0;
     }
+
+    public static Builder builder() { return new Builder(); }
+
+    public static final class Builder {
+        private String q, artist, aesthetic, genre, decade, movie, country, texture, mode;
+        private Boolean instrumental;
+        private BigDecimal energyMin, energyMax, valenceMin, valenceMax, bpmMin, bpmMax;
+        private int pageSize = 20;
+        private int page = 0;
+
+        public Builder q(String v)           { this.q = v;           return this; }
+        public Builder artist(String v)      { this.artist = v;      return this; }
+        public Builder aesthetic(String v)   { this.aesthetic = v;   return this; }
+        public Builder genre(String v)       { this.genre = v;       return this; }
+        public Builder decade(String v)      { this.decade = v;      return this; }
+        public Builder movie(String v)       { this.movie = v;       return this; }
+        public Builder country(String v)     { this.country = v;     return this; }
+        public Builder texture(String v)     { this.texture = v;     return this; }
+        public Builder pageSize(int v)       { this.pageSize = v;    return this; }
+        public Builder page(int v)           { this.page = v;        return this; }
+
+        public SearchParams build() {
+            return new SearchParams(q, artist, aesthetic, genre, decade, movie, country,
+                    instrumental, texture, mode,
+                    energyMin, energyMax, valenceMin, valenceMax, bpmMin, bpmMax,
+                    pageSize, page);
+        }
+    }
 }

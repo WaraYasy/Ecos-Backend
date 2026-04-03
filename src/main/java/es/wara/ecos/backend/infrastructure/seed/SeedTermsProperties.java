@@ -41,6 +41,8 @@ public class SeedTermsProperties {
     private List<String> genres = new ArrayList<>();
     private List<String> aesthetics = new ArrayList<>();
     private List<String> movies = new ArrayList<>();
+    private List<String> decades = new ArrayList<>();
+    private List<String> countries = new ArrayList<>();
 
     // ── Getters y setters ────────────────────────────────────────────────────
 
@@ -67,4 +69,10 @@ public class SeedTermsProperties {
 
     public List<String> getMovies() { return movies; }
     public void setMovies(List<String> movies) { this.movies = movies; }
+
+    public List<String> getDecades() { return decades; }
+    public void setDecades(List<String> decades) { this.decades = decades; }
+
+    public List<String> getCountries() { return countries; }
+    public void setCountries(List<String> countries) { this.countries = countries; }
 }

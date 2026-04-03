@@ -1,7 +1,7 @@
 package es.wara.ecos.backend.infrastructure.seed;
 
+import es.wara.ecos.backend.application.service.SongIngestionService;
 import es.wara.ecos.backend.application.usecase.search.SearchParams;
-import es.wara.ecos.backend.application.usecase.search.SearchSongsUseCase;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -17,17 +17,21 @@ import java.util.List;
  * <h3>Dos modos de ejecución:</h3>
  * <ol>
  *   <li><b>Seed inicial</b> ({@link ApplicationRunner}): corre al arrancar si la BD tiene
- *       menos de {@code seed.minSongs} canciones. Útil para poblar un entorno vacío.</li>
- *   <li><b>Refresco de tendencias</b> ({@link Scheduled}): corre según {@code seed.cron}
- *       (por defecto domingos a las 3:00h). Siempre ejecuta para actualizar el catálogo
- *       con nuevas canciones; la deduplicación en {@code SongRepositoryImpl} lo hace
- *       idempotente.</li>
+ *       menos de {@code seed.minSongs} canciones.</li>
+ *   <li><b>Refresco periódico</b> ({@link Scheduled}): cron configurable (por defecto
+ *       domingos a las 3:00h). Siempre idempotente gracias a la deduplicación de BD.</li>
  * </ol>
  *
- * <h3>Configuración:</h3>
- * <p>Los términos (géneros, estéticas, películas) se leen de {@code seed-terms.yml}.
- * Para añadir términos sin recompilar, edita el fichero externo en
- * {@code /config/seed-terms.yml} y reinicia el servicio.</p>
+ * <h3>Cuadrantes sembrados:</h3>
+ * <ul>
+ *   <li>Géneros, estéticas, texturas — términos curados en {@code seed-terms.yml}</li>
+ *   <li>Décadas (ej. "1990s") y países (ej. "Spain") — ídem</li>
+ *   <li>Películas — soundtracks via MusicBrainz + Spotify</li>
+ * </ul>
+ *
+ * <p>Los cuadrantes <b>on-demand</b> (movie, q, artist) no se pre-seed aquí;
+ * {@code SearchSongsUseCase} los gestiona en tiempo real cuando la BD no tiene
+ * resultados suficientes.</p>
  *
  * @author Wara Pacheco
  * @since 1.0.0
@@ -36,21 +40,17 @@ import java.util.List;
 @Component
 public class DatabaseSeeder implements ApplicationRunner {
 
-    private final SearchSongsUseCase searchSongsUseCase;
+    private final SongIngestionService ingestionService;
     private final JpaSongRepository jpaSongRepository;
     private final SeedTermsProperties terms;
 
-    public DatabaseSeeder(SearchSongsUseCase searchSongsUseCase,
+    public DatabaseSeeder(SongIngestionService ingestionService,
                           JpaSongRepository jpaSongRepository,
                           SeedTermsProperties terms) {
-        this.searchSongsUseCase = searchSongsUseCase;
+        this.ingestionService = ingestionService;
         this.jpaSongRepository = jpaSongRepository;
         this.terms = terms;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // SEED INICIAL — solo si la BD está (casi) vacía
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void run(ApplicationArguments args) {
@@ -64,13 +64,8 @@ public class DatabaseSeeder implements ApplicationRunner {
 
         log.info("[Seed] BD tiene {} canciones (< {}). Iniciando seed inicial en background",
                 total, terms.getMinSongs());
-
         Thread.ofVirtual().name("db-seeder-init").start(this::runSeed);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // REFRESCO DE TENDENCIAS — cron configurable
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Scheduled(cron = "${seed.cron:0 0 3 * * SUN}")
     public void refreshTrends() {
@@ -78,43 +73,37 @@ public class DatabaseSeeder implements ApplicationRunner {
             log.debug("[Seed] Refresco omitido — seed.enabled=false");
             return;
         }
-
         log.info("[Seed] Iniciando refresco de tendencias (cron: {})", terms.getCron());
         Thread.ofVirtual().name("db-seeder-refresh").start(this::runSeed);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // LÓGICA COMÚN
     // ─────────────────────────────────────────────────────────────────────────
 
     private void runSeed() {
         long start = System.currentTimeMillis();
         int total = 0;
 
-        total += seedTerms("género",    terms.getGenres(),     this::searchByGenre);
-        total += seedTerms("estética",  terms.getAesthetics(), this::searchByAesthetic);
-        total += seedTerms("película",  terms.getMovies(),     this::searchByMovie);
+        total += seedTerms("género",    terms.getGenres(),      this::ingestByGenre);
+        total += seedTerms("estética",  terms.getAesthetics(),  this::ingestByAesthetic);
+        total += seedTerms("década",    terms.getDecades(),     this::ingestByDecade);
+        total += seedTerms("país",      terms.getCountries(),   this::ingestByCountry);
+        total += seedTerms("película",  terms.getMovies(),      this::ingestByMovie);
 
         long elapsed = (System.currentTimeMillis() - start) / 1000;
         log.info("[Seed] Completado en {}s — {} términos procesados. Total canciones en BD: {}",
                 elapsed, total, jpaSongRepository.count());
     }
 
-    /**
-     * Itera una lista de términos, llama al buscador y aplica el delay entre llamadas.
-     * @return número de términos procesados con éxito
-     */
-    private int seedTerms(String type, List<String> termList, TermSearcher searcher) {
+    private int seedTerms(String type, List<String> termList, TermIngester ingester) {
         if (termList == null || termList.isEmpty()) {
             log.debug("[Seed] No hay términos de {} configurados", type);
             return 0;
         }
-
         int processed = 0;
         for (String term : termList) {
             try {
-                int found = searcher.search(term);
-                log.info("[Seed] {} '{}' → {} canciones", type, term, found);
+                int saved = ingester.ingest(term);
+                log.info("[Seed] {} '{}' → {} canciones guardadas", type, term, saved);
                 processed++;
                 Thread.sleep(terms.getDelayMs());
             } catch (InterruptedException e) {
@@ -128,38 +117,36 @@ public class DatabaseSeeder implements ApplicationRunner {
         return processed;
     }
 
-    private int searchByGenre(String genre) {
-        SearchParams params = new SearchParams(
-                null, null, null, genre, null, null, null,
-                null, null, null,
-                null, null, null, null, null, null,
-                terms.getSongsPerTerm(), 0
-        );
-        return searchSongsUseCase.execute(params).items().size();
+    // ─────────────────────────────────────────────────────────────────────────
+    // INGESTA POR CUADRANTE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private int ingestByGenre(String genre) {
+        return ingestionService.ingest(params().genre(genre).build());
     }
 
-    private int searchByAesthetic(String aesthetic) {
-        SearchParams params = new SearchParams(
-                null, null, aesthetic, null, null, null, null,
-                null, null, null,
-                null, null, null, null, null, null,
-                terms.getSongsPerTerm(), 0
-        );
-        return searchSongsUseCase.execute(params).items().size();
+    private int ingestByAesthetic(String aesthetic) {
+        return ingestionService.ingest(params().aesthetic(aesthetic).build());
     }
 
-    private int searchByMovie(String movie) {
-        SearchParams params = new SearchParams(
-                null, null, null, null, null, movie, null,
-                null, null, null,
-                null, null, null, null, null, null,
-                terms.getSongsPerTerm(), 0
-        );
-        return searchSongsUseCase.execute(params).items().size();
+    private int ingestByDecade(String decade) {
+        return ingestionService.ingest(params().decade(decade).build());
+    }
+
+    private int ingestByCountry(String country) {
+        return ingestionService.ingest(params().country(country).build());
+    }
+
+    private int ingestByMovie(String movie) {
+        return ingestionService.ingest(params().movie(movie).build());
+    }
+
+    private SearchParams.Builder params() {
+        return SearchParams.builder().pageSize(terms.getSongsPerTerm());
     }
 
     @FunctionalInterface
-    private interface TermSearcher {
-        int search(String term) throws Exception;
+    private interface TermIngester {
+        int ingest(String term) throws Exception;
     }
 }

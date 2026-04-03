@@ -51,6 +51,33 @@ seed:
     - fairycore
     - academia
 
+  decades:
+    - "1960s"
+    - "1970s"
+    - "1980s"
+    - "1990s"
+    - "2000s"
+    - "2010s"
+    - "2020s"
+
+  countries:
+    # Países con escenas musicales destacadas
+    - Japan
+    - Brazil
+    - France
+    - Jamaica
+    - Nigeria
+    - South Korea
+    - Iceland
+    - Argentina
+    - United Kingdom
+    - United States
+    - Colombia
+    - Cuba
+    - Ethiopia
+    - India
+    - Portugal
+
   movies:
     # Películas con bandas sonoras icónicas
     - Babel
