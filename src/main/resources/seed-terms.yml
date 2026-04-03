@@ -52,6 +52,8 @@ seed:
     - academia
 
   decades:
+    - "1940s"
+    - "1950s"
     - "1960s"
     - "1970s"
     - "1980s"
@@ -77,6 +79,7 @@ seed:
     - Ethiopia
     - India
     - Portugal
+    - Spain
 
   movies:
     # Películas con bandas sonoras icónicas
@@ -100,3 +103,4 @@ seed:
     - Everything Everywhere All at Once
     - Parasite
     - The Social Network
+    - Blade Runner
