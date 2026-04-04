@@ -115,6 +115,38 @@ public class MusicBrainzClient {
         return artists != null ? artists : Collections.emptyList();
     }
 
+    /**
+     * Busca el país de origen de un artista por su nombre.
+     * Usa la búsqueda Lucene: {@code artist:"nombre" AND type:person}.
+     *
+     * @param artistName nombre del artista
+     * @return nombre del país en inglés (ej. "United States"), o vacío si no se encuentra
+     */
+    @Retryable(
+        retryFor = {ApiRateLimitException.class, ApiServerException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 2000, multiplier = 2)
+    )
+    public Optional<String> searchArtistCountryByName(String artistName) {
+        String query = "artist:\"" + artistName + "\" AND type:person";
+        String url = UriComponentsBuilder.fromUriString(BASE_URL + "/artist")
+                .queryParam("query", query)
+                .queryParam("fmt", "json")
+                .queryParam("limit", 1)
+                .build().toUriString();
+
+        log.debug("Buscando país de '{}' en MusicBrainz", artistName);
+        MusicBrainzSearchResponseDTO response = get(url, MusicBrainzSearchResponseDTO.class);
+        if (response == null || response.getArtists() == null || response.getArtists().isEmpty()) {
+            return Optional.empty();
+        }
+        MusicBrainzArtistDTO artist = response.getArtists().get(0);
+        if (artist.getArea() == null || artist.getArea().getName() == null) {
+            return Optional.empty();
+        }
+        return Optional.of(artist.getArea().getName());
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // FLUJO A — Película → Canciones del OST
     // ─────────────────────────────────────────────────────────────────────────

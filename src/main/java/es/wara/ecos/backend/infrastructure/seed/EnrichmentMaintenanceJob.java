@@ -4,8 +4,15 @@ import es.wara.ecos.backend.application.service.MusicAggregationService;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.SongRepository;
 import es.wara.ecos.backend.infrastructure.adapter.itunes.ItunesClient;
+import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.MusicBrainzClient;
+import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyClient;
+import es.wara.ecos.backend.infrastructure.exception.ApiRateLimitException;
+import es.wara.ecos.backend.infrastructure.adapter.spotify.dto.SpotifyTrackDTO;
+import es.wara.ecos.backend.infrastructure.persistence.entity.AlbumEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.ArtistEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.SongEntity;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaAlbumRepository;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaArtistRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongRepository;
 import es.wara.ecos.backend.infrastructure.persistence.mapper.SongMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -46,17 +53,29 @@ public class EnrichmentMaintenanceJob {
     private final SongMapper songMapper;
     private final ItunesClient itunesClient;
     private final MusicAggregationService musicAggregationService;
+    private final SpotifyClient spotifyClient;
+    private final MusicBrainzClient musicBrainzClient;
+    private final JpaAlbumRepository jpaAlbumRepository;
+    private final JpaArtistRepository jpaArtistRepository;
 
     public EnrichmentMaintenanceJob(JpaSongRepository jpaSongRepository,
                                     SongRepository songRepository,
                                     SongMapper songMapper,
                                     ItunesClient itunesClient,
-                                    MusicAggregationService musicAggregationService) {
+                                    MusicAggregationService musicAggregationService,
+                                    SpotifyClient spotifyClient,
+                                    MusicBrainzClient musicBrainzClient,
+                                    JpaAlbumRepository jpaAlbumRepository,
+                                    JpaArtistRepository jpaArtistRepository) {
         this.jpaSongRepository = jpaSongRepository;
         this.songRepository = songRepository;
         this.songMapper = songMapper;
         this.itunesClient = itunesClient;
         this.musicAggregationService = musicAggregationService;
+        this.spotifyClient = spotifyClient;
+        this.musicBrainzClient = musicBrainzClient;
+        this.jpaAlbumRepository = jpaAlbumRepository;
+        this.jpaArtistRepository = jpaArtistRepository;
     }
 
     /**
@@ -133,6 +152,97 @@ public class EnrichmentMaintenanceJob {
                 }
             }
             log.info("[Enrichment] Tags completado — {}/{} canciones con tags nuevos", fixed, songs.size());
+        });
+    }
+
+    /**
+     * Rellena cover_url de álbumes y spotify_id de artistas usando Spotify.
+     * Una sola llamada GET /tracks/{id} por canción resuelve ambos campos.
+     * Corre cada día a las 3:00h.
+     */
+    @Scheduled(cron = "${enrichment.cover.cron:0 0 3 * * *}")
+    public void fillMissingCoverAndArtistIds() {
+        Thread.ofVirtual().name("enrichment-cover").start(() -> {
+            List<SongEntity> songs = jpaSongRepository.findForCoverEnrichment(PageRequest.of(0, BATCH_SIZE));
+            if (songs.isEmpty()) {
+                log.debug("[Enrichment] Sin álbumes con cover_url nulo");
+                return;
+            }
+            log.info("[Enrichment] Rellenando cover_url y artist.spotify_id para {} canciones", songs.size());
+            int fixed = 0;
+            for (SongEntity song : songs) {
+                try {
+                    SpotifyTrackDTO track = spotifyClient.getTrack(song.getSpotifyId());
+
+                    // cover_url del álbum
+                    AlbumEntity album = song.getAlbum();
+                    if (album != null && track.getAlbum() != null) {
+                        var images = track.getAlbum().getImages();
+                        if (images != null && !images.isEmpty() && images.get(0).getUrl() != null) {
+                            album.setCoverUrl(images.get(0).getUrl());
+                            jpaAlbumRepository.save(album);
+                        }
+                    }
+
+                    // spotify_id de los artistas vinculados a la canción
+                    if (track.getArtists() != null) {
+                        for (SpotifyTrackDTO.ArtistSimple trackArtist : track.getArtists()) {
+                            if (trackArtist.getId() == null || trackArtist.getName() == null) continue;
+                            jpaArtistRepository.findByNameIgnoreCase(trackArtist.getName())
+                                    .filter(a -> a.getSpotifyId() == null)
+                                    .ifPresent(a -> {
+                                        a.setSpotifyId(trackArtist.getId());
+                                        jpaArtistRepository.save(a);
+                                        log.debug("[Enrichment] spotify_id añadido a artista '{}'", a.getName());
+                                    });
+                        }
+                    }
+
+                    fixed++;
+                    Thread.sleep(DELAY_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("[Enrichment] Cover interrumpido en '{}'", song.getTitle());
+                    break;
+                } catch (ApiRateLimitException e) {
+                    log.warn("[Enrichment] Rate limit de Spotify — abortando batch de cover (procesadas {}/{})", fixed, songs.size());
+                    break;
+                } catch (Exception e) {
+                    log.warn("[Enrichment] Error cover '{}': {}", song.getTitle(), e.getMessage());
+                }
+            }
+            log.info("[Enrichment] Cover completado — {}/{} canciones procesadas", fixed, songs.size());
+        });
+    }
+
+    /**
+     * Rellena artists.country usando MusicBrainz (búsqueda por nombre).
+     * Corre cada día a las 3:30h.
+     */
+    @Scheduled(cron = "${enrichment.country.cron:0 30 3 * * *}")
+    public void fillMissingCountries() {
+        Thread.ofVirtual().name("enrichment-country").start(() -> {
+            List<ArtistEntity> artists = jpaArtistRepository.findWithoutCountry(PageRequest.of(0, BATCH_SIZE));
+            if (artists.isEmpty()) {
+                log.debug("[Enrichment] Sin artistas con country nulo");
+                return;
+            }
+            log.info("[Enrichment] Rellenando country para {} artistas", artists.size());
+            int fixed = 0;
+            for (ArtistEntity artist : artists) {
+                try {
+                    musicBrainzClient.searchArtistCountryByName(artist.getName()).ifPresent(country -> {
+                        artist.setCountry(country);
+                        jpaArtistRepository.save(artist);
+                        log.debug("[Enrichment] Country añadido a '{}': {}", artist.getName(), country);
+                    });
+                    fixed++;
+                    // MusicBrainz impone 1 req/s; el cliente ya gestiona el intervalo internamente
+                } catch (Exception e) {
+                    log.warn("[Enrichment] Error country '{}': {}", artist.getName(), e.getMessage());
+                }
+            }
+            log.info("[Enrichment] Country completado — {}/{} artistas procesados", fixed, artists.size());
         });
     }
 
