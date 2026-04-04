@@ -1,7 +1,6 @@
 package es.wara.ecos.backend.infrastructure.adapter;
 
 import es.wara.ecos.backend.domain.model.Movie;
-import es.wara.ecos.backend.infrastructure.adapter.deezer.DeezerClient;
 import es.wara.ecos.backend.infrastructure.adapter.lastfm.LastFmClient;
 import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.MusicBrainzClient;
 import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzReleaseGroupDTO;
@@ -39,7 +38,6 @@ class MusicProviderAdapterMovieTest {
     @Mock LastFmClient lastFmClient;
     @Mock TmdbClient tmdbClient;
     @Mock MusicBrainzClient musicBrainzClient;
-    @Mock DeezerClient deezerClient;
 
     @InjectMocks MusicProviderAdapter adapter;
 

@@ -334,7 +334,7 @@ public class SongRepositoryImpl implements SongRepository {
             }
             return artistJpa.findBySpotifyId(artist.getSpotifyId()).orElse(null);
         }
-        // Artista sin spotifyId (Deezer): dedup por nombre en minúsculas
+        // Artista sin spotifyId: dedup por nombre en minúsculas
         jdbc.update(
             "INSERT INTO artists (id, name, country) " +
             "VALUES (gen_random_uuid(), ?, ?) " +

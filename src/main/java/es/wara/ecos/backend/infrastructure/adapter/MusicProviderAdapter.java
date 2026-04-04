@@ -28,7 +28,6 @@ import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMovieDetailDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiResultDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiSearchResponseDTO;
 import es.wara.ecos.backend.config.CacheConfig;
-import es.wara.ecos.backend.infrastructure.adapter.deezer.DeezerClient;
 import es.wara.ecos.backend.infrastructure.adapter.itunes.ItunesClient;
 import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
 import lombok.extern.slf4j.Slf4j;
@@ -79,17 +78,15 @@ public class MusicProviderAdapter implements MusicProvider {
     private final LastFmClient lastFmClient;
     private final TmdbClient tmdbClient;
     private final MusicBrainzClient musicBrainzClient;
-    private final DeezerClient deezerClient;
     private final ItunesClient itunesClient;
 
     public MusicProviderAdapter(SpotifyClient spotifyClient, LastFmClient lastFmClient,
                                 TmdbClient tmdbClient, MusicBrainzClient musicBrainzClient,
-                                DeezerClient deezerClient, ItunesClient itunesClient) {
+                                ItunesClient itunesClient) {
         this.spotifyClient = spotifyClient;
         this.lastFmClient = lastFmClient;
         this.tmdbClient = tmdbClient;
         this.musicBrainzClient = musicBrainzClient;
-        this.deezerClient = deezerClient;
         this.itunesClient = itunesClient;
     }
 
@@ -194,8 +191,7 @@ public class MusicProviderAdapter implements MusicProvider {
                         result.add(mapTrackToSong(spotifyResult.getTracks().getItems().get(0)));
                     }
                 } catch (ExternalApiException spotifyEx) {
-                    log.debug("Spotify no disponible para '{}', intentando Deezer", trackName);
-                    deezerClient.searchTrack(trackName, artistName).ifPresent(result::add);
+                    log.debug("Spotify no disponible para '{}', omitiendo", trackName);
                 }
             }
 
@@ -291,11 +287,7 @@ public class MusicProviderAdapter implements MusicProvider {
                             songs.add(mapTrackToSong(spotifyResult.getTracks().getItems().get(0)));
                         }
                     } catch (ExternalApiException e) {
-                        log.info("Spotify rate-limited para '{}' ({}), intentando Deezer", trackTitle, e.getMessage());
-                        deezerClient.searchTrack(trackTitle, artistName).ifPresent(t -> {
-                            log.info("  Deezer encontró '{}'", trackTitle);
-                            songs.add(t);
-                        });
+                        log.debug("Spotify no disponible para '{}', omitiendo", trackTitle);
                     }
                 }
             }
@@ -444,8 +436,7 @@ public class MusicProviderAdapter implements MusicProvider {
                         result.add(mapTrackToSong(spotifyResult.getTracks().getItems().get(0)));
                     }
                 } catch (ExternalApiException e) {
-                    log.debug("Spotify no disponible para '{}' (tag '{}'), intentando Deezer", trackName, tag);
-                    deezerClient.searchTrack(trackName, artistName).ifPresent(result::add);
+                    log.debug("Spotify no disponible para '{}' (tag '{}'), omitiendo", trackName, tag);
                 }
             }
 
