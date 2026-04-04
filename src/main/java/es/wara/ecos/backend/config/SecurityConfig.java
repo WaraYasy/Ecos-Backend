@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.config;
 
+import es.wara.ecos.backend.infrastructure.security.AdminApiKeyFilter;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
 import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
@@ -49,7 +50,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthFilter jwtAuthFilter,
-                                                   RateLimitFilter rateLimitFilter) throws Exception {
+                                                   RateLimitFilter rateLimitFilter,
+                                                   AdminApiKeyFilter adminApiKeyFilter) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -60,6 +62,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/callback/spotify").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/health").permitAll()
+                .requestMatchers("/v1/admin/**").permitAll()   // auth delegada a AdminApiKeyFilter
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
@@ -70,6 +73,7 @@ public class SecurityConfig {
                         "{\"error\":\"UNAUTHORIZED\",\"message\":\"Token requerido\",\"status\":401}");
                 })
             )
+            .addFilterBefore(adminApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(rateLimitFilter, JwtAuthFilter.class);
 

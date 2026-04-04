@@ -7,8 +7,6 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -45,20 +43,14 @@ import java.util.Map;
  *   <li>{@code songs.preview_url}</li>
  * </ul>
  *
- * <p>Uso:</p>
- * <pre>
- *   java -jar ecos-backend.jar --import-csv
- *   java -jar ecos-backend.jar --import-csv --csv-limit=100
- *   java -jar ecos-backend.jar --import-csv --csv-path=/data/otro.csv
- * </pre>
- * <p>Sin {@code --import-csv} el runner no hace nada y la app arranca con normalidad.</p>
+ * <p>Se invoca desde {@code POST /v1/admin/songs/import} pasando el CSV como upload.</p>
  *
  * @author Wara Pacheco
  * @since 1.0.0
  */
 @Slf4j
 @Component
-public class CsvImportRunner implements ApplicationRunner {
+public class CsvImportRunner {
 
     @Value("${seed.csv.path:data/spotify_songs_clean.csv}")
     private String csvPath;
@@ -90,34 +82,28 @@ public class CsvImportRunner implements ApplicationRunner {
         this.tx               = tx;
     }
 
-    @Override
-    public void run(ApplicationArguments args) {
-        if (!args.containsOption("import-csv")) return;
-
-        // --csv-path y --csv-limit sobreescriben los valores de application.properties
-        String path = args.containsOption("csv-path")
-                ? args.getOptionValues("csv-path").get(0)
-                : csvPath;
-        int rowLimit = args.containsOption("csv-limit")
-                ? Integer.parseInt(args.getOptionValues("csv-limit").get(0))
-                : limit;
-
-        log.info("[CsvImport] Iniciando importación desde '{}'", path);
+    /**
+     * Importa canciones desde cualquier {@link Reader} (archivo o upload HTTP).
+     *
+     * @param reader   fuente CSV
+     * @param rowLimit máximo de filas a importar (0 = sin límite)
+     * @param source   nombre de la fuente para los logs
+     * @return array [imported, skipped, errors]
+     */
+    public int[] importFromReader(Reader reader, int rowLimit, String source) {
+        log.info("[CsvImport] Iniciando importación desde '{}'", source);
         long start = System.currentTimeMillis();
 
-        List<CSVRecord> records = readCsv(path);
-        if (records.isEmpty()) return;
+        List<CSVRecord> records = readCsvFromReader(reader, source);
+        if (records.isEmpty()) return new int[]{0, 0, 0};
 
         if (rowLimit > 0 && records.size() > rowLimit) {
             log.info("[CsvImport] Límite activo: procesando solo {} de {} filas", rowLimit, records.size());
             records = records.subList(0, rowLimit);
         }
 
-        // Cachés in-memory para evitar N+1 de lookups durante la importación
         Map<String, ArtistEntity> artistCache = new HashMap<>();
         Map<String, AlbumEntity>  albumCache  = new HashMap<>();
-
-        // Pre-cargar los que ya existen en BD para que el caché empiece poblado
         preloadCaches(artistCache, albumCache);
 
         int total = records.size(), imported = 0, skipped = 0, errors = 0;
@@ -144,6 +130,7 @@ public class CsvImportRunner implements ApplicationRunner {
         long elapsed = (System.currentTimeMillis() - start) / 1000;
         log.info("[CsvImport] Completado en {}s — {} importadas, {} ya existían, {} errores",
                 elapsed, imported, skipped, errors);
+        return new int[]{imported, skipped, errors};
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -291,20 +278,19 @@ public class CsvImportRunner implements ApplicationRunner {
                 artistCache.size(), albumCache.size());
     }
 
-    private List<CSVRecord> readCsv(String path) {
-        try (Reader reader = new FileReader(path, StandardCharsets.UTF_8);
-             CSVParser parser = CSVFormat.DEFAULT.builder()
-                     .setHeader()
-                     .setSkipHeaderRecord(true)
-                     .setTrim(true)
-                     .build()
-                     .parse(reader)) {
+    private List<CSVRecord> readCsvFromReader(Reader reader, String source) {
+        try (CSVParser parser = CSVFormat.DEFAULT.builder()
+                .setHeader()
+                .setSkipHeaderRecord(true)
+                .setTrim(true)
+                .build()
+                .parse(reader)) {
 
             List<CSVRecord> records = parser.getRecords();
-            log.info("[CsvImport] {} filas leídas de '{}'", records.size(), path);
+            log.info("[CsvImport] {} filas leídas de '{}'", records.size(), source);
             return records;
         } catch (Exception e) {
-            log.error("[CsvImport] No se pudo leer el CSV '{}': {}", path, e.getMessage());
+            log.error("[CsvImport] No se pudo parsear el CSV '{}': {}", source, e.getMessage());
             return List.of();
         }
     }

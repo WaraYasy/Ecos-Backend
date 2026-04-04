@@ -29,10 +29,6 @@ import java.util.List;
  *   <li>Películas — soundtracks via MusicBrainz + Spotify</li>
  * </ul>
  *
- * <p>Los cuadrantes <b>on-demand</b> (movie, q, artist) no se pre-seed aquí;
- * {@code SearchSongsUseCase} los gestiona en tiempo real cuando la BD no tiene
- * resultados suficientes.</p>
- *
  * @author Wara Pacheco
  * @since 1.0.0
  */
