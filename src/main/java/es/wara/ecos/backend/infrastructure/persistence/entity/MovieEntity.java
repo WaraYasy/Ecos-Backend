@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.infrastructure.persistence.entity;
 
 import jakarta.persistence.*;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -19,7 +20,9 @@ import java.util.UUID;
  * @since 1.0.0
  */
 @Entity
-@Table(name = "movies")
+@Table(name = "movies", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"tmdb_id", "media_type"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -30,7 +33,7 @@ public class MovieEntity {
     @Column(updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "tmdb_id", unique = true, nullable = false)
+    @Column(name = "tmdb_id", nullable = false)
     private Integer tmdbId;
 
     @Column(nullable = false, length = 255)

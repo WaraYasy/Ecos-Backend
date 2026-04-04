@@ -33,7 +33,7 @@ public class SongEntity {
     @Column(name = "spotify_id", length = 50)
     private String spotifyId;
 
-    @Column(length = 12, unique = true)
+    @Column(length = 15, unique = true)
     private String isrc;
 
     @Column(nullable = false, length = 255)
@@ -60,7 +60,7 @@ public class SongEntity {
     )
     private List<ArtistEntity> artists = new ArrayList<>();
 
-    @OneToOne(mappedBy = "song", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "song", cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
     private AudioFeaturesEntity audioFeatures;
 
     @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
