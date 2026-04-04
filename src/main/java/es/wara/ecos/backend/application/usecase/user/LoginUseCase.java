@@ -2,6 +2,7 @@ package es.wara.ecos.backend.application.usecase.user;
 
 import es.wara.ecos.backend.domain.port.PasswordHasher;
 import es.wara.ecos.backend.domain.port.UserRepository;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -36,13 +37,18 @@ public class LoginUseCase {
     // Hash de relleno: evita timing attack normalizando el tiempo de CPU
     // cuando el email no existe (BCrypt tarda ~80 ms; sin esto, la ausencia
     // de usuario es detectable por tiempo de respuesta).
-    private static final String DUMMY_HASH =
-            "$2a$12$dummyhashfortimingprotectionXXXXXXXXXXXXXXXXXXXXXXXXXX";
+    // Se genera en @PostConstruct para garantizar formato BCrypt válido.
+    private String dummyHash;
+
+    @PostConstruct
+    void initDummyHash() {
+        dummyHash = passwordHasher.hash("ecos-dummy-timing-protection");
+    }
 
     public UUID execute(String email, String password) {
         var user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
-            passwordHasher.matches(password, DUMMY_HASH);
+            passwordHasher.matches(password, dummyHash);
             throw new IllegalStateException("Credenciales incorrectas");
         }
         if (!passwordHasher.matches(password, user.getPasswordHash())) {

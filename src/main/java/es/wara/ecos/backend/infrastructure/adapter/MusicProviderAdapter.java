@@ -291,8 +291,11 @@ public class MusicProviderAdapter implements MusicProvider {
                             songs.add(mapTrackToSong(spotifyResult.getTracks().getItems().get(0)));
                         }
                     } catch (ExternalApiException e) {
-                        log.debug("Spotify no disponible para '{}', intentando Deezer", trackTitle);
-                        deezerClient.searchTrack(trackTitle, artistName).ifPresent(songs::add);
+                        log.info("Spotify rate-limited para '{}' ({}), intentando Deezer", trackTitle, e.getMessage());
+                        deezerClient.searchTrack(trackTitle, artistName).ifPresent(t -> {
+                            log.info("  Deezer encontró '{}'", trackTitle);
+                            songs.add(t);
+                        });
                     }
                 }
             }

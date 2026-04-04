@@ -3,6 +3,8 @@ package es.wara.ecos.backend.infrastructure.persistence.jpa;
 import es.wara.ecos.backend.infrastructure.persistence.entity.PlaylistSongEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.PlaylistSongEntity.PlaylistSongId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,7 +18,8 @@ import java.util.UUID;
  */
 public interface JpaPlaylistSongRepository extends JpaRepository<PlaylistSongEntity, PlaylistSongId> {
 
-    List<PlaylistSongEntity> findById_PlaylistIdOrderByPosition(UUID playlistId);
+    @Query("SELECT ps FROM PlaylistSongEntity ps LEFT JOIN FETCH ps.song WHERE ps.id.playlistId = :playlistId ORDER BY ps.position ASC")
+    List<PlaylistSongEntity> findById_PlaylistIdOrderByPosition(@Param("playlistId") UUID playlistId);
 
     int countById_PlaylistId(UUID playlistId);
 
