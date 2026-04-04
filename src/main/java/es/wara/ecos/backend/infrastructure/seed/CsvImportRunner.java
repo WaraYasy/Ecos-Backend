@@ -137,40 +137,46 @@ public class CsvImportRunner {
     // BATCH
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Procesa un batch dentro de una única transacción. Devuelve [imported, skipped, errors]. */
+    /** Procesa un batch: cada fila en su propia transacción para aislar fallos. Devuelve [imported, skipped, errors]. */
     private int[] processBatch(List<CSVRecord> batch,
                                Map<String, ArtistEntity> artistCache,
                                Map<String, AlbumEntity>  albumCache) {
         int[] result = {0, 0, 0};
-        tx.execute(status -> {
-            for (CSVRecord r : batch) {
-                try {
-                    if ("True".equalsIgnoreCase(r.get("incomplete"))) {
-                        result[1]++;
-                        continue;
-                    }
-                    String spotifyId = r.get("spotify_id");
-                    if (spotifyId == null || spotifyId.isBlank()) { result[1]++; continue; }
-
-                    // Saltar si la canción ya existe
-                    if (songRepo.findBySpotifyId(spotifyId).isPresent()) { result[1]++; continue; }
-
-                    ArtistEntity artist = resolveArtist(r, artistCache);
-                    AlbumEntity  album  = resolveAlbum(r, artist, albumCache);
-                    SongEntity   song   = createSong(r, album, artist);
-
-                    createAudioFeatures(r, song);
-                    createTag(r, song);
-
-                    result[0]++;
-                } catch (Exception e) {
-                    log.warn("[CsvImport] Error en fila '{}': {}", safeGet(r, "spotify_id"), e.getMessage());
-                    result[2]++;
-                }
-            }
-            return null;
-        });
+        for (CSVRecord r : batch) {
+            int[] row = processRow(r, artistCache, albumCache);
+            result[0] += row[0];
+            result[1] += row[1];
+            result[2] += row[2];
+        }
         return result;
+    }
+
+    /** Procesa una sola fila en su propia transacción. Un duplicate key no envenena las demás filas. */
+    private int[] processRow(CSVRecord r,
+                             Map<String, ArtistEntity> artistCache,
+                             Map<String, AlbumEntity>  albumCache) {
+        try {
+            if ("True".equalsIgnoreCase(r.get("incomplete"))) return new int[]{0, 1, 0};
+
+            String spotifyId = r.get("spotify_id");
+            if (spotifyId == null || spotifyId.isBlank()) return new int[]{0, 1, 0};
+
+            // Saltar si la canción ya existe (fuera de tx para no contaminar nada)
+            if (songRepo.findBySpotifyId(spotifyId).isPresent()) return new int[]{0, 1, 0};
+
+            tx.execute(status -> {
+                ArtistEntity artist = resolveArtist(r, artistCache);
+                AlbumEntity  album  = resolveAlbum(r, artist, albumCache);
+                SongEntity   song   = createSong(r, album, artist);
+                createAudioFeatures(r, song);
+                createTag(r, song);
+                return null;
+            });
+            return new int[]{1, 0, 0};
+        } catch (Exception e) {
+            log.warn("[CsvImport] Error en fila '{}': {}", safeGet(r, "spotify_id"), e.getMessage());
+            return new int[]{0, 0, 1};
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
