@@ -8,6 +8,8 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import static java.lang.Math.max;
+
 /**
  * Características de audio de una canción obtenidas de Spotify,
  * usadas para calcular similitud y construir el perfil musical del usuario.
@@ -44,5 +46,36 @@ public class AudioFeatures {
     /** Modalidad: 0=menor, 1=mayor. */
     private Integer mode;
     private Integer timeSignature;
+
+    /**
+     * Convierte las características de audio en un vector normalizado de 8 dimensiones
+     * para calcular similitud coseno. El tempo se normaliza a [0,1] asumiendo rango 40–220 BPM.
+     * El loudness se normaliza de [-60, 0] dB a [0, 1].
+     *
+     * @return vector float[8]: [energy, tempo_norm, valence, danceability,
+     *                           acousticness, instrumentalness, speechiness, loudness_norm]
+     */
+    public float[] toNormalizedVector() {
+        float tempoNorm = tempo != null
+                ? (float) Math.min(1.0, max(0.0, (tempo.doubleValue() - 40.0) / 180.0))
+                : 0f;
+        float loudnessNorm = loudness != null
+                ? (float) Math.min(1.0, max(0.0, (loudness.doubleValue() + 60.0) / 60.0))
+                : 0f;
+        return new float[]{
+                toFloat(energy),
+                tempoNorm,
+                toFloat(valence),
+                toFloat(danceability),
+                toFloat(acousticness),
+                toFloat(instrumentalness),
+                toFloat(speechiness),
+                loudnessNorm
+        };
+    }
+
+    private float toFloat(BigDecimal value) {
+        return value != null ? value.floatValue() : 0f;
+    }
 
 }
