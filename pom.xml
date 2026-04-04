@@ -99,6 +99,13 @@
 			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
 
+		<!-- Lectura de archivos CSV (importación de dataset) -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>1.12.0</version>
+		</dependency>
+
 		<!-- ============================================ -->
 		<!-- RATE LIMITING                                -->
 		<!-- ============================================ -->

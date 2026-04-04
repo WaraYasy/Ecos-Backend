@@ -47,6 +47,7 @@ logs/
 # ── Documentación local de desarrollo (no se sube a Git) ─────────
 dev.md
 docs/
+data/
 
 # ── Claude Code ───────────────────────────────────────────────────
 .claude/
