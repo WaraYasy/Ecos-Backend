@@ -155,10 +155,11 @@
         <logger name="es.wara.ecos"      level="INFO"/>
         <logger name="org.hibernate.SQL" level="WARN"/>
 
-        <!-- Seed: archivo dedicado + Better Stack -->
+        <!-- Seed: archivo dedicado + consola JSON (Railway) + Better Stack -->
         <logger name="es.wara.ecos.backend.infrastructure.seed"
                 level="INFO" additivity="false">
             <appender-ref ref="SEED_FILE"/>
+            <appender-ref ref="CONSOLE_JSON"/>
             <appender-ref ref="BETTER_STACK"/>
         </logger>
 

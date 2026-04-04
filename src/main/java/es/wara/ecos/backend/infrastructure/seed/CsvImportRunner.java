@@ -214,7 +214,7 @@ public class CsvImportRunner {
                     a.setTitle(coalesce(safeGet(r, "album_title"), "Unknown Album"));
                     a.setYear(parseShort(safeGet(r, "release_year")));
                     a.setArtist(artist);
-                    // cover_url la llena el EnrichmentJob
+                    a.setCoverUrl(safeGet(r, "cover_url"));
                     return albumRepo.save(a);
                 });
         cache.put(albumSpotifyId, album);
@@ -228,7 +228,7 @@ public class CsvImportRunner {
         song.setDurationMs(parseInt(safeGet(r, "duration_ms")));
         song.setAlbum(album);
         song.setCreatedAt(LocalDateTime.now());
-        // preview_url la llena el EnrichmentJob (iTunes)
+        song.setPreviewUrl(safeGet(r, "preview_url"));
         songRepo.save(song);
 
         if (artist != null) {
