@@ -3,6 +3,7 @@ package es.wara.ecos.backend.functional;
 import es.wara.ecos.backend.domain.port.MusicProvider;
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import es.wara.ecos.backend.domain.port.SpotifyPlaylistPort;
+import es.wara.ecos.backend.infrastructure.adapter.spotify.SpotifyClient;
 import es.wara.ecos.backend.support.BaseFunctionalTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,16 +34,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 class SpotifyExportFlowTest extends BaseFunctionalTest {
 
-    // Prevents MusicProviderAdapter from being instantiated (it injects SpotifyClient
-    // as a concrete type, which would conflict with @MockitoBean SpotifyPlaylistPort)
+    // SpotifyClient se mockea como clase concreta para satisfacer tanto SpotifyPlaylistPort
+    // (usado en el controller) como la inyección directa en EnrichmentMaintenanceJob.
+    @MockitoBean
+    SpotifyClient spotifyClient;
+
     @MockitoBean
     MusicProvider musicProvider;
 
     @MockitoBean
     SpotifyAuthPort spotifyAuthPort;
-
-    @MockitoBean
-    SpotifyPlaylistPort spotifyPlaylistPort;
 
     @Autowired
     JdbcTemplate jdbc;
@@ -95,11 +96,11 @@ class SpotifyExportFlowTest extends BaseFunctionalTest {
         String playlistId = createPlaylist(login.token());
 
         when(spotifyAuthPort.getTokenForUser(login.userId())).thenReturn("spotify-user-token");
-        when(spotifyPlaylistPort.getCurrentUserId("spotify-user-token")).thenReturn("spotify-uid");
-        when(spotifyPlaylistPort.createPlaylist(
+        when(spotifyClient.getCurrentUserId("spotify-user-token")).thenReturn("spotify-uid");
+        when(spotifyClient.createPlaylist(
                 eq("spotify-user-token"), eq("spotify-uid"), anyString(), anyString()))
                 .thenReturn("spotify-playlist-abc");
-        doNothing().when(spotifyPlaylistPort).addTracksToPlaylist(anyString(), anyString(), any(List.class));
+        doNothing().when(spotifyClient).addTracksToPlaylist(anyString(), anyString(), any(List.class));
 
         mockMvc.perform(post("/v1/playlists/" + playlistId + "/export/spotify")
                         .header("Authorization", "Bearer " + login.token()))
