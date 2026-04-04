@@ -57,6 +57,9 @@ public class CacheConfig {
     /** Nombre del cache para previews de iTunes. TTL: 30 días (las URLs son estables). */
     public static final String CACHE_ITUNES_PREVIEW   = "itunes-preview";
 
+    /** Nombre del cache para grafos generados. TTL: 10 minutos. */
+    public static final String CACHE_GRAPH            = "graph";
+
     /**
      * Configura el {@link CacheManager} con todos los caches de la aplicación.
      *
@@ -75,7 +78,8 @@ public class CacheConfig {
                 buildCache(CACHE_MOVIES_FOR_SONG,  Duration.ofHours(24)),
                 buildCache(CACHE_SOUNDTRACK_SONGS, Duration.ofHours(24)),
                 buildCache(CACHE_SEARCH_SONGS,     Duration.ofMinutes(15)),
-                buildCache(CACHE_ITUNES_PREVIEW,   Duration.ofDays(30))
+                buildCache(CACHE_ITUNES_PREVIEW,   Duration.ofDays(30)),
+                buildCache(CACHE_GRAPH,            Duration.ofMinutes(10))
         ));
         return manager;
     }
