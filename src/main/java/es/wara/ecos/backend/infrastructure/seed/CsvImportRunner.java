@@ -229,6 +229,11 @@ public class CsvImportRunner {
         song.setAlbum(album);
         song.setCreatedAt(LocalDateTime.now());
         song.setPreviewUrl(safeGet(r, "preview_url"));
+        // Solo asignar ISRC si no está ya en uso por otra canción
+        String isrc = safeGet(r, "isrc");
+        if (isrc != null && songRepo.findByIsrc(isrc).isEmpty()) {
+            song.setIsrc(isrc);
+        }
         songRepo.save(song);
 
         if (artist != null) {
