@@ -70,4 +70,5 @@ public class SearchSongsUseCase {
             || (params.artist() != null && !params.artist().isBlank())
             || (params.year()   != null && !params.year().isBlank());
     }
+
 }

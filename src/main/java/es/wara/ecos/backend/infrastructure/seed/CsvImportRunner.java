@@ -214,9 +214,15 @@ public class CsvImportRunner {
                     a.setTitle(coalesce(safeGet(r, "album_title"), "Unknown Album"));
                     a.setYear(parseShort(safeGet(r, "release_year")));
                     a.setArtist(artist);
-                    a.setCoverUrl(safeGet(r, "cover_url"));
                     return albumRepo.save(a);
                 });
+
+        // Actualizar cover_url si el álbum ya existía sin él
+        String coverUrl = safeGet(r, "cover_url");
+        if (coverUrl != null && album.getCoverUrl() == null) {
+            album.setCoverUrl(coverUrl);
+            albumRepo.save(album);
+        }
         cache.put(albumSpotifyId, album);
         return album;
     }
