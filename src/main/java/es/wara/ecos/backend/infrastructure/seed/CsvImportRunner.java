@@ -9,7 +9,6 @@ import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -46,14 +45,19 @@ import java.util.Map;
  *   <li>{@code songs.preview_url}</li>
  * </ul>
  *
- * <p>Para lanzar: {@code ./mvnw spring-boot:run -Dseed.csv.enabled=true}</p>
+ * <p>Uso:</p>
+ * <pre>
+ *   java -jar ecos-backend.jar --import-csv
+ *   java -jar ecos-backend.jar --import-csv --csv-limit=100
+ *   java -jar ecos-backend.jar --import-csv --csv-path=/data/otro.csv
+ * </pre>
+ * <p>Sin {@code --import-csv} el runner no hace nada y la app arranca con normalidad.</p>
  *
  * @author Wara Pacheco
  * @since 1.0.0
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "seed.csv.enabled", havingValue = "true")
 public class CsvImportRunner implements ApplicationRunner {
 
     @Value("${seed.csv.path:data/spotify_songs_clean.csv}")
@@ -88,15 +92,25 @@ public class CsvImportRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        log.info("[CsvImport] Iniciando importación desde '{}'", csvPath);
+        if (!args.containsOption("import-csv")) return;
+
+        // --csv-path y --csv-limit sobreescriben los valores de application.properties
+        String path = args.containsOption("csv-path")
+                ? args.getOptionValues("csv-path").get(0)
+                : csvPath;
+        int rowLimit = args.containsOption("csv-limit")
+                ? Integer.parseInt(args.getOptionValues("csv-limit").get(0))
+                : limit;
+
+        log.info("[CsvImport] Iniciando importación desde '{}'", path);
         long start = System.currentTimeMillis();
 
-        List<CSVRecord> records = readCsv();
+        List<CSVRecord> records = readCsv(path);
         if (records.isEmpty()) return;
 
-        if (limit > 0 && records.size() > limit) {
-            log.info("[CsvImport] Límite activo: procesando solo {} de {} filas", limit, records.size());
-            records = records.subList(0, limit);
+        if (rowLimit > 0 && records.size() > rowLimit) {
+            log.info("[CsvImport] Límite activo: procesando solo {} de {} filas", rowLimit, records.size());
+            records = records.subList(0, rowLimit);
         }
 
         // Cachés in-memory para evitar N+1 de lookups durante la importación
@@ -277,8 +291,8 @@ public class CsvImportRunner implements ApplicationRunner {
                 artistCache.size(), albumCache.size());
     }
 
-    private List<CSVRecord> readCsv() {
-        try (Reader reader = new FileReader(csvPath, StandardCharsets.UTF_8);
+    private List<CSVRecord> readCsv(String path) {
+        try (Reader reader = new FileReader(path, StandardCharsets.UTF_8);
              CSVParser parser = CSVFormat.DEFAULT.builder()
                      .setHeader()
                      .setSkipHeaderRecord(true)
@@ -287,10 +301,10 @@ public class CsvImportRunner implements ApplicationRunner {
                      .parse(reader)) {
 
             List<CSVRecord> records = parser.getRecords();
-            log.info("[CsvImport] {} filas leídas de '{}'", records.size(), csvPath);
+            log.info("[CsvImport] {} filas leídas de '{}'", records.size(), path);
             return records;
         } catch (Exception e) {
-            log.error("[CsvImport] No se pudo leer el CSV '{}': {}", csvPath, e.getMessage());
+            log.error("[CsvImport] No se pudo leer el CSV '{}': {}", path, e.getMessage());
             return List.of();
         }
     }
