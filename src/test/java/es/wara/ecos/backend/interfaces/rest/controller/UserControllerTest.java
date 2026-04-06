@@ -2,9 +2,11 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase;
+import es.wara.ecos.backend.application.usecase.user.ChangePasswordUseCase;
 import es.wara.ecos.backend.application.usecase.user.GetUserProfileUseCase;
 import es.wara.ecos.backend.application.usecase.user.RegisterUserUseCase;
 import es.wara.ecos.backend.application.usecase.user.UpdateUserPreferencesUseCase;
+import es.wara.ecos.backend.application.usecase.user.UpdateUserUseCase;
 import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.model.MusicProfile;
 import es.wara.ecos.backend.domain.model.User;
@@ -30,7 +32,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -60,6 +65,12 @@ class UserControllerTest {
 
     @MockitoBean
     UpdateUserPreferencesUseCase updateUserPreferencesUseCase;
+
+    @MockitoBean
+    UpdateUserUseCase updateUserUseCase;
+
+    @MockitoBean
+    ChangePasswordUseCase changePasswordUseCase;
 
     @MockitoBean
     CalculateUserProfileUseCase calculateUserProfileUseCase;
@@ -148,6 +159,114 @@ class UserControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.language").value("en"));
+    }
+
+    @Test
+    void updateUser_ownUser_updatesUsernameAndLanguage() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
+
+        User updated = new User(USER_ID, "nueva", "wara@ecos.es", "fr", null, LocalDateTime.now());
+        when(updateUserUseCase.execute(eq(USER_ID), eq("nueva"), eq("fr"))).thenReturn(updated);
+
+        mockMvc.perform(patch("/v1/users/" + USER_ID)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"username": "nueva", "language": "fr"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("nueva"))
+                .andExpect(jsonPath("$.language").value("fr"));
+    }
+
+    @Test
+    void updateUser_otherUser_returns403() throws Exception {
+        UUID otherId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(otherId.toString(), null, List.of()));
+
+        mockMvc.perform(patch("/v1/users/" + USER_ID)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"username": "intento"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateUser_duplicateUsername_returns409() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
+
+        when(updateUserUseCase.execute(eq(USER_ID), eq("ocupado"), any()))
+                .thenThrow(new ConflictException("El nombre de usuario ya está en uso"));
+
+        mockMvc.perform(patch("/v1/users/" + USER_ID)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"username": "ocupado"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("CONFLICT"));
+    }
+
+    @Test
+    void changePassword_correctCurrentPassword_returns204() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
+
+        doNothing().when(changePasswordUseCase).execute(eq(USER_ID), eq("old123"), eq("new123456"));
+
+        mockMvc.perform(patch("/v1/users/" + USER_ID + "/password")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword": "old123", "newPassword": "new123456"}
+                                """))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void changePassword_wrongCurrentPassword_returns401() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
+
+        doThrow(new IllegalStateException("Credenciales incorrectas"))
+                .when(changePasswordUseCase).execute(eq(USER_ID), eq("wrong"), eq("new123456"));
+
+        mockMvc.perform(patch("/v1/users/" + USER_ID + "/password")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword": "wrong", "newPassword": "new123456"}
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void changePassword_otherUser_returns403() throws Exception {
+        UUID otherId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(otherId.toString(), null, List.of()));
+
+        mockMvc.perform(patch("/v1/users/" + USER_ID + "/password")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword": "old123", "newPassword": "new123456"}
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void changePassword_shortNewPassword_returns400() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
+
+        mockMvc.perform(patch("/v1/users/" + USER_ID + "/password")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"currentPassword": "old123", "newPassword": "short"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
     }
 
     @Test
