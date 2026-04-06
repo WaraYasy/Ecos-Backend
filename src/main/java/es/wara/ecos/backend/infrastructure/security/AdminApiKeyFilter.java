@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Filtro que protege {@code /v1/admin/**} mediante una API key estática.
@@ -47,12 +49,19 @@ public class AdminApiKeyFilter extends OncePerRequestFilter {
         }
 
         String provided = request.getHeader(HEADER_NAME);
-        if (provided == null || !adminApiKey.equals(provided)) {
+        if (provided == null || !constantTimeEquals(adminApiKey, provided)) {
             sendError(response, "X-Admin-Key inválida o ausente");
             return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /** Comparación en tiempo constante para evitar timing attacks sobre la API key. */
+    private boolean constantTimeEquals(String a, String b) {
+        return MessageDigest.isEqual(
+                a.getBytes(StandardCharsets.UTF_8),
+                b.getBytes(StandardCharsets.UTF_8));
     }
 
     private void sendError(HttpServletResponse response, String message) throws IOException {
