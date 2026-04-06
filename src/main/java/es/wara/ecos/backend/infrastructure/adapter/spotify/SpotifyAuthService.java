@@ -3,6 +3,7 @@ package es.wara.ecos.backend.infrastructure.adapter.spotify;
 import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import es.wara.ecos.backend.domain.port.UserRepository;
+import es.wara.ecos.backend.infrastructure.exception.ApiServerException;
 import es.wara.ecos.backend.infrastructure.persistence.entity.OAuthStateEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.SpotifyTokenEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.UserEntity;
@@ -240,7 +241,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
         Map<?, ?> rb = response.getBody();
         if (rb == null || !rb.containsKey("access_token")) {
-            throw new IllegalArgumentException("Error al obtener token de Spotify");
+            throw new ApiServerException("Spotify", null, "Respuesta inesperada al obtener token");
         }
         return rb;
     }
@@ -254,7 +255,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
                 new HttpEntity<>(headers), Map.class);
         Map<?, ?> profile = response.getBody();
         if (profile == null || profile.get("id") == null) {
-            throw new IllegalArgumentException("No se pudo obtener el perfil de Spotify");
+            throw new ApiServerException("Spotify", null, "Respuesta inesperada al obtener perfil de usuario");
         }
         return profile;
     }
@@ -278,7 +279,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
         Map<?, ?> rb = response.getBody();
         if (rb == null || !rb.containsKey("access_token")) {
-            throw new IllegalArgumentException("Error al refrescar token de Spotify");
+            throw new ApiServerException("Spotify", null, "Respuesta inesperada al refrescar token");
         }
 
         String newAccess  = (String)  rb.get("access_token");
@@ -324,7 +325,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
     private void persistToken(UUID userId, Map<?, ?> body) {
         if (body == null || !body.containsKey("access_token")) {
-            throw new IllegalArgumentException("Error al obtener token de Spotify");
+            throw new ApiServerException("Spotify", null, "Respuesta inesperada al persistir token");
         }
 
         String accessToken  = (String)  body.get("access_token");

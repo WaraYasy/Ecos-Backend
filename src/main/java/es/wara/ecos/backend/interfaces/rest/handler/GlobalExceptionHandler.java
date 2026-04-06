@@ -3,6 +3,7 @@ package es.wara.ecos.backend.interfaces.rest.handler;
 import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.infrastructure.exception.ApiRateLimitException;
+import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -110,6 +111,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleRateLimit(ApiRateLimitException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(new ErrorResponse("RATE_LIMIT", ex.getMessage(), 429));
+    }
+
+    @ExceptionHandler(ExternalApiException.class)
+    public ResponseEntity<ErrorResponse> handleExternalApi(ExternalApiException ex) {
+        log.error("Error en API externa: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("SERVICE_UNAVAILABLE", "Servicio externo no disponible. Inténtalo de nuevo.", 503));
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)
