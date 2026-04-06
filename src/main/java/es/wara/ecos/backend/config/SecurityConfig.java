@@ -59,6 +59,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/v1/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/users").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v1/auth/spotify").permitAll()
                 .requestMatchers(HttpMethod.GET, "/callback/spotify").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/health").permitAll()
