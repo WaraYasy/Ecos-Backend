@@ -27,6 +27,8 @@ public class User {
     private String email;
     private String language;
     private String passwordHash;
+    private String authProvider;
+    private String providerId;
     private LocalDateTime createdAt;
 
 }

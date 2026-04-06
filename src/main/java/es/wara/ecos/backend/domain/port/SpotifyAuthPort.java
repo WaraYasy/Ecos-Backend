@@ -1,5 +1,8 @@
 package es.wara.ecos.backend.domain.port;
 
+import es.wara.ecos.backend.interfaces.rest.dto.LoginResponse;
+
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -13,7 +16,7 @@ import java.util.UUID;
 public interface SpotifyAuthPort {
 
     /**
-     * Genera la URL de autorización de Spotify para que el usuario vincule su cuenta.
+     * Genera la URL de autorización de Spotify para vincular cuenta (requiere userId existente).
      *
      * @param userId identificador del usuario en ECOS
      * @return URL completa de autorización de Spotify
@@ -21,12 +24,24 @@ public interface SpotifyAuthPort {
     String getAuthorizationUrl(UUID userId);
 
     /**
+     * Genera la URL de autorización de Spotify para login (sin userId previo).
+     *
+     * @return URL completa de autorización de Spotify
+     */
+    String getLoginUrl();
+
+    /**
      * Intercambia el código de autorización por tokens y los persiste.
+     * <p>
+     * Si el state corresponde a un flujo LOGIN, busca o crea el usuario en ECOS
+     * y devuelve el JWT. Si es LINK, vincula la cuenta y devuelve vacío.
+     * </p>
      *
      * @param code  código devuelto por Spotify en el callback
-     * @param state userId de ECOS enviado como state en el flujo OAuth
+     * @param state token anti-CSRF generado al iniciar el flujo
+     * @return JWT + userId si es flujo LOGIN; vacío si es flujo LINK
      */
-    void exchangeCodeForToken(String code, String state);
+    Optional<LoginResponse> exchangeCodeForToken(String code, String state);
 
     /**
      * Devuelve el access token vigente del usuario, refrescándolo si está próximo a expirar.

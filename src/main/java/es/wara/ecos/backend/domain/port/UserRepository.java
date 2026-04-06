@@ -38,6 +38,8 @@ public interface UserRepository {
      */
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByProviderId(String providerId);
+
     /**
      * Persiste un usuario en el repositorio.
      *
