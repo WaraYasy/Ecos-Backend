@@ -1,11 +1,15 @@
 package es.wara.ecos.backend.infrastructure.adapter.spotify;
 
+import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
+import es.wara.ecos.backend.domain.port.UserRepository;
 import es.wara.ecos.backend.infrastructure.persistence.entity.OAuthStateEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.SpotifyTokenEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.UserEntity;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaOAuthStateRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSpotifyTokenRepository;
+import es.wara.ecos.backend.infrastructure.security.JwtService;
+import es.wara.ecos.backend.interfaces.rest.dto.LoginResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -21,16 +25,24 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Implementación del flujo Authorization Code de Spotify.
  * <p>
- * Los tokens se persisten en la tabla {@code spotify_tokens} cifrados con AES-256-GCM,
- * sobreviviendo reinicios y redeploys. El refresco automático mantiene el token vigente
- * sin que el caller tenga que gestionarlo.
+ * Soporta dos propósitos:
+ * <ul>
+ *   <li><b>LINK</b>: el usuario ya está autenticado en ECOS y quiere vincular su cuenta de Spotify
+ *       para exportar playlists. El state lleva el userId.</li>
+ *   <li><b>LOGIN</b>: el usuario quiere autenticarse en ECOS con Spotify. El state no lleva userId.
+ *       Tras el callback se llama a {@code /v1/me} de Spotify, se busca o crea el usuario en ECOS
+ *       y se devuelve un JWT.</li>
+ * </ul>
+ * Los tokens se persisten en la tabla {@code spotify_tokens} cifrados con AES-256-GCM.
  * </p>
  *
  * @author Wara Pacheco
@@ -39,9 +51,10 @@ import java.util.UUID;
 @Service
 public class SpotifyAuthService implements SpotifyAuthPort {
 
-    private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
-    private static final String AUTH_URL  = "https://accounts.spotify.com/authorize";
-    private static final String SCOPES    = "playlist-modify-public playlist-modify-private user-read-private";
+    private static final String TOKEN_URL  = "https://accounts.spotify.com/api/token";
+    private static final String AUTH_URL   = "https://accounts.spotify.com/authorize";
+    private static final String ME_URL     = "https://api.spotify.com/v1/me";
+    private static final String SCOPES     = "playlist-modify-public playlist-modify-private user-read-private user-read-email";
     private static final long   REFRESH_MARGIN_SECONDS = 300;
 
     @Value("${spotify.client.id}")
@@ -57,59 +70,68 @@ public class SpotifyAuthService implements SpotifyAuthPort {
     private final JpaSpotifyTokenRepository tokenRepository;
     private final JpaOAuthStateRepository oAuthStateRepository;
     private final TextEncryptor encryptor;
+    private final UserRepository userRepository;
+    private final JwtService jwtService;
 
     public SpotifyAuthService(RestTemplate restTemplate,
                               JpaSpotifyTokenRepository tokenRepository,
                               JpaOAuthStateRepository oAuthStateRepository,
-                              TextEncryptor encryptor) {
-        this.restTemplate        = restTemplate;
-        this.tokenRepository     = tokenRepository;
-        this.oAuthStateRepository = oAuthStateRepository;
-        this.encryptor           = encryptor;
+                              TextEncryptor encryptor,
+                              UserRepository userRepository,
+                              JwtService jwtService) {
+        this.restTemplate          = restTemplate;
+        this.tokenRepository       = tokenRepository;
+        this.oAuthStateRepository  = oAuthStateRepository;
+        this.encryptor             = encryptor;
+        this.userRepository        = userRepository;
+        this.jwtService            = jwtService;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // GENERACIÓN DE URL DE AUTORIZACIÓN
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     @Transactional
     public String getAuthorizationUrl(UUID userId) {
-        String state = UUID.randomUUID().toString();
-        OAuthStateEntity oauthState = new OAuthStateEntity();
-        oauthState.setState(state);
-        oauthState.setUserId(userId);
-        oauthState.setExpiresAt(Instant.now().plusSeconds(600));
-        oAuthStateRepository.save(oauthState);
-
-        return AUTH_URL
-                + "?client_id="     + clientId
-                + "&response_type=code"
-                + "&redirect_uri="  + redirectUri
-                + "&scope="         + SCOPES.replace(" ", "%20")
-                + "&state="         + state
-                + "&show_dialog=true";
+        String state = saveState(userId, "LINK");
+        return buildAuthUrl(state);
     }
 
     @Override
     @Transactional
-    public void exchangeCodeForToken(String code, String state) {
+    public String getLoginUrl() {
+        String state = saveState(null, "LOGIN");
+        return buildAuthUrl(state);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CALLBACK
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public Optional<LoginResponse> exchangeCodeForToken(String code, String state) {
         OAuthStateEntity oauthState = oAuthStateRepository.findById(state)
                 .orElseThrow(() -> new IllegalArgumentException("Estado OAuth inválido o expirado"));
         if (oauthState.getExpiresAt().isBefore(Instant.now())) {
             oAuthStateRepository.delete(oauthState);
             throw new IllegalArgumentException("Estado OAuth expirado");
         }
-        UUID userId = oauthState.getUserId();
+
+        String purpose = oauthState.getPurpose();
+        UUID userId    = oauthState.getUserId();
         oAuthStateRepository.delete(oauthState);
 
-        HttpHeaders headers = buildBasicAuthHeaders();
-        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-        body.add("grant_type", "authorization_code");
-        body.add("code", code);
-        body.add("redirect_uri", redirectUri);
+        Map<?, ?> tokenBody = fetchTokens(code);
 
-        ResponseEntity<Map> response =
-                restTemplate.postForEntity(TOKEN_URL, new HttpEntity<>(body, headers), Map.class);
-
-        persistToken(userId, response.getBody());
-        log.info("Token Spotify persistido para userId={}", userId);
+        if ("LOGIN".equals(purpose)) {
+            return Optional.of(handleLoginFlow(tokenBody));
+        } else {
+            persistToken(userId, tokenBody);
+            log.info("Token Spotify persistido para userId={}", userId);
+            return Optional.empty();
+        }
     }
 
     @Override
@@ -127,8 +149,115 @@ public class SpotifyAuthService implements SpotifyAuthPort {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Privados
+    // FLUJO LOGIN — find-or-create usuario
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Llama a /v1/me de Spotify, busca o crea el usuario en ECOS y genera un JWT.
+     * <p>
+     * Prioridad de búsqueda:
+     * <ol>
+     *   <li>Por {@code provider_id} (Spotify user ID) → login directo</li>
+     *   <li>Por email → vincular la cuenta Spotify al usuario local existente</li>
+     *   <li>Sin coincidencia → crear nuevo usuario con auth_provider=spotify</li>
+     * </ol>
+     * </p>
+     */
+    private LoginResponse handleLoginFlow(Map<?, ?> tokenBody) {
+        String accessToken = (String) tokenBody.get("access_token");
+        Map<?, ?> profile  = fetchSpotifyProfile(accessToken);
+
+        String spotifyId    = (String) profile.get("id");
+        String email        = (String) profile.get("email");
+        String displayName  = (String) profile.get("display_name");
+
+        User user = userRepository.findByProviderId(spotifyId)
+                .orElseGet(() -> userRepository.findByEmail(email)
+                        .map(existing -> linkSpotify(existing, spotifyId))
+                        .orElseGet(() -> createSpotifyUser(spotifyId, email, displayName)));
+
+        persistToken(user.getId(), tokenBody);
+        log.info("Login con Spotify completado: userId={}, spotifyId={}", user.getId(), spotifyId);
+        return new LoginResponse(jwtService.generateToken(user.getId()), user.getId());
+    }
+
+    /** Vincula el provider Spotify a una cuenta local existente (merge de cuentas). */
+    private User linkSpotify(User user, String spotifyId) {
+        log.info("Vinculando Spotify a cuenta existente: userId={}, spotifyId={}", user.getId(), spotifyId);
+        user.setProviderId(spotifyId);
+        if ("local".equals(user.getAuthProvider())) {
+            user.setAuthProvider("spotify+local");
+        }
+        return userRepository.save(user);
+    }
+
+    /** Crea un nuevo usuario de ECOS cuyo único método de login es Spotify. */
+    private User createSpotifyUser(String spotifyId, String email, String displayName) {
+        String username = resolveUsername(displayName, email);
+        log.info("Creando usuario desde Spotify: spotifyId={}, username={}", spotifyId, username);
+
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setAuthProvider("spotify");
+        user.setProviderId(spotifyId);
+        user.setLanguage("es");
+        user.setCreatedAt(LocalDateTime.now());
+        return userRepository.save(user);
+    }
+
+    /**
+     * Genera un username disponible a partir del display_name de Spotify.
+     * Si ya está en uso, añade un sufijo numérico aleatorio.
+     */
+    private String resolveUsername(String displayName, String email) {
+        String base = displayName != null && !displayName.isBlank()
+                ? displayName.replaceAll("[^a-zA-Z0-9_]", "").toLowerCase()
+                : email != null ? email.split("@")[0] : "user";
+        if (base.length() < 3) base = base + "ecos";
+        if (base.length() > 45) base = base.substring(0, 45);
+
+        String candidate = base;
+        while (userRepository.findByUsername(candidate).isPresent()) {
+            candidate = base + (1000 + (int)(Math.random() * 9000));
+        }
+        return candidate;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LLAMADAS A SPOTIFY
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private Map<?, ?> fetchTokens(String code) {
+        HttpHeaders headers = buildBasicAuthHeaders();
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "authorization_code");
+        body.add("code", code);
+        body.add("redirect_uri", redirectUri);
+
+        ResponseEntity<Map> response =
+                restTemplate.postForEntity(TOKEN_URL, new HttpEntity<>(body, headers), Map.class);
+
+        Map<?, ?> rb = response.getBody();
+        if (rb == null || !rb.containsKey("access_token")) {
+            throw new IllegalArgumentException("Error al obtener token de Spotify");
+        }
+        return rb;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<?, ?> fetchSpotifyProfile(String accessToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                ME_URL, org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(headers), Map.class);
+        Map<?, ?> profile = response.getBody();
+        if (profile == null || profile.get("id") == null) {
+            throw new IllegalArgumentException("No se pudo obtener el perfil de Spotify");
+        }
+        return profile;
+    }
 
     private SpotifyTokenEntity refreshToken(SpotifyTokenEntity current) {
         if (current.getRefreshToken() == null) {
@@ -149,14 +278,12 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
         Map<?, ?> rb = response.getBody();
         if (rb == null || !rb.containsKey("access_token")) {
-            log.error("Respuesta inválida al refrescar token para userId={}", current.getUserId());
-            throw new IllegalArgumentException(
-                    "Error al refrescar token de Spotify. Por favor intenta de nuevo.");
+            throw new IllegalArgumentException("Error al refrescar token de Spotify");
         }
 
-        String newAccess   = (String)  rb.get("access_token");
-        Integer expiresIn  = (Integer) rb.get("expires_in");
-        String newRefresh  = rb.containsKey("refresh_token")
+        String newAccess  = (String)  rb.get("access_token");
+        Integer expiresIn = (Integer) rb.get("expires_in");
+        String newRefresh = rb.containsKey("refresh_token")
                 ? (String) rb.get("refresh_token")
                 : refreshToken;
 
@@ -170,11 +297,34 @@ public class SpotifyAuthService implements SpotifyAuthPort {
         return saved;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private String saveState(UUID userId, String purpose) {
+        String state = UUID.randomUUID().toString();
+        OAuthStateEntity entity = new OAuthStateEntity();
+        entity.setState(state);
+        entity.setUserId(userId);
+        entity.setPurpose(purpose);
+        entity.setExpiresAt(Instant.now().plusSeconds(600));
+        oAuthStateRepository.save(entity);
+        return state;
+    }
+
+    private String buildAuthUrl(String state) {
+        return AUTH_URL
+                + "?client_id="     + clientId
+                + "&response_type=code"
+                + "&redirect_uri="  + redirectUri
+                + "&scope="         + SCOPES.replace(" ", "%20")
+                + "&state="         + state
+                + "&show_dialog=true";
+    }
+
     private void persistToken(UUID userId, Map<?, ?> body) {
         if (body == null || !body.containsKey("access_token")) {
-            log.error("Respuesta inválida de Spotify al obtener token para userId={}", userId);
-            throw new IllegalArgumentException(
-                    "Error al obtener token de Spotify. Por favor intenta de nuevo.");
+            throw new IllegalArgumentException("Error al obtener token de Spotify");
         }
 
         String accessToken  = (String)  body.get("access_token");
