@@ -37,8 +37,14 @@ public class UserEntity {
     @Column(length = 10)
     private String language;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(name = "auth_provider", nullable = false, length = 20)
+    private String authProvider = "local";
+
+    @Column(name = "provider_id", length = 100)
+    private String providerId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

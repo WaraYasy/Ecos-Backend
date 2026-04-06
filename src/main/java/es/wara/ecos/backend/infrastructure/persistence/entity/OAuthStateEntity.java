@@ -29,8 +29,12 @@ public class OAuthStateEntity {
     @Id
     private String state;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id")
     private UUID userId;
+
+    /** LINK = vincular Spotify a cuenta existente · LOGIN = autenticarse con Spotify */
+    @Column(name = "purpose", nullable = false, length = 10)
+    private String purpose = "LINK";
 
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;

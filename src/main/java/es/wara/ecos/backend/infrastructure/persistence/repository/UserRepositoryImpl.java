@@ -43,6 +43,11 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByProviderId(String providerId) {
+        return jpa.findByProviderId(providerId).map(mapper::toModel);
+    }
+
+    @Override
     public User save(User user) {
         return mapper.toModel(jpa.save(mapper.toEntity(user)));
     }
