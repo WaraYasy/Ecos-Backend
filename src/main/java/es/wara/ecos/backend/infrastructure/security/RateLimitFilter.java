@@ -55,6 +55,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int AUTH_RPM         = 100;
     private static final int LOGIN_RPM        = 10;
     private static final int REGISTER_RPM     = 5;
+    private static final int SPOTIFY_LOGIN_RPM = 10;
 
     // ── Store de buckets: clave → Bucket, expiración por inactividad ─────────
     private final Cache<String, Bucket> buckets = Caffeine.newBuilder()
@@ -89,6 +90,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         } else if ("POST".equalsIgnoreCase(method) && "/v1/users".equals(path)) {
             bucketKey = "ip:register:" + extractIp(request);
             rpm       = REGISTER_RPM;
+        } else if ("GET".equalsIgnoreCase(method) && "/v1/auth/spotify".equals(path)) {
+            bucketKey = "ip:spotify-login:" + extractIp(request);
+            rpm       = SPOTIFY_LOGIN_RPM;
         } else {
             String userId = resolveUserId();
             if (userId == null) {
