@@ -42,6 +42,10 @@ public class ChangePasswordUseCase {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
 
+        if (user.getPasswordHash() == null) {
+            // Usuario autenticado solo con Spotify — no tiene contraseña local
+            throw new IllegalStateException("Credenciales incorrectas");
+        }
         if (!passwordHasher.matches(currentPassword, user.getPasswordHash())) {
             throw new IllegalStateException("Credenciales incorrectas");
         }
