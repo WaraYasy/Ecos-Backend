@@ -51,7 +51,8 @@ public class LoginUseCase {
             passwordHasher.matches(password, dummyHash);
             throw new IllegalStateException("Credenciales incorrectas");
         }
-        if (!passwordHasher.matches(password, user.getPasswordHash())) {
+        if (user.getPasswordHash() == null
+                || !passwordHasher.matches(password, user.getPasswordHash())) {
             throw new IllegalStateException("Credenciales incorrectas");
         }
         return user.getId();
