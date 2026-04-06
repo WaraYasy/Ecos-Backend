@@ -3,6 +3,7 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
 import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
+import es.wara.ecos.backend.interfaces.rest.dto.LoginResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,14 +15,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -49,7 +51,17 @@ class SpotifyAuthControllerTest {
     }
 
     @Test
-    void login_returns200WithAuthUrl() throws Exception {
+    void loginWithSpotify_public_returns200WithUrl() throws Exception {
+        when(spotifyAuthPort.getLoginUrl())
+                .thenReturn("https://accounts.spotify.com/authorize?client_id=test&state=abc");
+
+        mockMvc.perform(get("/v1/auth/spotify"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.url").value(containsString("accounts.spotify.com")));
+    }
+
+    @Test
+    void linkSpotify_authenticated_returns200WithUrl() throws Exception {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
 
@@ -58,19 +70,33 @@ class SpotifyAuthControllerTest {
 
         mockMvc.perform(get("/v1/auth/spotify/login"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.url").exists())
                 .andExpect(jsonPath("$.url").value(containsString("accounts.spotify.com")));
     }
 
     @Test
-    void callback_validCodeAndState_returns200WithConfirmation() throws Exception {
-        doNothing().when(spotifyAuthPort).exchangeCodeForToken("abc", "test-state-uuid");
+    void callback_linkFlow_returns200WithConfirmation() throws Exception {
+        when(spotifyAuthPort.exchangeCodeForToken("abc", "link-state"))
+                .thenReturn(Optional.empty());
 
         mockMvc.perform(get("/callback/spotify")
                         .param("code", "abc")
-                        .param("state", "test-state-uuid"))
+                        .param("state", "link-state"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Cuenta Spotify vinculada"));
+    }
+
+    @Test
+    void callback_loginFlow_redirectsToDeepLink() throws Exception {
+        LoginResponse login = new LoginResponse("jwt-token-123", USER_ID);
+        when(spotifyAuthPort.exchangeCodeForToken("abc", "login-state"))
+                .thenReturn(Optional.of(login));
+
+        mockMvc.perform(get("/callback/spotify")
+                        .param("code", "abc")
+                        .param("state", "login-state"))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", containsString("ecos://auth/callback")))
+                .andExpect(header().string("Location", containsString("token=jwt-token-123")));
     }
 
     @Test
@@ -84,5 +110,4 @@ class SpotifyAuthControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
     }
-
 }

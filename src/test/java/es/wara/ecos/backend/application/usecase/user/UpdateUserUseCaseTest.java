@@ -34,7 +34,7 @@ class UpdateUserUseCaseTest {
     private static final UUID UNKNOWN_ID = UUID.fromString("00000000-0000-0000-0000-000000000999");
 
     private User user(UUID id, String username) {
-        return new User(id, username, "wara@ecos.es", "es", null, LocalDateTime.now());
+        return new User(id, username, "wara@ecos.es", "es", null, null, null, LocalDateTime.now());
     }
 
     @Test

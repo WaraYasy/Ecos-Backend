@@ -78,7 +78,7 @@ class UserControllerTest {
     private static final UUID USER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID UNKNOWN_ID = UUID.fromString("00000000-0000-0000-0000-000000000999");
 
-    private static final User USER = new User(USER_ID, "wara", "wara@ecos.es", "es", null, LocalDateTime.now());
+    private static final User USER = new User(USER_ID, "wara", "wara@ecos.es", "es", null, null, null, LocalDateTime.now());
 
     @AfterEach
     void clearSecurityContext() {
@@ -149,7 +149,7 @@ class UserControllerTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
 
-        User updated = new User(USER_ID, "wara", "wara@ecos.es", "en", null, LocalDateTime.now());
+        User updated = new User(USER_ID, "wara", "wara@ecos.es", "en", null, null, null, LocalDateTime.now());
         when(updateUserPreferencesUseCase.execute(eq(USER_ID), eq("en"))).thenReturn(updated);
 
         mockMvc.perform(put("/v1/users/" + USER_ID + "/preferences")
@@ -166,7 +166,7 @@ class UserControllerTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
 
-        User updated = new User(USER_ID, "nueva", "wara@ecos.es", "fr", null, LocalDateTime.now());
+        User updated = new User(USER_ID, "nueva", "wara@ecos.es", "fr", null, null, null, LocalDateTime.now());
         when(updateUserUseCase.execute(eq(USER_ID), eq("nueva"), eq("fr"))).thenReturn(updated);
 
         mockMvc.perform(patch("/v1/users/" + USER_ID)
