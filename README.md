@@ -1,7 +1,6 @@
 # ECOS — Backend
 
 > Backend de la aplicación móvil **ECOS**: descubrimiento musical inteligente a través de un grafo neuronal interactivo.
->
 
 ---
 
@@ -19,10 +18,10 @@ Este repositorio contiene el **backend Spring Boot** que alimenta la app.
 |---|---|
 | Framework | Spring Boot 4.0.2 · Java 21 |
 | Base de datos | PostgreSQL 16 + extensión `pgvector` |
-| Migraciones | Flyway (V1–V15) |
+| Migraciones | Flyway (V1–V27) |
 | APIs externas | Spotify · Last.fm · TMDb · MusicBrainz |
-| Seguridad | JWT (jjwt 0.12.6) · BCrypt · Spring Security |
-| Caché | Caffeine (in-memory, 5 caches con TTL) |
+| Seguridad | JWT (jjwt 0.12.6) · BCrypt · Spring Security · OAuth2 Spotify |
+| Caché | Caffeine (in-memory, TTL por capa) |
 | Tests | JUnit 5 · Mockito · Testcontainers · MockRestServiceServer |
 | Docs API | SpringDoc OpenAPI (Swagger UI) |
 
@@ -45,12 +44,12 @@ Este repositorio contiene el **backend Spring Boot** que alimenta la app.
 
 ```bash
 git clone <url-del-repo>
-cd Ecos-Backend/ecos-backend
+cd Ecos-Backend
 ```
 
 ### 2. Configurar variables de entorno
 
-Crear un fichero `.env` en `ecos-backend/` (no se sube a Git):
+Crear un fichero `.env` en la raíz (no se sube a Git):
 
 ```env
 # Base de datos
@@ -59,6 +58,7 @@ DB_PASSWORD=tu_password_local
 # Spotify (https://developer.spotify.com/dashboard)
 SPOTIFY_CLIENT_ID=tu_client_id
 SPOTIFY_CLIENT_SECRET=tu_client_secret
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:3000/callback/spotify
 
 # TMDb (https://www.themoviedb.org/settings/api)
 TMDB_API_KEY=tu_api_key
@@ -67,12 +67,15 @@ TMDB_API_TOKEN=tu_read_access_token
 # Last.fm (https://www.last.fm/api/account/create)
 LASTFM_API_KEY=tu_api_key
 
-# Seguridad JWT (cadena aleatoria >= 32 caracteres)
+# JWT (cadena aleatoria >= 32 caracteres)
 JWT_SECRET=cambia_esto_por_una_cadena_aleatoria_larga
 
 # Cifrado AES para tokens OAuth en BD
 ENCRYPTION_KEY=tu_clave_cifrado
 ENCRYPTION_SALT=deadbeefdeadbeef
+
+# Admin (protege /v1/admin/**)
+ADMIN_API_KEY=clave_secreta_larga
 ```
 
 ### 3. Iniciar PostgreSQL con Docker
@@ -87,7 +90,7 @@ docker run -d \
   pgvector/pgvector:pg16
 ```
 
-> Flyway aplica las migraciones (V1–V15) automáticamente al arrancar la aplicación.
+Flyway aplica las migraciones automáticamente al arrancar.
 
 ### 4. Arrancar la aplicación
 
@@ -95,7 +98,7 @@ docker run -d \
 ./mvnw spring-boot:run
 ```
 
-La API queda disponible en `http://localhost:3000`.
+La API queda disponible en `http://localhost:3000`.  
 Documentación interactiva: `http://localhost:3000/swagger-ui.html`
 
 ---
@@ -105,15 +108,20 @@ Documentación interactiva: `http://localhost:3000/swagger-ui.html`
 ```
 # Autenticación
 POST /v1/auth/login                        body: {email, password} → {token, userId}
+GET  /v1/auth/spotify                      login con Spotify (público)
 POST /v1/users                             body: {username, email, password, language}
 
-# Búsqueda multidimensional (5 cuadrantes combinables)
-GET  /v1/search?q=&aesthetic=&decade=&movie=&energyMin=&valenceMin=&bpmMin=
+# Usuarios
+GET    /v1/users/{id}
+PATCH  /v1/users/{id}                      body: {username?, language?}
+PATCH  /v1/users/{id}/password             body: {currentPassword, newPassword}
+
+# Búsqueda multidimensional (cuadrantes combinables)
+GET  /v1/search?q=&aesthetic=&decade=&movie=&genre=&country=&instrumental=&...
 
 # Canciones
 GET  /v1/songs/{id}
 GET  /v1/songs/{id}/related
-GET  /v1/songs/{id}/audio-features
 
 # Playlists
 GET    /v1/playlists
@@ -124,37 +132,47 @@ POST   /v1/playlists/{id}/songs
 DELETE /v1/playlists/{id}/songs/{songId}
 POST   /v1/playlists/{id}/export/spotify
 
+# Grafo
+GET  /v1/graph?songId=
+
 # OAuth Spotify
-GET  /v1/auth/spotify/login
-GET  /callback/spotify
+GET  /v1/auth/spotify                      inicia login con Spotify (público)
+GET  /v1/auth/spotify/login                vincula cuenta Spotify (🔒)
+GET  /callback/spotify                     callback OAuth (solo Spotify → backend)
+
+# Admin
+POST /v1/admin/songs/import                importar CSV (requiere X-Admin-Key)
 
 # Diagnóstico
 GET  /health
 ```
 
-Todos los endpoints excepto login, registro y health requieren:
+Todos los endpoints excepto login, registro, `/v1/auth/spotify` y health requieren:
 ```
 Authorization: Bearer <token>
 ```
 
+Documentación completa: `docs/API_ENDPOINTS.md`
+
 ---
 
-## Ejecutar los tests
+## Tests
 
 ```bash
 # Suite completa (requiere Docker para Testcontainers)
 ./mvnw test
-
-# Solo tests unitarios y de controllers (sin Docker)
-./mvnw test -Dtest="SpotifyClientTest,SearchSongsUseCaseTest,CreatePlaylistUseCaseTest,AddSongToPlaylistUseCaseTest,DeletePlaylistUseCaseTest,RegisterUserUseCaseTest,LoginUseCaseTest,SearchControllerTest,PlaylistControllerTest,SongControllerTest,UserControllerTest,SessionControllerTest"
 ```
 
-| Suite | Clases | Tests |
-|---|---|---|
-| Use cases (Mockito puro) | 8 | 24 |
-| Controllers (`@WebMvcTest`) | 4 | 18 |
-| `SpotifyClientTest` (MockRestServiceServer) | 1 | 5 |
-| `BackendApplicationTests` (Testcontainers) | 1 | 1 — requiere Docker |
+| Suite | Tests |
+|---|---|
+| Use cases (Mockito) | 24 |
+| Controllers (`@WebMvcTest`) | 46 |
+| SpotifyClient (MockRestServiceServer) | 5 |
+| Funcionales (Testcontainers) | 54 |
+| BackendApplicationTests | 1 |
+| **Total** | **273** |
+
+Los tests funcionales arrancan un contenedor PostgreSQL real. Requieren Docker Desktop en ejecución.
 
 ---
 
@@ -164,20 +182,21 @@ El backend sigue la **arquitectura hexagonal (Ports & Adapters)**:
 
 ```
 interfaces/rest/   ← Controllers, DTOs, GlobalExceptionHandler
-application/       ← Use cases (15), MusicAggregationService
-domain/            ← Models (13 POJOs), Ports (7 interfaces) — sin Spring ni JPA
+application/       ← Use cases, MusicAggregationService
+domain/            ← Models, Ports — sin Spring ni JPA
 infrastructure/    ← JPA, Adapters (Spotify/Last.fm/TMDb/MusicBrainz), JWT, Caché
 ```
 
 El dominio no depende de nada externo. La infraestructura implementa los Ports del dominio (inversión de dependencia).
+
 ---
 
-## Variables de entorno — referencia completa
+## Variables de entorno
 
 | Variable | Descripción | Requerida |
 |---|---|---|
 | `DB_PASSWORD` | Contraseña de PostgreSQL | Sí |
-| `SPOTIFY_CLIENT_ID` | Client ID de la app de Spotify | Sí |
+| `SPOTIFY_CLIENT_ID` | Client ID de Spotify | Sí |
 | `SPOTIFY_CLIENT_SECRET` | Client Secret de Spotify | Sí |
 | `SPOTIFY_REDIRECT_URI` | URI de callback OAuth (default: `http://127.0.0.1:3000/callback/spotify`) | No |
 | `TMDB_API_KEY` | API Key de TMDb | Sí |
@@ -187,11 +206,6 @@ El dominio no depende de nada externo. La infraestructura implementa los Ports d
 | `JWT_EXPIRATION_MS` | Duración del token en ms (default: `86400000` = 24 h) | No |
 | `ENCRYPTION_KEY` | Clave para cifrado AES-256 de tokens OAuth en BD | Sí |
 | `ENCRYPTION_SALT` | Salt hexadecimal de exactamente 16 chars (ej: `deadbeefdeadbeef`) | Sí |
-| `CORS_ALLOWED_ORIGINS` | Orígenes CORS permitidos (default: `http://localhost:3000`) | No |
-| `PROXY_ENABLED` | Habilitar proxy HTTP para APIs externas (default: `false`) | No |
-| `PROXY_HOST` | Host del proxy | Solo si `PROXY_ENABLED=true` |
-| `PROXY_PORT` | Puerto del proxy | Solo si `PROXY_ENABLED=true` |
-| `PROXY_USER` | Usuario del proxy autenticado | No |
-| `PROXY_PASSWORD` | Contraseña del proxy autenticado | No |
-
----
+| `ADMIN_API_KEY` | Clave para proteger `/v1/admin/**` (mín. 32 chars recomendado) | Sí |
+| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma | No (default: localhost) |
+| `APP_DEEP_LINK_SCHEME` | Scheme del deep link móvil (default: `ecos`) | No |
