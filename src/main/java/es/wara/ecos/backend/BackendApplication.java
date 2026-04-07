@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -36,7 +37,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @Slf4j
 @EnableScheduling
-@SpringBootApplication
+@SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class})
 public class BackendApplication {
 
 	@Value("${server.port:8080}")
