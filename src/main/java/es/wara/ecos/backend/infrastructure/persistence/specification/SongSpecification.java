@@ -89,22 +89,30 @@ public class SongSpecification {
             }
 
             // ── Cuadrante 2: Estética ─────────────────────────────────────────
+            // EXISTS correlacionado: evita materializar todos los song_id coincidentes
             if (params.aesthetic() != null && !params.aesthetic().isBlank()) {
-                Subquery<UUID> sub = query.subquery(UUID.class);
+                Subquery<Integer> sub = query.subquery(Integer.class);
                 Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
-                sub.select(tagRoot.get("id").get("songId"));
-                sub.where(cb.equal(tagRoot.get("id").get("tag"), params.aesthetic().toLowerCase()));
-                predicates.add(root.get("id").in(sub));
+                sub.select(cb.literal(1));
+                sub.where(cb.and(
+                        cb.equal(tagRoot.get("id").get("songId"), root.get("id")),
+                        cb.equal(tagRoot.get("id").get("tag"), params.aesthetic().toLowerCase())
+                ));
+                predicates.add(cb.exists(sub));
             }
 
             // ── Cuadrante 2b: Género musical ─────────────────────────────────
+            // EXISTS + LIKE: con idx_song_tags_tag_trgm (GIN trigrama) evita seq-scan
             if (params.genre() != null && !params.genre().isBlank()) {
-                Subquery<UUID> sub = query.subquery(UUID.class);
+                Subquery<Integer> sub = query.subquery(Integer.class);
                 Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
-                sub.select(tagRoot.get("id").get("songId"));
+                sub.select(cb.literal(1));
                 String pattern = "%" + params.genre().toLowerCase() + "%";
-                sub.where(cb.like(tagRoot.get("id").get("tag"), pattern));
-                predicates.add(root.get("id").in(sub));
+                sub.where(cb.and(
+                        cb.equal(tagRoot.get("id").get("songId"), root.get("id")),
+                        cb.like(tagRoot.get("id").get("tag"), pattern)
+                ));
+                predicates.add(cb.exists(sub));
             }
 
             // ── Cuadrante 3: Temporal ─────────────────────────────────────────
@@ -149,14 +157,20 @@ public class SongSpecification {
             }
 
             // ── Cuadrante 5a: Textura (filtro por tags — independiente de audio features) ──
+            // EXISTS correlacionado con IN(lista fija): la lista es pequeña (≤5 tags),
+            // así que IN sobre valores literales es eficiente y PostgreSQL puede usar
+            // idx_song_tags_song_id_tag para la búsqueda por song_id.
             if (params.texture() != null && !params.texture().isBlank()) {
                 List<String> textureTags = resolveTextureTags(params.texture());
                 if (!textureTags.isEmpty()) {
-                    Subquery<UUID> sub = query.subquery(UUID.class);
+                    Subquery<Integer> sub = query.subquery(Integer.class);
                     Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
-                    sub.select(tagRoot.get("id").get("songId"));
-                    sub.where(tagRoot.get("id").get("tag").in(textureTags));
-                    predicates.add(root.get("id").in(sub));
+                    sub.select(cb.literal(1));
+                    sub.where(cb.and(
+                            cb.equal(tagRoot.get("id").get("songId"), root.get("id")),
+                            tagRoot.get("id").get("tag").in(textureTags)
+                    ));
+                    predicates.add(cb.exists(sub));
                 }
             }
 
