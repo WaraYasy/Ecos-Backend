@@ -502,7 +502,15 @@ public class SpotifyClient implements SpotifyPlaylistPort {
         switch (statusCode) {
             case 401, 403 -> throw new ApiAuthenticationException(API_NAME, statusCode,
                     "Credenciales inválidas o sin permisos");
-            case 429 -> throw new ApiRateLimitException(API_NAME, "Límite de peticiones excedido");
+            case 429 -> {
+                String retryHeader = e.getResponseHeaders() != null
+                        ? e.getResponseHeaders().getFirst("Retry-After") : null;
+                Long retryAfter = null;
+                if (retryHeader != null) {
+                    try { retryAfter = Long.parseLong(retryHeader.trim()); } catch (NumberFormatException ignored) {}
+                }
+                throw new ApiRateLimitException(API_NAME, "Límite de peticiones excedido", retryAfter);
+            }
             default -> throw new ExternalApiException(API_NAME, statusCode,
                     "Error del cliente: " + e.getMessage(), e);
         }
