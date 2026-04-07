@@ -205,8 +205,18 @@ public class EnrichmentMaintenanceJob {
                     log.warn("[Enrichment] Cover interrumpido en '{}'", song.getTitle());
                     break;
                 } catch (ApiRateLimitException e) {
-                    log.warn("[Enrichment] Rate limit de Spotify — abortando batch de cover (procesadas {}/{})", fixed, songs.size());
-                    break;
+                    long retryAfter = e.getRetryAfterSeconds() != null ? e.getRetryAfterSeconds() : 30L;
+                    if (retryAfter > 120) {
+                        log.warn("[Enrichment] Rate limit de Spotify con Retry-After={}s (>120s) — abortando batch (procesadas {}/{})",
+                                retryAfter, fixed, songs.size());
+                        break;
+                    }
+                    log.warn("[Enrichment] Rate limit de Spotify — esperando {}s antes de continuar (procesadas {}/{})",
+                            retryAfter, fixed, songs.size());
+                    try { Thread.sleep(retryAfter * 1000); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 } catch (Exception e) {
                     log.warn("[Enrichment] Error cover '{}': {}", song.getTitle(), e.getMessage());
                 }
