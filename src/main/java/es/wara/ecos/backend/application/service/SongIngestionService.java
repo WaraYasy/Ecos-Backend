@@ -4,6 +4,7 @@ import es.wara.ecos.backend.application.usecase.search.SearchParams;
 import es.wara.ecos.backend.domain.model.Artist;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.model.Tag;
+import es.wara.ecos.backend.domain.port.EmbeddingProvider;
 import es.wara.ecos.backend.domain.port.MusicProvider;
 import es.wara.ecos.backend.domain.port.SongRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * Servicio de ingesta de canciones desde APIs externas hacia la base de datos.
@@ -37,13 +39,16 @@ public class SongIngestionService {
     private final MusicProvider musicProvider;
     private final MusicAggregationService musicAggregationService;
     private final SongRepository songRepository;
+    private final EmbeddingProvider embeddingProvider;
 
     public SongIngestionService(MusicProvider musicProvider,
                                 MusicAggregationService musicAggregationService,
-                                SongRepository songRepository) {
+                                SongRepository songRepository,
+                                EmbeddingProvider embeddingProvider) {
         this.musicProvider = musicProvider;
         this.musicAggregationService = musicAggregationService;
         this.songRepository = songRepository;
+        this.embeddingProvider = embeddingProvider;
     }
 
     /**
@@ -72,8 +77,15 @@ public class SongIngestionService {
             Song song = future.join();
             ensureSearchTags(song, params);
             try {
-                songRepository.save(song);
+                Song persisted = songRepository.save(song);
                 saved++;
+                // Trigger de embedding: fire-and-forget, no bloquea ni propaga errores
+                if (persisted.getId() != null) {
+                    String embedText = buildEmbedText(persisted);
+                    CompletableFuture.runAsync(
+                            () -> embeddingProvider.requestEmbedding(persisted.getId(), embedText),
+                            EXECUTOR);
+                }
             } catch (Exception e) {
                 log.warn("  [ingest] No se pudo guardar '{}': {}", song.getTitle(), e.getMessage());
             }
@@ -196,6 +208,33 @@ public class SongIngestionService {
             current.add(tag);
             song.setTags(current);
         }
+    }
+
+    /**
+     * Construye el texto a embedar según el formato acordado con el micro de IA:
+     * {@code "título · artista1, artista2 · tag1 tag2 · género1 género2"}.
+     */
+    static String buildEmbedText(Song song) {
+        String title = song.getTitle() != null ? song.getTitle() : "";
+
+        String artists = (song.getArtists() != null)
+                ? song.getArtists().stream()
+                        .map(Artist::getName)
+                        .filter(n -> n != null && !n.isBlank())
+                        .collect(Collectors.joining(", "))
+                : "";
+
+        String tags = (song.getTags() != null)
+                ? song.getTags().stream()
+                        .map(Tag::getName)
+                        .filter(n -> n != null && !n.isBlank())
+                        .collect(Collectors.joining(" "))
+                : "";
+
+        StringBuilder sb = new StringBuilder(title);
+        if (!artists.isBlank()) sb.append(" · ").append(artists);
+        if (!tags.isBlank())    sb.append(" · ").append(tags);
+        return sb.toString();
     }
 
     private String buildSpotifyQuery(SearchParams params) {
