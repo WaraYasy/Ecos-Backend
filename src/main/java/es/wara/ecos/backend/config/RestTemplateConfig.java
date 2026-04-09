@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.config;
 
+import es.wara.ecos.backend.config.AiServiceProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -47,7 +48,7 @@ import java.util.List;
 @Slf4j
 @EnableRetry
 @Configuration
-@EnableConfigurationProperties(ProxyProperties.class)
+@EnableConfigurationProperties({ProxyProperties.class, AiServiceProperties.class})
 public class RestTemplateConfig {
 
     /** Propiedades de proxy leídas del fichero de configuración del perfil activo. */
