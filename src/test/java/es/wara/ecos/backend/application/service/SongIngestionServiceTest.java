@@ -2,7 +2,7 @@ package es.wara.ecos.backend.application.service;
 
 import es.wara.ecos.backend.application.usecase.search.SearchParams;
 import es.wara.ecos.backend.domain.model.Artist;
-import es.wara.ecos.backend.domain.model.Song;
+import es.wara.ecos.backend.domain.model.Song;import es.wara.ecos.backend.domain.port.EmbeddingProvider;
 import es.wara.ecos.backend.domain.port.MusicProvider;
 import es.wara.ecos.backend.domain.port.SongRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,12 +25,13 @@ class SongIngestionServiceTest {
     @Mock MusicProvider musicProvider;
     @Mock MusicAggregationService musicAggregationService;
     @Mock SongRepository songRepository;
+    @Mock EmbeddingProvider embeddingProvider;
 
     SongIngestionService service;
 
     @BeforeEach
     void setUp() {
-        service = new SongIngestionService(musicProvider, musicAggregationService, songRepository);
+        service = new SongIngestionService(musicProvider, musicAggregationService, songRepository, embeddingProvider);
         lenient().when(musicAggregationService.enrich(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 

@@ -3,6 +3,7 @@ package es.wara.ecos.backend.application.usecase.search;
 import es.wara.ecos.backend.application.service.SongIngestionService;
 import es.wara.ecos.backend.domain.model.Page;
 import es.wara.ecos.backend.domain.model.Song;
+import es.wara.ecos.backend.domain.port.SemanticSearchProvider;
 import es.wara.ecos.backend.domain.port.SongRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,6 +30,7 @@ class SearchSongsUseCaseTest {
 
     @Mock SongRepository songRepository;
     @Mock SongIngestionService ingestionService;
+    @Mock SemanticSearchProvider semanticSearchProvider;
     @InjectMocks SearchSongsUseCase useCase;
 
     private Song song(String title) {
@@ -150,5 +153,75 @@ class SearchSongsUseCaseTest {
         useCase.execute(p);
 
         verify(ingestionService, never()).ingest(any());
+    }
+
+    // ── Boost semántico ───────────────────────────────────────────────────────
+
+    @Test
+    void semanticBoost_movesMatchingIdsToFront() {
+        UUID idA = UUID.randomUUID();
+        UUID idB = UUID.randomUUID();
+        UUID idC = UUID.randomUUID();
+
+        Song a = songWithId(idA, "A");
+        Song b = songWithId(idB, "B");
+        Song c = songWithId(idC, "C");
+
+        SearchParams p = withQ("dark ambient");
+        when(ingestionService.summarize(p)).thenReturn("q=dark ambient");
+        // BD devuelve A, B, C en ese orden
+        when(songRepository.search(p)).thenReturn(pageOf(List.of(a, b, c)));
+        // El micro dice que C e A son las más relevantes (C primero)
+        when(semanticSearchProvider.search(eq("dark ambient"), anyInt()))
+                .thenReturn(List.of(idC, idA));
+
+        Page<Song> result = useCase.execute(p);
+
+        // C debe subir primero (match semántico con mayor score), luego A, luego B
+        assertThat(result.items()).extracting(Song::getId)
+                .containsExactly(idC, idA, idB);
+    }
+
+    @Test
+    void semanticBoost_noSemanticMatches_preservesOriginalOrder() {
+        UUID idA = UUID.randomUUID();
+        UUID idB = UUID.randomUUID();
+        Song a = songWithId(idA, "A");
+        Song b = songWithId(idB, "B");
+
+        SearchParams p = withQ("jazz");
+        when(ingestionService.summarize(p)).thenReturn("q=jazz");
+        when(songRepository.search(p)).thenReturn(pageOf(List.of(a, b)));
+        // El micro devuelve un ID que no está en los resultados SQL
+        when(semanticSearchProvider.search(anyString(), anyInt()))
+                .thenReturn(List.of(UUID.randomUUID()));
+
+        Page<Song> result = useCase.execute(p);
+
+        assertThat(result.items()).extracting(Song::getId).containsExactly(idA, idB);
+    }
+
+    @Test
+    void semanticBoost_microReturnsEmpty_preservesOriginalOrder() {
+        UUID idA = UUID.randomUUID();
+        Song a = songWithId(idA, "A");
+
+        SearchParams p = withQ("chill");
+        when(ingestionService.summarize(p)).thenReturn("q=chill");
+        when(songRepository.search(p)).thenReturn(pageOf(List.of(a)));
+        when(semanticSearchProvider.search(anyString(), anyInt())).thenReturn(List.of());
+
+        Page<Song> result = useCase.execute(p);
+
+        assertThat(result.items()).extracting(Song::getId).containsExactly(idA);
+    }
+
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    private Song songWithId(UUID id, String title) {
+        Song s = new Song();
+        s.setId(id);
+        s.setTitle(title);
+        return s;
     }
 }
