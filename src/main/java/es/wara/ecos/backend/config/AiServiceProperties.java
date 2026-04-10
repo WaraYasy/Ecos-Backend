@@ -40,4 +40,8 @@ public class AiServiceProperties {
     public boolean isAvailable() {
         return url != null && !url.isBlank();
     }
+
+    public String getUrl() {
+        return url != null ? url.strip() : null;
+    }
 }
