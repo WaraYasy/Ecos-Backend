@@ -7,16 +7,20 @@ import es.wara.ecos.backend.application.usecase.playlist.ExportPlaylistToSpotify
 import es.wara.ecos.backend.application.usecase.playlist.GetPlaylistByIdUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.GetUserPlaylistsUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistUseCase;
+import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.Playlist;
+import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import es.wara.ecos.backend.interfaces.rest.dto.AddSongRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.PlaylistRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.PlaylistResponse;
+import es.wara.ecos.backend.interfaces.rest.dto.UpdatePlaylistRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,18 +48,8 @@ public class PlaylistController {
     private final AddSongToPlaylistUseCase addSongToPlaylistUseCase;
     private final RemoveSongFromPlaylistUseCase removeSongFromPlaylistUseCase;
     private final ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase;
+    private final PlaylistRepository playlistRepository;
 
-    /**
-     * Inyecta los casos de uso necesarios para las operaciones sobre playlists.
-     *
-     * @param getPlaylistByIdUseCase        consulta de una playlist por ID
-     * @param getUserPlaylistsUseCase       listado de playlists del usuario autenticado
-     * @param createPlaylistUseCase         creación de una nueva playlist
-     * @param deletePlaylistUseCase         eliminación de una playlist (solo el propietario)
-     * @param addSongToPlaylistUseCase      adición de una canción a una playlist
-     * @param removeSongFromPlaylistUseCase eliminación de una canción de una playlist
-     * @param exportPlaylistToSpotifyUseCase exportación de una playlist a Spotify
-     */
     public PlaylistController(
             GetPlaylistByIdUseCase getPlaylistByIdUseCase,
             GetUserPlaylistsUseCase getUserPlaylistsUseCase,
@@ -63,7 +57,8 @@ public class PlaylistController {
             DeletePlaylistUseCase deletePlaylistUseCase,
             AddSongToPlaylistUseCase addSongToPlaylistUseCase,
             RemoveSongFromPlaylistUseCase removeSongFromPlaylistUseCase,
-            ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase
+            ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase,
+            PlaylistRepository playlistRepository
     ) {
         this.getPlaylistByIdUseCase = getPlaylistByIdUseCase;
         this.getUserPlaylistsUseCase = getUserPlaylistsUseCase;
@@ -72,6 +67,7 @@ public class PlaylistController {
         this.addSongToPlaylistUseCase = addSongToPlaylistUseCase;
         this.removeSongFromPlaylistUseCase = removeSongFromPlaylistUseCase;
         this.exportPlaylistToSpotifyUseCase = exportPlaylistToSpotifyUseCase;
+        this.playlistRepository = playlistRepository;
     }
 
     /**
@@ -109,6 +105,31 @@ public class PlaylistController {
     @GetMapping("/{id}")
     public ResponseEntity<PlaylistResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(PlaylistResponse.from(getPlaylistByIdUseCase.execute(id)));
+    }
+
+    /**
+     * Actualiza el nombre y/o descripción de una playlist. Solo el propietario puede modificarla.
+     * Semántica PATCH: solo se actualizan los campos con valor no nulo.
+     *
+     * @param id      identificador de la playlist
+     * @param request campos a actualizar (ambos opcionales)
+     * @return {@code 200 OK} con la playlist actualizada
+     */
+    @PatchMapping("/{id}")
+    public ResponseEntity<PlaylistResponse> update(@PathVariable UUID id,
+                                                   @RequestBody UpdatePlaylistRequest request) {
+        Playlist playlist = getPlaylistByIdUseCase.execute(id);
+        UUID currentUserId = SecurityUtils.getCurrentUserId();
+        if (!playlist.getUserId().equals(currentUserId)) {
+            throw new ForbiddenException("No tienes permiso para modificar esta playlist");
+        }
+        if (request.name() != null && !request.name().isBlank()) {
+            playlist.setName(request.name());
+        }
+        if (request.description() != null) {
+            playlist.setDescription(request.description());
+        }
+        return ResponseEntity.ok(PlaylistResponse.from(playlistRepository.save(playlist)));
     }
 
     /**

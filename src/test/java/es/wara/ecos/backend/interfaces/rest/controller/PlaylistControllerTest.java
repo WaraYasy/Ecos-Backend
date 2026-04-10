@@ -9,6 +9,7 @@ import es.wara.ecos.backend.application.usecase.playlist.GetUserPlaylistsUseCase
 import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistUseCase;
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.Playlist;
+import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
 import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.AfterEach;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -71,6 +73,9 @@ class PlaylistControllerTest {
 
     @MockitoBean
     ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase;
+
+    @MockitoBean
+    PlaylistRepository playlistRepository;
 
     private static final UUID USER_ID     = UUID.fromString("00000000-0000-0000-0000-000000000005");
     private static final UUID PLAYLIST_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -161,6 +166,32 @@ class PlaylistControllerTest {
 
         mockMvc.perform(delete("/v1/playlists/" + PLAYLIST_ID + "/songs/" + SONG_10))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void update_ownPlaylist_returns200WithUpdatedName() throws Exception {
+        Playlist updated = buildPlaylist(null);
+        updated.setName("Nuevo nombre");
+        when(getPlaylistByIdUseCase.execute(PLAYLIST_ID)).thenReturn(buildPlaylist(null));
+        when(playlistRepository.save(any(Playlist.class))).thenReturn(updated);
+
+        mockMvc.perform(patch("/v1/playlists/" + PLAYLIST_ID)
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"name\": \"Nuevo nombre\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Nuevo nombre"));
+    }
+
+    @Test
+    void update_foreignPlaylist_returns403() throws Exception {
+        UUID otherUserId = UUID.fromString("00000000-0000-0000-0000-000000000099");
+        Playlist foreignPlaylist = new Playlist(PLAYLIST_ID, otherUserId, "Ajena", null, null, LocalDateTime.now(), List.of());
+        when(getPlaylistByIdUseCase.execute(PLAYLIST_ID)).thenReturn(foreignPlaylist);
+
+        mockMvc.perform(patch("/v1/playlists/" + PLAYLIST_ID)
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"name\": \"Intento\"}"))
+                .andExpect(status().isForbidden());
     }
 
 }
