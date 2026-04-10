@@ -13,12 +13,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -214,6 +216,74 @@ class SearchSongsUseCaseTest {
         Page<Song> result = useCase.execute(p);
 
         assertThat(result.items()).extracting(Song::getId).containsExactly(idA);
+    }
+
+    // ── Merge híbrido: IDs semánticos no en página BD ─────────────────────────
+
+    @Test
+    void hybridMerge_semanticOnlyId_fetchedFromDbAndPlacedFirst() {
+        UUID idA = UUID.randomUUID();
+        UUID idX = UUID.randomUUID(); // en el micro, no en la página BD
+        Song a = songWithId(idA, "A");
+        Song x = songWithId(idX, "X");
+
+        SearchParams p = withQ("canciones parecidas a queen");
+        when(ingestionService.summarize(p)).thenReturn("q=canciones parecidas a queen");
+        when(songRepository.search(p)).thenReturn(pageOf(List.of(a)));
+        // micro devuelve X primero (mayor score), luego A
+        when(semanticSearchProvider.search(anyString(), anyInt()))
+                .thenReturn(List.of(idX, idA));
+        // X no estaba en la página, se fetchea por ID
+        when(songRepository.findById(idX)).thenReturn(Optional.of(x));
+
+        Page<Song> result = useCase.execute(p);
+
+        // X (semántico con mayor score) debe aparecer primero, luego A (en ambas listas)
+        assertThat(result.items()).extracting(Song::getId)
+                .containsExactly(idX, idA);
+    }
+
+    @Test
+    void hybridMerge_semanticIdNotInDb_skipped() {
+        UUID idA = UUID.randomUUID();
+        UUID idX = UUID.randomUUID(); // micro lo sugiere pero no existe en BD
+        Song a = songWithId(idA, "A");
+
+        SearchParams p = withQ("ambient");
+        when(ingestionService.summarize(p)).thenReturn("q=ambient");
+        when(songRepository.search(p)).thenReturn(pageOf(List.of(a)));
+        when(semanticSearchProvider.search(anyString(), anyInt()))
+                .thenReturn(List.of(idX, idA));
+        when(songRepository.findById(idX)).thenReturn(Optional.empty());
+
+        Page<Song> result = useCase.execute(p);
+
+        // X se ignora (no en BD), A sigue apareciendo
+        assertThat(result.items()).extracting(Song::getId).containsExactly(idA);
+    }
+
+    @Test
+    void hybridMerge_truncatesToPageSize() {
+        // pageSize=2; micro + BD producirían 3, se trunca
+        SearchParams p = SearchParams.builder().q("rock").pageSize(2).build();
+        UUID idA = UUID.randomUUID();
+        UUID idB = UUID.randomUUID();
+        UUID idX = UUID.randomUUID();
+        Song a = songWithId(idA, "A");
+        Song b = songWithId(idB, "B");
+        Song x = songWithId(idX, "X");
+
+        when(ingestionService.summarize(p)).thenReturn("q=rock");
+        when(songRepository.search(p)).thenReturn(new Page<>(List.of(a, b), 0, 2, 2));
+        when(semanticSearchProvider.search(anyString(), anyInt()))
+                .thenReturn(List.of(idX, idA));
+        when(songRepository.findById(idX)).thenReturn(Optional.of(x));
+
+        Page<Song> result = useCase.execute(p);
+
+        // merged sería [X, A, B] → truncado a 2
+        assertThat(result.items()).hasSize(2);
+        assertThat(result.items()).extracting(Song::getId).containsExactly(idX, idA);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

@@ -67,45 +67,71 @@ public class SearchSongsUseCase {
             log.info("  ✓ re-query tras ingesta → {} items", result.items().size());
         }
 
-        // Boost semántico: canciones que coinciden con resultados del micro suben al principio
+        // Merge híbrido: semánticos primero (en orden de score), luego BD, sin duplicados
         List<UUID> semanticIds = semanticFuture.join();
-        if (!semanticIds.isEmpty() && !result.items().isEmpty()) {
-            result = boostSemanticMatches(result, semanticIds);
-            log.debug("  semantic boost: {} ids del micro aplicados", semanticIds.size());
+        if (!semanticIds.isEmpty()) {
+            result = mergeWithSemantic(result, semanticIds, params);
+            log.debug("  hybrid merge: {} ids del micro aplicados", semanticIds.size());
         }
 
         return result;
     }
 
     /**
-     * Reordena la página priorizando las canciones del micro de IA en su orden de score.
-     * Primero aparecen las que coinciden con los resultados semánticos (en el orden del micro),
-     * después el resto de canciones SQL en su orden original.
+     * Merge híbrido de resultados SQL y semánticos.
+     *
+     * <p>Estrategia:
+     * <ol>
+     *   <li>Canciones que el micro devolvió → aparecen primero en orden de score.
+     *       Las que no estaban en la página SQL se fetchean por ID (1 query IN).</li>
+     *   <li>Canciones solo en BD (no en semántico) → al final, en su orden original.</li>
+     *   <li>El resultado se trunca a {@code pageSize}.</li>
+     * </ol>
      */
-    private Page<Song> boostSemanticMatches(Page<Song> page, List<UUID> semanticIds) {
-        // Índice rápido por ID para buscar canciones sin iterar la lista
-        Map<UUID, Song> songMap = page.items().stream()
+    private Page<Song> mergeWithSemantic(Page<Song> page, List<UUID> semanticIds, SearchParams params) {
+        Map<UUID, Song> dbMap = page.items().stream()
                 .filter(s -> s.getId() != null)
                 .collect(java.util.stream.Collectors.toMap(Song::getId, s -> s));
 
-        // Las boosteadas siguen el orden de score del micro (no el orden SQL)
-        List<Song> boosted = semanticIds.stream()
-                .map(songMap::get)
+        Set<UUID> dbIds = dbMap.keySet();
+
+        // IDs semánticos que no están en la página SQL → fetch adicional (1 query IN)
+        List<UUID> missingIds = semanticIds.stream()
+                .filter(id -> !dbIds.contains(id))
+                .collect(java.util.stream.Collectors.toList());
+
+        if (!missingIds.isEmpty()) {
+            missingIds.stream()
+                    .map(songRepository::findById)
+                    .filter(java.util.Optional::isPresent)
+                    .map(java.util.Optional::get)
+                    .forEach(s -> { if (s.getId() != null) dbMap.put(s.getId(), s); });
+        }
+
+        // Semánticos en orden de score del micro (incluye los recién fetcheados)
+        List<Song> semantic = semanticIds.stream()
+                .map(dbMap::get)
                 .filter(s -> s != null)
                 .collect(java.util.stream.Collectors.toList());
 
-        if (boosted.isEmpty()) return page;
-
-        Set<UUID> boostedIds = boosted.stream()
+        Set<UUID> semanticIdSet = semantic.stream()
                 .map(Song::getId)
                 .collect(java.util.stream.Collectors.toSet());
 
-        List<Song> remaining = page.items().stream()
-                .filter(s -> s.getId() == null || !boostedIds.contains(s.getId()))
+        // BD-only al final
+        List<Song> dbOnly = page.items().stream()
+                .filter(s -> s.getId() == null || !semanticIdSet.contains(s.getId()))
                 .collect(java.util.stream.Collectors.toList());
 
-        boosted.addAll(remaining);
-        return new Page<>(boosted, page.page(), page.pageSize(), page.total());
+        List<Song> merged = new ArrayList<>(semantic);
+        merged.addAll(dbOnly);
+
+        // Truncar a pageSize
+        if (merged.size() > params.pageSize()) {
+            merged = merged.subList(0, params.pageSize());
+        }
+
+        return new Page<>(merged, page.page(), page.pageSize(), page.total());
     }
 
     /**
