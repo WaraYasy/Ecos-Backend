@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
@@ -58,12 +59,14 @@ public class SongEntity {
             joinColumns = @JoinColumn(name = "song_id"),
             inverseJoinColumns = @JoinColumn(name = "artist_id")
     )
+    @BatchSize(size = 25)
     private List<ArtistEntity> artists = new ArrayList<>();
 
     @OneToOne(mappedBy = "song", cascade = CascadeType.PERSIST, fetch = FetchType.LAZY)
     private AudioFeaturesEntity audioFeatures;
 
     @OneToMany(mappedBy = "song", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @BatchSize(size = 25)
     private List<SongTagEntity> tags = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -72,6 +75,7 @@ public class SongEntity {
             joinColumns = @JoinColumn(name = "song_id"),
             inverseJoinColumns = @JoinColumn(name = "movie_id")
     )
+    @BatchSize(size = 25)
     private List<MovieEntity> movies = new ArrayList<>();
 
 }
