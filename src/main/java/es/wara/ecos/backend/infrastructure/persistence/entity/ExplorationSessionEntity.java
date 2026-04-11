@@ -38,6 +38,9 @@ public class ExplorationSessionEntity {
     @JoinColumn(name = "start_song_id")
     private SongEntity startSong;
 
+    @Column(name = "name", length = 100)
+    private String name;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

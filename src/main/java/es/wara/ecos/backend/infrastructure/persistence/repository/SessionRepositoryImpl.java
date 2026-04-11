@@ -52,4 +52,16 @@ public class SessionRepositoryImpl implements SessionRepository {
         return mapper.toModel(jpa.findById(saved.getId()).orElseThrow());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public long countByUserId(UUID userId) {
+        return jpa.countByUser_Id(userId);
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID id) {
+        jpa.deleteById(id);
+    }
+
 }

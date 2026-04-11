@@ -6,19 +6,18 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Entidad JPA que mapea la tabla session_nodes.
+ * Entidad JPA que mapea la tabla session_songs.
+ * Representa una canción dentro de una sesión de exploración guardada.
  *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 2.0
  * @since 1.0.0
  */
 @Entity
-@Table(name = "session_nodes")
+@Table(name = "session_songs")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,15 +35,6 @@ public class SessionNodeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "song_id")
     private SongEntity song;
-
-    @Column(name = "x_position", precision = 8, scale = 4)
-    private BigDecimal xPosition;
-
-    @Column(name = "y_position", precision = 8, scale = 4)
-    private BigDecimal yPosition;
-
-    @Column(name = "visited_at")
-    private LocalDateTime visitedAt;
 
     @Column(name = "sequence_order", nullable = false)
     private Short sequenceOrder;

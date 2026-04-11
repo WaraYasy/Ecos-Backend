@@ -9,17 +9,15 @@ import es.wara.ecos.backend.infrastructure.persistence.entity.UserEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Mapper que convierte entre ExplorationSessionEntity y el modelo de dominio ExplorationSession,
- * incluyendo el mapeo completo de nodos con sus canciones.
+ * Mapper entre ExplorationSessionEntity y el modelo de dominio ExplorationSession.
  *
  * @author Wara Pacheco
- * @version 1.1
+ * @version 2.0
  * @since 1.0.0
  */
 @Component
@@ -34,6 +32,7 @@ public class SessionMapper {
         session.setId(entity.getId());
         session.setUserId(entity.getUser() != null ? entity.getUser().getId() : null);
         session.setStartSongId(entity.getStartSong() != null ? entity.getStartSong().getId() : null);
+        session.setName(entity.getName());
         session.setCreatedAt(entity.getCreatedAt());
         if (entity.getNodes() != null) {
             session.setNodes(entity.getNodes().stream()
@@ -47,6 +46,7 @@ public class SessionMapper {
         if (model == null) return null;
         ExplorationSessionEntity entity = new ExplorationSessionEntity();
         entity.setId(model.getId());
+        entity.setName(model.getName());
         entity.setCreatedAt(model.getCreatedAt());
         if (model.getUserId() != null) {
             UserEntity user = new UserEntity();
@@ -74,9 +74,6 @@ public class SessionMapper {
         if (entity.getSong() != null) {
             node.setSong(songMapper.toModel(entity.getSong()));
         }
-        node.setXPosition(entity.getXPosition());
-        node.setYPosition(entity.getYPosition());
-        node.setVisitedAt(entity.getVisitedAt());
         node.setSequenceOrder(entity.getSequenceOrder() != null ? entity.getSequenceOrder().intValue() : null);
         return node;
     }
@@ -90,9 +87,6 @@ public class SessionMapper {
             song.setId(node.getSong().getId());
             nodeEntity.setSong(song);
         }
-        nodeEntity.setXPosition(node.getXPosition());
-        nodeEntity.setYPosition(node.getYPosition());
-        nodeEntity.setVisitedAt(node.getVisitedAt() != null ? node.getVisitedAt() : LocalDateTime.now());
         nodeEntity.setSequenceOrder(node.getSequenceOrder() != null ? node.getSequenceOrder().shortValue() : (short) 1);
         return nodeEntity;
     }

@@ -17,4 +17,6 @@ public interface JpaSessionRepository extends JpaRepository<ExplorationSessionEn
 
     List<ExplorationSessionEntity> findByUser_Id(UUID userId);
 
+    long countByUser_Id(UUID userId);
+
 }
