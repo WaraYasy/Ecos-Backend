@@ -35,8 +35,8 @@ class GetSessionHistoryUseCaseTest {
     @Test
     void execute_userWithSessions_returnsList() {
         List<ExplorationSession> sessions = List.of(
-                new ExplorationSession(SESSION_1, USER_ID, SONG_10, LocalDateTime.now(), List.of()),
-                new ExplorationSession(SESSION_2, USER_ID, SONG_11, LocalDateTime.now(), List.of())
+                new ExplorationSession(SESSION_1, USER_ID, SONG_10, null, LocalDateTime.now(), List.of()),
+                new ExplorationSession(SESSION_2, USER_ID, SONG_11, null, LocalDateTime.now(), List.of())
         );
         when(sessionRepository.findByUserId(USER_ID)).thenReturn(sessions);
 

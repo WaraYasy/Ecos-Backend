@@ -67,7 +67,7 @@ class CalculateUserProfileUseCaseTest {
             node.setSong(song);
             return node;
         }).collect(Collectors.toList());
-        return new ExplorationSession(SESSION_ID, USER_ID, UUID.randomUUID(), LocalDateTime.now(), nodes);
+        return new ExplorationSession(SESSION_ID, USER_ID, UUID.randomUUID(), null, LocalDateTime.now(), nodes);
     }
 
     // ─── tests ────────────────────────────────────────────────────────────────

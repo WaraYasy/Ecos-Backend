@@ -1,12 +1,12 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
-import es.wara.ecos.backend.application.usecase.session.AddNodeToSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.CreateExplorationSessionUseCase;
+import es.wara.ecos.backend.application.usecase.session.DeleteSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionByIdUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase;
+import es.wara.ecos.backend.domain.exception.ConflictException;
+import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.ExplorationSession;
-import es.wara.ecos.backend.domain.model.SessionNode;
-import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
 import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.AfterEach;
@@ -21,14 +21,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,122 +40,118 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 class SessionControllerTest {
 
-    @Autowired
-    MockMvc mockMvc;
+    @Autowired MockMvc mockMvc;
 
-    @MockitoBean
-    JwtAuthFilter jwtAuthFilter;
+    @MockitoBean JwtAuthFilter jwtAuthFilter;
+    @MockitoBean RateLimitFilter rateLimitFilter;
+    @MockitoBean CreateExplorationSessionUseCase createSessionUseCase;
+    @MockitoBean DeleteSessionUseCase deleteSessionUseCase;
+    @MockitoBean GetSessionByIdUseCase getSessionByIdUseCase;
+    @MockitoBean GetSessionHistoryUseCase getSessionHistoryUseCase;
 
-    @MockitoBean
-    RateLimitFilter rateLimitFilter;
-
-    @MockitoBean
-    GetSessionByIdUseCase getSessionByIdUseCase;
-
-    @MockitoBean
-    CreateExplorationSessionUseCase createSessionUseCase;
-
-    @MockitoBean
-    GetSessionHistoryUseCase getSessionHistoryUseCase;
-
-    @MockitoBean
-    AddNodeToSessionUseCase addNodeToSessionUseCase;
-
-    private static final UUID USER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000005");
-    private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
-    private static final UUID SONG_ID    = UUID.fromString("00000000-0000-0000-0000-000000000010");
-    private static final UUID SONG_20    = UUID.fromString("00000000-0000-0000-0000-000000000020");
-    private static final UUID UNKNOWN_ID = UUID.fromString("00000000-0000-0000-0000-000000000999");
+    private static final UUID USER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    private static final UUID SONG_A     = UUID.fromString("00000000-0000-0000-0000-000000000010");
 
     @BeforeEach
-    void setUpSecurityContext() {
+    void setUpSecurity() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
     }
 
     @AfterEach
-    void clearSecurityContext() {
-        SecurityContextHolder.clearContext();
-    }
+    void clearSecurity() { SecurityContextHolder.clearContext(); }
 
-    private ExplorationSession buildSession(UUID id, UUID userId) {
-        return new ExplorationSession(id, userId, SONG_ID, LocalDateTime.now(), new ArrayList<>());
+    private ExplorationSession session(String name) {
+        return new ExplorationSession(SESSION_ID, USER_ID, SONG_A, name, LocalDateTime.now(), List.of());
     }
 
     @Test
-    void create_validBody_returns201() throws Exception {
-        ExplorationSession session = buildSession(SESSION_ID, USER_ID);
-        when(createSessionUseCase.execute(USER_ID, SONG_ID)).thenReturn(session);
+    void create_validRequest_returns201WithSession() throws Exception {
+        when(createSessionUseCase.execute(eq(USER_ID), eq(SONG_A), any(), eq("Tarde de jazz")))
+                .thenReturn(session("Tarde de jazz"));
 
         mockMvc.perform(post("/v1/sessions")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"startSongId": "00000000-0000-0000-0000-000000000010"}
-                                """))
+                                {
+                                  "startSongId": "%s",
+                                  "songIds": ["%s"],
+                                  "name": "Tarde de jazz"
+                                }
+                                """.formatted(SONG_A, SONG_A)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(SESSION_ID.toString()))
-                .andExpect(jsonPath("$.userId").value(USER_ID.toString()));
-    }
-
-    @Test
-    void create_missingStartSongId_returns400() throws Exception {
-        mockMvc.perform(post("/v1/sessions")
-                        .contentType(APPLICATION_JSON)
-                        .content("""
-                                {}
-                                """))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void getByUser_returns200WithList() throws Exception {
-        when(getSessionHistoryUseCase.execute(USER_ID)).thenReturn(List.of(buildSession(SESSION_ID, USER_ID)));
-
-        mockMvc.perform(get("/v1/sessions"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].userId").value(USER_ID.toString()));
-    }
-
-    @Test
-    void getById_existingSession_returns200() throws Exception {
-        when(getSessionByIdUseCase.execute(SESSION_ID)).thenReturn(buildSession(SESSION_ID, USER_ID));
-
-        mockMvc.perform(get("/v1/sessions/" + SESSION_ID))
-                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Tarde de jazz"))
                 .andExpect(jsonPath("$.id").value(SESSION_ID.toString()));
     }
 
     @Test
-    void getById_nonExistingSession_returns404() throws Exception {
-        when(getSessionByIdUseCase.execute(UNKNOWN_ID))
-                .thenThrow(new IllegalArgumentException("Sesión no encontrada: " + UNKNOWN_ID));
+    void create_userHasMaxSessions_returns409() throws Exception {
+        when(createSessionUseCase.execute(any(), any(), any(), any()))
+                .thenThrow(new ConflictException("Ya tienes 2 sesiones guardadas."));
 
-        mockMvc.perform(get("/v1/sessions/" + UNKNOWN_ID))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+        mockMvc.perform(post("/v1/sessions")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"startSongId":"%s","songIds":["%s"]}
+                                """.formatted(SONG_A, SONG_A)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("CONFLICT"));
     }
 
     @Test
-    void addNode_validBody_returns200WithNode() throws Exception {
-        ExplorationSession session = buildSession(SESSION_ID, USER_ID);
-        Song song = new Song();
-        song.setId(SONG_20);
-        SessionNode node = new SessionNode();
-        node.setSong(song);
-        node.setSequenceOrder(1);
-        session.setNodes(List.of(node));
-
-        when(addNodeToSessionUseCase.execute(eq(SESSION_ID), eq(SONG_20), any(), any())).thenReturn(session);
-
-        mockMvc.perform(post("/v1/sessions/" + SESSION_ID + "/nodes")
+    void create_missingSongIds_returns400() throws Exception {
+        mockMvc.perform(post("/v1/sessions")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"songId": "00000000-0000-0000-0000-000000000020", "x": 1.0, "y": 2.0}
-                                """))
+                                {"startSongId":"%s"}
+                                """.formatted(SONG_A)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getByUser_returnsSessions() throws Exception {
+        when(getSessionHistoryUseCase.execute(USER_ID)).thenReturn(List.of(session("Jazz")));
+
+        mockMvc.perform(get("/v1/sessions"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nodes").isArray())
-                .andExpect(jsonPath("$.nodes[0].sequenceOrder").value(1));
+                .andExpect(jsonPath("$[0].name").value("Jazz"));
+    }
+
+    @Test
+    void getById_existingSession_returns200() throws Exception {
+        when(getSessionByIdUseCase.execute(SESSION_ID)).thenReturn(session("Rock 70s"));
+
+        mockMvc.perform(get("/v1/sessions/" + SESSION_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Rock 70s"));
+    }
+
+    @Test
+    void getById_nonExisting_returns404() throws Exception {
+        when(getSessionByIdUseCase.execute(SESSION_ID))
+                .thenThrow(new IllegalArgumentException("Sesión no encontrada"));
+
+        mockMvc.perform(get("/v1/sessions/" + SESSION_ID))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void delete_ownSession_returns204() throws Exception {
+        doNothing().when(deleteSessionUseCase).execute(SESSION_ID, USER_ID);
+
+        mockMvc.perform(delete("/v1/sessions/" + SESSION_ID))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void delete_foreignSession_returns403() throws Exception {
+        doThrow(new ForbiddenException("No tienes permiso"))
+                .when(deleteSessionUseCase).execute(SESSION_ID, USER_ID);
+
+        mockMvc.perform(delete("/v1/sessions/" + SESSION_ID))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("FORBIDDEN"));
     }
 
 }

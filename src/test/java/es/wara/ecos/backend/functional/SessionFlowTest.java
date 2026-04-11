@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.UUID;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,9 +19,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Tests funcionales del flujo de sesiones de exploración.
  *
- * Las sesiones requieren una canción existente en la BD. Como no se puede
- * llamar a APIs externas en tests funcionales, la canción se inserta directamente
- * con JdbcTemplate como fixture de test.
+ * Una sesión agrupa una lista ordenada de canciones. Se crea de una vez con
+ * startSongId + songIds. El usuario puede tener como máximo 2 sesiones.
  */
 class SessionFlowTest extends BaseFunctionalTest {
 
@@ -28,24 +28,20 @@ class SessionFlowTest extends BaseFunctionalTest {
     JdbcTemplate jdbc;
 
     private UUID songId;
+    private UUID songId2;
 
     @BeforeEach
     void cleanDb() {
-        // CASCADE propaga el truncado a todas las tablas dependientes
         jdbc.execute("TRUNCATE TABLE artists CASCADE");
         jdbc.execute("TRUNCATE TABLE users CASCADE");
-        insertSongFixture();
+        insertSongFixtures();
     }
 
-    /**
-     * Inserta un artista, álbum y canción mínimos para poder crear sesiones.
-     * Los tests de sesión necesitan un startSongId válido — este es el fixture más
-     * sencillo que satisface las FK de la tabla sessions.
-     */
-    private void insertSongFixture() {
-        songId = UUID.randomUUID();
+    private void insertSongFixtures() {
+        songId  = UUID.randomUUID();
+        songId2 = UUID.randomUUID();
         UUID artistId = UUID.randomUUID();
-        UUID albumId = UUID.randomUUID();
+        UUID albumId  = UUID.randomUUID();
 
         jdbc.update("INSERT INTO artists (id, spotify_id, name) VALUES (?, ?, ?)",
                 artistId, "spotify_artist_test", "Artist Test");
@@ -53,9 +49,11 @@ class SessionFlowTest extends BaseFunctionalTest {
                 albumId, "spotify_album_test", "Album Test", artistId);
         jdbc.update("INSERT INTO songs (id, spotify_id, title, album_id) VALUES (?, ?, ?, ?)",
                 songId, "spotify_song_test", "Song Test", albumId);
+        jdbc.update("INSERT INTO songs (id, spotify_id, title, album_id) VALUES (?, ?, ?, ?)",
+                songId2, "spotify_song_test_2", "Song Test 2", albumId);
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
+    // ── helpers ───────────────────────────────────────────────────────────────
 
     private String registerAndLogin(String username, String email) throws Exception {
         mockMvc.perform(post("/v1/users")
@@ -74,13 +72,18 @@ class SessionFlowTest extends BaseFunctionalTest {
                 .get("token").asText();
     }
 
-    private String createSession(String token, UUID startSongId) throws Exception {
+    private String createSession(String token, UUID startSongId, UUID... extraSongIds) throws Exception {
+        StringBuilder ids = new StringBuilder("\"" + startSongId + "\"");
+        for (UUID id : extraSongIds) {
+            ids.append(",\"").append(id).append("\"");
+        }
         MvcResult result = mockMvc.perform(post("/v1/sessions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + token)
                         .content("""
-                                {"startSongId":"%s"}
-                                """.formatted(startSongId)))
+                                {"startSongId":"%s","songIds":[%s]}
+                                """.formatted(startSongId, ids)))
+                .andExpect(status().isCreated())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString())
                 .get("id").asText();
@@ -96,17 +99,31 @@ class SessionFlowTest extends BaseFunctionalTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + token)
                         .content("""
-                                {"startSongId":"%s"}
-                                """.formatted(songId)))
+                                {"startSongId":"%s","songIds":["%s","%s"]}
+                                """.formatted(songId, songId, songId2)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.startSongId").value(songId.toString()))
-                .andExpect(jsonPath("$.nodes").isArray())
-                .andExpect(jsonPath("$.nodes").isEmpty());
+                .andExpect(jsonPath("$.songs").isArray())
+                .andExpect(jsonPath("$.songs.length()").value(2));
     }
 
     @Test
-    void createSession_nonExistingSong_returns404() throws Exception {
+    void createSession_withName_returnsName() throws Exception {
+        String token = registerAndLogin("wara", "wara@ecos.es");
+
+        mockMvc.perform(post("/v1/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token)
+                        .content("""
+                                {"startSongId":"%s","songIds":["%s"],"name":"Mi sesión de jazz"}
+                                """.formatted(songId, songId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Mi sesión de jazz"));
+    }
+
+    @Test
+    void createSession_nonExistingStartSong_returns404() throws Exception {
         String token = registerAndLogin("wara", "wara@ecos.es");
         UUID fakeSongId = UUID.fromString("00000000-0000-0000-0000-000000000099");
 
@@ -114,21 +131,39 @@ class SessionFlowTest extends BaseFunctionalTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + token)
                         .content("""
-                                {"startSongId":"%s"}
-                                """.formatted(fakeSongId)))
+                                {"startSongId":"%s","songIds":["%s"]}
+                                """.formatted(fakeSongId, fakeSongId)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
     }
 
     @Test
-    void createSession_missingStartSongId_returns400() throws Exception {
+    void createSession_missingSongIds_returns400() throws Exception {
         String token = registerAndLogin("wara", "wara@ecos.es");
 
         mockMvc.perform(post("/v1/sessions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + token)
-                        .content("{}"))
+                        .content("""
+                                {"startSongId":"%s"}
+                                """.formatted(songId)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createSession_thirdSession_returns409() throws Exception {
+        String token = registerAndLogin("wara", "wara@ecos.es");
+        createSession(token, songId, songId2);
+        createSession(token, songId2, songId);
+
+        mockMvc.perform(post("/v1/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token)
+                        .content("""
+                                {"startSongId":"%s","songIds":["%s"]}
+                                """.formatted(songId, songId)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("CONFLICT"));
     }
 
     @Test
@@ -145,7 +180,7 @@ class SessionFlowTest extends BaseFunctionalTest {
     @Test
     void getSessions_afterCreation_returnsListWithOne() throws Exception {
         String token = registerAndLogin("wara", "wara@ecos.es");
-        createSession(token, songId);
+        createSession(token, songId, songId2);
 
         mockMvc.perform(get("/v1/sessions")
                         .header("Authorization", "Bearer " + token))
@@ -158,7 +193,7 @@ class SessionFlowTest extends BaseFunctionalTest {
     @Test
     void getSessionById_existingSession_returns200() throws Exception {
         String token = registerAndLogin("wara", "wara@ecos.es");
-        String sessionId = createSession(token, songId);
+        String sessionId = createSession(token, songId, songId2);
 
         mockMvc.perform(get("/v1/sessions/" + sessionId)
                         .header("Authorization", "Bearer " + token))
@@ -178,34 +213,30 @@ class SessionFlowTest extends BaseFunctionalTest {
     }
 
     @Test
-    void addNode_validSong_returns200WithNodeInSession() throws Exception {
+    void deleteSession_ownSession_returns204() throws Exception {
         String token = registerAndLogin("wara", "wara@ecos.es");
-        String sessionId = createSession(token, songId);
+        String sessionId = createSession(token, songId, songId2);
 
-        mockMvc.perform(post("/v1/sessions/" + sessionId + "/nodes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + token)
-                        .content("""
-                                {"songId":"%s","x":1.5,"y":2.5}
-                                """.formatted(songId)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nodes").isArray())
-                .andExpect(jsonPath("$.nodes.length()").value(1))
-                .andExpect(jsonPath("$.nodes[0].song.id").value(songId.toString()));
+        mockMvc.perform(delete("/v1/sessions/" + sessionId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        // verificar que ya no existe
+        mockMvc.perform(get("/v1/sessions/" + sessionId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
     }
 
     @Test
-    void addNode_missingSongId_returns400() throws Exception {
-        String token = registerAndLogin("wara", "wara@ecos.es");
-        String sessionId = createSession(token, songId);
+    void deleteSession_foreignSession_returns403() throws Exception {
+        String tokenA = registerAndLogin("wara",  "wara@ecos.es");
+        String tokenB = registerAndLogin("other", "other@ecos.es");
+        String sessionId = createSession(tokenA, songId, songId2);
 
-        mockMvc.perform(post("/v1/sessions/" + sessionId + "/nodes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + token)
-                        .content("""
-                                {"x":1.5,"y":2.5}
-                                """))
-                .andExpect(status().isBadRequest());
+        mockMvc.perform(delete("/v1/sessions/" + sessionId)
+                        .header("Authorization", "Bearer " + tokenB))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("FORBIDDEN"));
     }
 
     @Test
