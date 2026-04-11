@@ -91,13 +91,14 @@ public class SearchController {
             @RequestParam(required = false) @Min(0) BigDecimal bpmMin,
             @RequestParam(required = false) @Min(0) BigDecimal bpmMax,
             @RequestParam(defaultValue = "20") int pageSize,
-            @RequestParam(defaultValue = "0") int page
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "false") boolean enhanced
     ) {
         SearchParams params = new SearchParams(
                 q, artist, aesthetic, genre, decade, year, movie, country,
                 instrumental, texture, mode,
                 energyMin, energyMax, valenceMin, valenceMax, bpmMin, bpmMax,
-                pageSize, page
+                pageSize, page, enhanced
         );
 
         PageResponse<SongResponse> response = PageResponse.from(

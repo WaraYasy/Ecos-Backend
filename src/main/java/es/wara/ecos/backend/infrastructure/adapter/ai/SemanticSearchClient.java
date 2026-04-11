@@ -40,10 +40,19 @@ public class SemanticSearchClient implements SemanticSearchProvider {
 
     @Override
     public List<UUID> search(String query, int limit) {
+        return doSearch("/search/semantic", query, limit);
+    }
+
+    @Override
+    public List<UUID> searchEnhanced(String query, int limit) {
+        return doSearch("/search/semantic/enhanced", query, limit);
+    }
+
+    private List<UUID> doSearch(String path, String query, int limit) {
         if (!properties.isAvailable() || query == null || query.isBlank()) return List.of();
         try {
             String url = UriComponentsBuilder
-                    .fromUriString(properties.getUrl() + "/search/semantic")
+                    .fromUriString(properties.getUrl() + path)
                     .queryParam("q", query)
                     .queryParam("limit", limit)
                     .build().toUriString();
@@ -57,6 +66,9 @@ public class SemanticSearchClient implements SemanticSearchProvider {
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null
                     && response.getBody().results() != null) {
+                if (response.getBody().expandedQuery() != null) {
+                    log.debug("  [semantic enhanced] query expandida: '{}'", response.getBody().expandedQuery());
+                }
                 return response.getBody().results().stream()
                         .map(r -> {
                             try { return UUID.fromString(r.songId()); }
@@ -67,7 +79,7 @@ public class SemanticSearchClient implements SemanticSearchProvider {
             }
             return List.of();
         } catch (RestClientException e) {
-            log.debug("Búsqueda semántica no disponible para '{}': {}", query, e.getMessage());
+            log.debug("Búsqueda semántica ({}) no disponible para '{}': {}", path, query, e.getMessage());
             return List.of();
         }
     }
@@ -82,5 +94,5 @@ public class SemanticSearchClient implements SemanticSearchProvider {
     }
 
     record SemanticResult(String songId, Double score) {}
-    record SemanticSearchResponse(String query, List<SemanticResult> results) {}
+    record SemanticSearchResponse(String query, String expandedQuery, List<SemanticResult> results) {}
 }

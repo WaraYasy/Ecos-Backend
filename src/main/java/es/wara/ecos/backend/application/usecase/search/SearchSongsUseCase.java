@@ -53,8 +53,9 @@ public class SearchSongsUseCase {
         // Lanzar búsqueda semántica en paralelo con la consulta SQL (solo cuando hay texto libre)
         boolean hasQuery = params.q() != null && !params.q().isBlank();
         CompletableFuture<List<UUID>> semanticFuture = hasQuery
-                ? CompletableFuture.supplyAsync(
-                        () -> semanticSearchProvider.search(params.q(), params.pageSize() * 2))
+                ? CompletableFuture.supplyAsync(() -> params.enhanced()
+                        ? semanticSearchProvider.searchEnhanced(params.q(), params.pageSize() * 2)
+                        : semanticSearchProvider.search(params.q(), params.pageSize() * 2))
                 : CompletableFuture.completedFuture(List.of());
 
         Page<Song> result = songRepository.search(params);

@@ -87,6 +87,37 @@ class SemanticSearchClientTest {
     }
 
     @Test
+    void searchEnhanced_success_returnsUuidsAndLogsExpandedQuery() {
+        String json = """
+                {"query":"música para una boda","expandedQuery":"romantic soft acoustic gentle happy uplifting","results":[
+                  {"songId":"%s","score":0.91},
+                  {"songId":"%s","score":0.85}
+                ]}
+                """.formatted(ID_1, ID_2);
+
+        mockServer.expect(requestTo(org.hamcrest.Matchers.containsString("/search/semantic/enhanced")))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("X-API-Key", "test-key"))
+                .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+
+        List<UUID> result = client.searchEnhanced("música para una boda", 10);
+
+        assertThat(result).containsExactly(ID_1, ID_2);
+        mockServer.verify();
+    }
+
+    @Test
+    void searchEnhanced_groqUnavailable_returnsEmptyList() {
+        // El micro devuelve 503 cuando GROQ_API_KEY no está configurada
+        mockServer.expect(requestTo(org.hamcrest.Matchers.containsString("/search/semantic/enhanced")))
+                .andRespond(withServiceUnavailable());
+
+        List<UUID> result = client.searchEnhanced("canciones tristes", 10);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     void search_malformedUuidInResponse_skipsIt() {
         String json = """
                 {"query":"test","results":[

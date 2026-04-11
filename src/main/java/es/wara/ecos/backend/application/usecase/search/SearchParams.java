@@ -20,7 +20,7 @@ import java.math.BigDecimal;
  * </ul>
  *
  * @author Wara Pacheco
- * @version 3.0
+ * @version 3.1
  * @since 1.0.0
  */
 public record SearchParams(
@@ -39,7 +39,8 @@ public record SearchParams(
         BigDecimal valenceMin, BigDecimal valenceMax,
         BigDecimal bpmMin,    BigDecimal bpmMax,
         int pageSize,
-        int page
+        int page,
+        boolean enhanced
 ) {
 
     /** pageSize por defecto 20, máximo 50. page por defecto 0. */
@@ -57,6 +58,7 @@ public record SearchParams(
         private BigDecimal energyMin, energyMax, valenceMin, valenceMax, bpmMin, bpmMax;
         private int pageSize = 20;
         private int page = 0;
+        private boolean enhanced = false;
 
         public Builder q(String v)           { this.q = v;           return this; }
         public Builder artist(String v)      { this.artist = v;      return this; }
@@ -69,12 +71,13 @@ public record SearchParams(
         public Builder texture(String v)     { this.texture = v;     return this; }
         public Builder pageSize(int v)       { this.pageSize = v;    return this; }
         public Builder page(int v)           { this.page = v;        return this; }
+        public Builder enhanced(boolean v)   { this.enhanced = v;    return this; }
 
         public SearchParams build() {
             return new SearchParams(q, artist, aesthetic, genre, decade, year, movie, country,
                     instrumental, texture, mode,
                     energyMin, energyMax, valenceMin, valenceMax, bpmMin, bpmMax,
-                    pageSize, page);
+                    pageSize, page, enhanced);
         }
     }
 }
