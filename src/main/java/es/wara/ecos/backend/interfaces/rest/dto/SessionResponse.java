@@ -17,8 +17,9 @@ public record SessionResponse(
         UUID id,
         UUID userId,
         UUID startSongId,
+        String name,
         LocalDateTime createdAt,
-        List<SessionNodeResponse> nodes
+        List<SessionNodeResponse> songs
 ) {
 
     public static SessionResponse from(ExplorationSession session) {
@@ -26,6 +27,7 @@ public record SessionResponse(
                 session.getId(),
                 session.getUserId(),
                 session.getStartSongId(),
+                session.getName(),
                 session.getCreatedAt(),
                 session.getNodes() != null
                         ? session.getNodes().stream().map(SessionNodeResponse::from).toList()
