@@ -44,4 +44,8 @@ public class AiServiceProperties {
     public String getUrl() {
         return url != null ? url.strip() : null;
     }
+
+    public String getApiKey() {
+        return apiKey != null ? apiKey.strip() : null;
+    }
 }
