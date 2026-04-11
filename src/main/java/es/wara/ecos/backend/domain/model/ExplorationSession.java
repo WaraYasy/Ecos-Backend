@@ -10,11 +10,12 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Representa una sesión de exploración musical de un usuario, compuesta por
- * los nodos del grafo que fue visitando a partir de una canción inicial.
+ * Sesión de exploración musical guardada por el usuario.
+ * Contiene la lista ordenada de canciones visitadas en el grafo.
+ * Cada usuario puede tener un máximo de 2 sesiones guardadas.
  *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 2.0
  * @since 1.0.0
  */
 @Getter
@@ -26,6 +27,7 @@ public class ExplorationSession {
     private UUID id;
     private UUID userId;
     private UUID startSongId;
+    private String name;
     private LocalDateTime createdAt;
     private List<SessionNode> nodes;
 

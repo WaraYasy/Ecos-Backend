@@ -40,4 +40,19 @@ public interface SessionRepository {
      */
     ExplorationSession save(ExplorationSession session);
 
+    /**
+     * Cuenta las sesiones guardadas de un usuario.
+     *
+     * @param userId identificador del usuario
+     * @return número de sesiones del usuario
+     */
+    long countByUserId(UUID userId);
+
+    /**
+     * Elimina una sesión por su identificador.
+     *
+     * @param id identificador de la sesión a eliminar
+     */
+    void delete(UUID id);
+
 }
