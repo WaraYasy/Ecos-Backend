@@ -146,4 +146,25 @@ class SearchControllerTest {
                 .andExpect(jsonPath("$.items[0].title").value("Con Altura"));
     }
 
+    @Test
+    void search_enhancedFalseByDefault_passesEnhancedFalseToUseCase() throws Exception {
+        when(searchSongsUseCase.execute(argThat(p -> !p.enhanced())))
+                .thenReturn(pageOf(List.of(buildSong("Bohemian Rhapsody"))));
+
+        mockMvc.perform(get("/v1/search").param("q", "rock"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void search_enhancedTrue_passesEnhancedTrueToUseCase() throws Exception {
+        when(searchSongsUseCase.execute(argThat(p -> p.enhanced() && "canciones tristes".equals(p.q()))))
+                .thenReturn(pageOf(List.of(buildSong("The Sound of Silence"))));
+
+        mockMvc.perform(get("/v1/search")
+                        .param("q", "canciones tristes")
+                        .param("enhanced", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].title").value("The Sound of Silence"));
+    }
+
 }
