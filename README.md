@@ -18,8 +18,9 @@ Este repositorio contiene el **backend Spring Boot** que alimenta la app.
 |---|---|
 | Framework | Spring Boot 4.0.2 · Java 21 |
 | Base de datos | PostgreSQL 16 + extensión `pgvector` |
-| Migraciones | Flyway (V1–V27) |
+| Migraciones | Flyway (V1–V28) |
 | APIs externas | Spotify · Last.fm · TMDb · MusicBrainz |
+| IA / Semántica | Microservicio Python (FastAPI + pgvector + embeddings) |
 | Seguridad | JWT (jjwt 0.12.6) · BCrypt · Spring Security · OAuth2 Spotify |
 | Caché | Caffeine (in-memory, TTL por capa) |
 | Tests | JUnit 5 · Mockito · Testcontainers · MockRestServiceServer |
@@ -35,6 +36,7 @@ Este repositorio contiene el **backend Spring Boot** que alimenta la app.
   - [Spotify for Developers](https://developer.spotify.com)
   - [The Movie Database (TMDb)](https://www.themoviedb.org/settings/api)
   - [Last.fm API](https://www.last.fm/api/account/create)
+- (Opcional) Microservicio de IA desplegado para búsqueda semántica y recomendaciones
 
 ---
 
@@ -76,6 +78,10 @@ ENCRYPTION_SALT=deadbeefdeadbeef
 
 # Admin (protege /v1/admin/**)
 ADMIN_API_KEY=clave_secreta_larga
+
+# Microservicio de IA (opcional — sin esta variable la búsqueda semántica se omite)
+AI_SERVICE_URL=https://tu-micro-ia.railway.app
+AI_SERVICE_API_KEY=tu_api_key_del_micro
 ```
 
 ### 3. Iniciar PostgreSQL con Docker
@@ -116,32 +122,43 @@ GET    /v1/users/{id}
 PATCH  /v1/users/{id}                      body: {username?, language?}
 PATCH  /v1/users/{id}/password             body: {currentPassword, newPassword}
 
-# Búsqueda multidimensional (cuadrantes combinables)
+# Búsqueda multidimensional
 GET  /v1/search?q=&aesthetic=&decade=&movie=&genre=&country=&instrumental=&...
+GET  /v1/search?q=canciones+tristes&enhanced=true   # modo imaginario (LLM)
+
+# Sugerencias (autocompletado)
+GET  /v1/suggestions?type=movie|aesthetic|genre|artist|country&q=
 
 # Canciones
 GET  /v1/songs/{id}
 GET  /v1/songs/{id}/related
 
+# Interacciones
+POST /v1/interactions                      body: {songId, action, durationMs?}
+
+# Recomendaciones
+GET  /v1/recommendations
+GET  /v1/recommendations/crossover?userBId=
+
 # Playlists
 GET    /v1/playlists
 POST   /v1/playlists
 GET    /v1/playlists/{id}
+PATCH  /v1/playlists/{id}                  body: {name?, description?}
 DELETE /v1/playlists/{id}
 POST   /v1/playlists/{id}/songs
 DELETE /v1/playlists/{id}/songs/{songId}
 POST   /v1/playlists/{id}/export/spotify
 
-# Grafo
-GET  /v1/graph?songId=
+# Sesiones del grafo
+GET  /v1/sessions
+POST /v1/sessions                          body: {startSongId}
+GET  /v1/sessions/{id}
+POST /v1/sessions/{id}/nodes               body: {songId, x, y}
 
 # OAuth Spotify
-GET  /v1/auth/spotify                      inicia login con Spotify (público)
 GET  /v1/auth/spotify/login                vincula cuenta Spotify (🔒)
 GET  /callback/spotify                     callback OAuth (solo Spotify → backend)
-
-# Admin
-POST /v1/admin/songs/import                importar CSV (requiere X-Admin-Key)
 
 # Diagnóstico
 GET  /health
@@ -156,21 +173,37 @@ Documentación completa: `docs/API_ENDPOINTS.md`
 
 ---
 
+## Búsqueda semántica
+
+El backend integra un **microservicio de IA** (FastAPI + Python) para búsqueda vectorial y recomendaciones personalizadas. La integración es opcional y tolerante a fallos: si el micro no está disponible, los resultados de BD se devuelven sin error.
+
+| Modo | Parámetro | Descripción |
+|---|---|---|
+| Semántica directa | `enhanced=false` (defecto) | Codifica la query y busca vectores más cercanos |
+| Modo imaginario | `enhanced=true` | Un LLM expande la query a keywords antes de buscar — ideal para frases evocadoras como "canciones tristes" o "música para una boda" |
+
+Los resultados del micro se **mezclan con los de BD** (merge híbrido): los matches semánticos aparecen primero ordenados por score, seguidos de los resultados de BD sin match semántico.
+
+---
+
 ## Tests
 
 ```bash
+# Tests unitarios y de slice (sin Docker)
+./mvnw test -Dgroups="!functional"
+
 # Suite completa (requiere Docker para Testcontainers)
 ./mvnw test
 ```
 
 | Suite | Tests |
 |---|---|
-| Use cases (Mockito) | 24 |
-| Controllers (`@WebMvcTest`) | 46 |
-| SpotifyClient (MockRestServiceServer) | 5 |
-| Funcionales (Testcontainers) | 54 |
+| Use cases (Mockito) | 27 |
+| Controllers (`@WebMvcTest`) | 48 |
+| SemanticSearchClient (MockRestServiceServer) | 7 |
+| Funcionales (Testcontainers) | 18 |
 | BackendApplicationTests | 1 |
-| **Total** | **273** |
+| **Total** | **~305** |
 
 Los tests funcionales arrancan un contenedor PostgreSQL real. Requieren Docker Desktop en ejecución.
 
@@ -182,9 +215,9 @@ El backend sigue la **arquitectura hexagonal (Ports & Adapters)**:
 
 ```
 interfaces/rest/   ← Controllers, DTOs, GlobalExceptionHandler
-application/       ← Use cases, MusicAggregationService
+application/       ← Use cases, SongIngestionService, MusicAggregationService
 domain/            ← Models, Ports — sin Spring ni JPA
-infrastructure/    ← JPA, Adapters (Spotify/Last.fm/TMDb/MusicBrainz), JWT, Caché
+infrastructure/    ← JPA, Adapters (Spotify/Last.fm/TMDb/MusicBrainz/AI), JWT, Caché
 ```
 
 El dominio no depende de nada externo. La infraestructura implementa los Ports del dominio (inversión de dependencia).
@@ -209,3 +242,5 @@ El dominio no depende de nada externo. La infraestructura implementa los Ports d
 | `ADMIN_API_KEY` | Clave para proteger `/v1/admin/**` (mín. 32 chars recomendado) | Sí |
 | `CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma | No (default: localhost) |
 | `APP_DEEP_LINK_SCHEME` | Scheme del deep link móvil (default: `ecos`) | No |
+| `AI_SERVICE_URL` | URL base del microservicio de IA (sin barra final) | No |
+| `AI_SERVICE_API_KEY` | API key del microservicio de IA | No |
