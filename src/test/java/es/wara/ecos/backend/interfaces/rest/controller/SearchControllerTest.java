@@ -1,6 +1,9 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.search.SearchSongsUseCase;
+import es.wara.ecos.backend.config.SearchSuggestionsProperties;
+import es.wara.ecos.backend.config.SearchSuggestionsProperties.SuggestionItem;
+import es.wara.ecos.backend.config.SearchSuggestionsProperties.SuggestionParams;
 import es.wara.ecos.backend.domain.model.Page;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
@@ -12,11 +15,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -30,6 +34,7 @@ class SearchControllerTest {
     @MockitoBean JwtAuthFilter jwtAuthFilter;
     @MockitoBean RateLimitFilter rateLimitFilter;
     @MockitoBean SearchSongsUseCase searchSongsUseCase;
+    @MockitoBean SearchSuggestionsProperties suggestionsProperties;
 
     private Song buildSong(String title) {
         Song s = new Song();
@@ -165,6 +170,71 @@ class SearchControllerTest {
                         .param("enhanced", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].title").value("The Sound of Silence"));
+    }
+
+    // ─── GET /v1/search/suggestions ───────────────────────────────────────────
+
+    private SuggestionItem buildItem(String label, String genre, String q) {
+        SuggestionParams params = new SuggestionParams();
+        params.setGenre(genre);
+        params.setQ(q);
+        SuggestionItem item = new SuggestionItem();
+        item.setLabel(label);
+        item.setParams(params);
+        return item;
+    }
+
+    @Test
+    void searchSuggestions_returnsAllItems() throws Exception {
+        when(suggestionsProperties.getItems()).thenReturn(List.of(
+                buildItem("Tarde de jazz", "jazz", null),
+                buildItem("Rock de los 80", "rock", null)
+        ));
+
+        mockMvc.perform(get("/v1/search/suggestions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].label").value("Tarde de jazz"))
+                .andExpect(jsonPath("$[1].label").value("Rock de los 80"));
+    }
+
+    @Test
+    void searchSuggestions_emptyList_returnsEmptyArray() throws Exception {
+        when(suggestionsProperties.getItems()).thenReturn(List.of());
+
+        mockMvc.perform(get("/v1/search/suggestions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void searchSuggestions_nullParamsOmittedFromJson() throws Exception {
+        when(suggestionsProperties.getItems()).thenReturn(List.of(
+                buildItem("Estudiar bajo la lluvia", null, "study lofi rain")
+        ));
+
+        mockMvc.perform(get("/v1/search/suggestions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].params.q").value("study lofi rain"))
+                .andExpect(jsonPath("$[0].params.genre").doesNotExist());
+    }
+
+    @Test
+    void searchSuggestions_energyParamsSerializedCorrectly() throws Exception {
+        SuggestionParams params = new SuggestionParams();
+        params.setGenre("hiphop");
+        params.setEnergyMin(new BigDecimal("0.7"));
+        SuggestionItem item = new SuggestionItem();
+        item.setLabel("Hip-hop para entrenar");
+        item.setParams(params);
+
+        when(suggestionsProperties.getItems()).thenReturn(List.of(item));
+
+        mockMvc.perform(get("/v1/search/suggestions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].params.energyMin").value(0.7))
+                .andExpect(jsonPath("$[0].params.energyMax").doesNotExist());
     }
 
 }
