@@ -1,0 +1,41 @@
+suggestions:
+  items:
+    - label: "Estudiar bajo la lluvia"
+      params:
+        q: "study lofi rain"
+        enhanced: true
+
+    - label: "Tarde de jazz tranquilo"
+      params:
+        genre: jazz
+        texture: acoustic
+
+    - label: "Rock de los 80"
+      params:
+        genre: rock
+        decade: "1980s"
+
+    - label: "Electrónica para concentrarse"
+      params:
+        aesthetic: "dark academia"
+        genre: electronic
+
+    - label: "Indie melancólico"
+      params:
+        genre: indie
+        mode: minor
+
+    - label: "Música de película"
+      params:
+        texture: orchestral
+        instrumental: true
+
+    - label: "Verano y buen rollo"
+      params:
+        genre: pop
+        mode: major
+
+    - label: "Hip-hop para entrenar"
+      params:
+        genre: hiphop
+        energyMin: 0.7
