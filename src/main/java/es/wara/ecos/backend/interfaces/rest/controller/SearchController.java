@@ -2,7 +2,9 @@ package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.search.SearchParams;
 import es.wara.ecos.backend.application.usecase.search.SearchSongsUseCase;
+import es.wara.ecos.backend.config.SearchSuggestionsProperties;
 import es.wara.ecos.backend.interfaces.rest.dto.PageResponse;
+import es.wara.ecos.backend.interfaces.rest.dto.SearchSuggestionResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.SongResponse;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Controlador REST para la búsqueda multidimensional de canciones (5 cuadrantes de ECOS).
@@ -30,13 +33,26 @@ import java.math.BigDecimal;
 public class SearchController {
 
     private final SearchSongsUseCase searchSongsUseCase;
-    /**
-     * Inyecta el caso de uso que ejecuta la búsqueda multidimensional.
-     *
-     * @param searchSongsUseCase caso de uso de búsqueda de canciones por 5 cuadrantes
-     */
-    public SearchController(SearchSongsUseCase searchSongsUseCase) {
+    private final SearchSuggestionsProperties suggestionsProperties;
+
+    public SearchController(SearchSongsUseCase searchSongsUseCase,
+                            SearchSuggestionsProperties suggestionsProperties) {
         this.searchSongsUseCase = searchSongsUseCase;
+        this.suggestionsProperties = suggestionsProperties;
+    }
+
+    /**
+     * Devuelve las sugerencias de búsqueda predefinidas.
+     * La lista se configura en {@code suggestions.yml} y puede actualizarse
+     * sin redesplegar montando un fichero externo en {@code /config/suggestions.yml}.
+     */
+    @GetMapping("/suggestions")
+    public ResponseEntity<List<SearchSuggestionResponse>> suggestions() {
+        List<SearchSuggestionResponse> items = suggestionsProperties.getItems()
+                .stream()
+                .map(SearchSuggestionResponse::from)
+                .toList();
+        return ResponseEntity.ok(items);
     }
 
     /**

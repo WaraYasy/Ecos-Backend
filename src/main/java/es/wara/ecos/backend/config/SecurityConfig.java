@@ -61,6 +61,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/v1/users").permitAll()
                 .requestMatchers(HttpMethod.GET, "/v1/auth/spotify").permitAll()
                 .requestMatchers(HttpMethod.GET, "/callback/spotify").permitAll()
+                .requestMatchers(HttpMethod.GET, "/v1/search/suggestions").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/health").permitAll()
                 .requestMatchers("/v1/admin/**").permitAll()   // auth delegada a AdminApiKeyFilter
