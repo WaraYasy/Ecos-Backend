@@ -267,11 +267,18 @@ public class CsvImportRunner {
         audioFeaturesRepo.save(af);
     }
 
+    private static final int TAG_MAX_LENGTH = 255;
+
     private void createTag(CSVRecord r, SongEntity song) {
         String genre = safeGet(r, "genre_hint");
         if (genre == null || genre.isBlank()) return;
 
-        SongTagId id  = new SongTagId(song.getId(), genre.toLowerCase().trim());
+        String normalized = genre.toLowerCase().trim();
+        if (normalized.length() > TAG_MAX_LENGTH) {
+            normalized = normalized.substring(0, TAG_MAX_LENGTH);
+        }
+
+        SongTagId id  = new SongTagId(song.getId(), normalized);
         SongTagEntity tag = new SongTagEntity();
         tag.setId(id);
         tag.setSong(song);
