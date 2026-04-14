@@ -61,7 +61,7 @@ public class SearchSongsUseCase {
         Page<Song> result = songRepository.search(params);
         log.info("  BD → {} items", result.items().size());
 
-        if (result.items().size() < MIN_RESULTS_THRESHOLD && isOnDemandQuadrant(params)) {
+        if (result.items().size() < MIN_RESULTS_THRESHOLD && isOnDemandQuadrant(params) && shouldIngest(params)) {
             log.info("  → bajo umbral ({} < {}), fetch on-demand", result.items().size(), MIN_RESULTS_THRESHOLD);
             ingestionService.ingest(params);
             result = songRepository.search(params);
@@ -96,16 +96,13 @@ public class SearchSongsUseCase {
 
         Set<UUID> dbIds = dbMap.keySet();
 
-        // IDs semánticos que no están en la página SQL → fetch adicional (1 query IN)
+        // IDs semánticos que no están en la página SQL → fetch en batch (1 query IN)
         List<UUID> missingIds = semanticIds.stream()
                 .filter(id -> !dbIds.contains(id))
                 .collect(java.util.stream.Collectors.toList());
 
         if (!missingIds.isEmpty()) {
-            missingIds.stream()
-                    .map(songRepository::findById)
-                    .filter(java.util.Optional::isPresent)
-                    .map(java.util.Optional::get)
+            songRepository.findAllById(missingIds)
                     .forEach(s -> { if (s.getId() != null) dbMap.put(s.getId(), s); });
         }
 
@@ -133,6 +130,20 @@ public class SearchSongsUseCase {
         }
 
         return new Page<>(merged, page.page(), page.pageSize(), page.total());
+    }
+
+    /**
+     * Cuando enhanced=true y el único cuadrante on-demand activo es q libre,
+     * la ingesta no tiene sentido: Spotify no entiende queries evocadoras como
+     * "canciones parecidas a X" o "música para una boda".
+     * El micro semántico ya gestiona esas intenciones devolviendo UUIDs directamente.
+     */
+    private boolean shouldIngest(SearchParams params) {
+        if (!params.enhanced()) return true;
+        boolean hasConcreteOnDemand = (params.movie()  != null && !params.movie().isBlank())
+                                   || (params.artist() != null && !params.artist().isBlank())
+                                   || (params.year()   != null && !params.year().isBlank());
+        return hasConcreteOnDemand;
     }
 
     /**
