@@ -19,6 +19,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -233,8 +234,8 @@ class SearchSongsUseCaseTest {
         // micro devuelve X primero (mayor score), luego A
         when(semanticSearchProvider.search(anyString(), anyInt()))
                 .thenReturn(List.of(idX, idA));
-        // X no estaba en la página, se fetchea por ID
-        when(songRepository.findById(idX)).thenReturn(Optional.of(x));
+        // X no estaba en la página, se fetchea en batch
+        when(songRepository.findAllById(anyList())).thenReturn(List.of(x));
 
         Page<Song> result = useCase.execute(p);
 
@@ -254,7 +255,7 @@ class SearchSongsUseCaseTest {
         when(songRepository.search(p)).thenReturn(pageOf(List.of(a)));
         when(semanticSearchProvider.search(anyString(), anyInt()))
                 .thenReturn(List.of(idX, idA));
-        when(songRepository.findById(idX)).thenReturn(Optional.empty());
+        // findAllById devuelve lista vacía (X no existe en BD) — comportamiento por defecto del mock
 
         Page<Song> result = useCase.execute(p);
 
@@ -277,7 +278,8 @@ class SearchSongsUseCaseTest {
         when(songRepository.search(p)).thenReturn(new Page<>(List.of(a, b), 0, 2, 2));
         when(semanticSearchProvider.search(anyString(), anyInt()))
                 .thenReturn(List.of(idX, idA));
-        when(songRepository.findById(idX)).thenReturn(Optional.of(x));
+        // X no estaba en la página BD, se fetchea en batch
+        when(songRepository.findAllById(anyList())).thenReturn(List.of(x));
 
         Page<Song> result = useCase.execute(p);
 

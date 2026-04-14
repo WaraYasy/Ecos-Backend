@@ -26,6 +26,15 @@ public interface SongRepository {
     Optional<Song> findById(UUID id);
 
     /**
+     * Busca múltiples canciones por sus identificadores en una sola query IN.
+     * Usar en lugar de N llamadas a {@link #findById} para evitar el problema N+1.
+     *
+     * @param ids lista de identificadores a buscar
+     * @return lista de canciones encontradas (puede ser menor que ids si alguno no existe)
+     */
+    List<Song> findAllById(List<UUID> ids);
+
+    /**
      * Busca una canción por su identificador de Spotify.
      *
      * @param spotifyId identificador único de Spotify

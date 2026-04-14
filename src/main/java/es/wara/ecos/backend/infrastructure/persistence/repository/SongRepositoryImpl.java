@@ -108,6 +108,15 @@ public class SongRepositoryImpl implements SongRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Song> findAllById(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return jpa.findAllById(ids).stream()
+                .map(mapper::toModel)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<Song> findBySpotifyId(String spotifyId) {
         return jpa.findBySpotifyId(spotifyId).map(mapper::toModel);
     }
