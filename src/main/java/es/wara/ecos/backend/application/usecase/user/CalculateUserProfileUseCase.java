@@ -5,7 +5,9 @@ import es.wara.ecos.backend.domain.model.MusicProfile;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.SessionRepository;
 import es.wara.ecos.backend.domain.port.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StopWatch;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
  * @version 1.0
  * @since 1.0.0
  */
+@Slf4j
 @Service
 public class CalculateUserProfileUseCase {
 
@@ -45,12 +48,28 @@ public class CalculateUserProfileUseCase {
      * @throws IllegalArgumentException si el usuario no existe
      */
     public MusicProfile execute(UUID userId) {
+        log.debug("CalculateUserProfile: inicio userId={}", userId);
+        StopWatch sw = new StopWatch("CalculateUserProfile");
+
+        sw.start("findUser");
         userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
+        sw.stop();
 
-        List<Song> songs = collectSongsFromSessions(sessionRepository.findByUserId(userId));
+        sw.start("fetchSessions");
+        List<ExplorationSession> sessions = sessionRepository.findByUserId(userId);
+        sw.stop();
+        log.debug("CalculateUserProfile: {} sesiones cargadas para userId={} → {}ms",
+                sessions.size(), userId, sw.getLastTaskTimeMillis());
 
-        return new MusicProfile(
+        sw.start("collectSongs");
+        List<Song> songs = collectSongsFromSessions(sessions);
+        sw.stop();
+        log.debug("CalculateUserProfile: {} canciones únicas extraídas → {}ms",
+                songs.size(), sw.getLastTaskTimeMillis());
+
+        sw.start("calculations");
+        MusicProfile profile = new MusicProfile(
                 userId,
                 calculateAvgEnergy(songs),
                 calculateHarmonicRichness(songs),
@@ -58,6 +77,16 @@ public class CalculateUserProfileUseCase {
                 calculateFavoriteEras(songs),
                 calculateTopGenres(songs)
         );
+        sw.stop();
+
+        long total = sw.getTotalTimeMillis();
+        if (total > 500) {
+            log.warn("CalculateUserProfile: LENTO userId={} | total={}ms | desglose: {}",
+                    userId, total, sw.prettyPrint());
+        } else {
+            log.debug("CalculateUserProfile: completado userId={} → {}ms total", userId, total);
+        }
+        return profile;
     }
 
     /** Extrae todas las canciones únicas de las sesiones del usuario. */

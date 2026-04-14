@@ -4,7 +4,9 @@ import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaUserRepository;
 import es.wara.ecos.backend.infrastructure.persistence.mapper.UserMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StopWatch;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +18,7 @@ import java.util.UUID;
  * @version 1.0
  * @since 1.0.0
  */
+@Slf4j
 @Repository
 public class UserRepositoryImpl implements UserRepository {
 
@@ -29,7 +32,17 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public Optional<User> findById(UUID id) {
-        return jpa.findById(id).map(mapper::toModel);
+        StopWatch sw = new StopWatch();
+        sw.start();
+        Optional<User> result = jpa.findById(id).map(mapper::toModel);
+        sw.stop();
+        long ms = sw.getTotalTimeMillis();
+        if (ms > 100) {
+            log.warn("UserRepository.findById: consulta lenta id={} → {}ms", id, ms);
+        } else {
+            log.debug("UserRepository.findById: id={} → {}ms (encontrado={})", id, ms, result.isPresent());
+        }
+        return result;
     }
 
     @Override

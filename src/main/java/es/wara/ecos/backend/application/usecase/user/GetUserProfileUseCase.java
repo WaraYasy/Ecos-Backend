@@ -2,7 +2,9 @@ package es.wara.ecos.backend.application.usecase.user;
 
 import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StopWatch;
 
 import java.util.UUID;
 
@@ -13,6 +15,7 @@ import java.util.UUID;
  * @version 1.0
  * @since 1.0.0
  */
+@Slf4j
 @Service
 public class GetUserProfileUseCase {
 
@@ -30,8 +33,21 @@ public class GetUserProfileUseCase {
      * @throws IllegalArgumentException si el usuario no existe
      */
     public User execute(UUID userId) {
-        return userRepository.findById(userId)
+        log.debug("GetUserProfile: buscando usuario userId={}", userId);
+        StopWatch sw = new StopWatch();
+        sw.start();
+
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
+
+        sw.stop();
+        long ms = sw.getTotalTimeMillis();
+        if (ms > 200) {
+            log.warn("GetUserProfile: consulta lenta userId={} → {}ms", userId, ms);
+        } else {
+            log.debug("GetUserProfile: completado userId={} → {}ms", userId, ms);
+        }
+        return user;
     }
 
 }
