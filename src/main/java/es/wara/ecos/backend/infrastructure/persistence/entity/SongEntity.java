@@ -13,12 +13,29 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Entidad JPA que mapea la tabla songs, con relaciones a albums, artists (song_artists), audio_features y song_tags.
+ * Entidad JPA que mapea la tabla {@code songs}.
+ * <p>
+ * Agrega las relaciones principales de una canción: álbum, artistas
+ * ({@code song_artists}), características de audio ({@code audio_features}),
+ * etiquetas de género ({@code song_tags}) y películas asociadas
+ * ({@code song_movies}).
+ * </p>
+ * <p>
+ * Estrategia de carga lazy con batch para evitar N+1:
+ * <ul>
+ *   <li>{@code @BatchSize(50)} a nivel de clase → carga en batch cuando
+ *       múltiples canciones se resuelven desde relaciones {@code @ManyToOne}
+ *       (p. ej. nodos de sesión).</li>
+ *   <li>{@code @BatchSize(25)} en {@code artists}, {@code tags} y
+ *       {@code movies} → sus colecciones se agrupan en bloques de 25.</li>
+ * </ul>
+ * </p>
  *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 1.1
  * @since 1.0.0
  */
+@BatchSize(size = 50)
 @Entity
 @Table(name = "songs")
 @Getter
