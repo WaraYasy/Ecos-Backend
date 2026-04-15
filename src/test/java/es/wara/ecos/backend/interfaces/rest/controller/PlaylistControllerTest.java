@@ -123,6 +123,28 @@ class PlaylistControllerTest {
     }
 
     @Test
+    void getById_ownPlaylist_returns200() throws Exception {
+        when(getPlaylistByIdUseCase.execute(PLAYLIST_ID)).thenReturn(buildPlaylist(null));
+
+        mockMvc.perform(get("/v1/playlists/" + PLAYLIST_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(PLAYLIST_ID.toString()))
+                .andExpect(jsonPath("$.name").value("Mi playlist"));
+    }
+
+    @Test
+    void getById_foreignPlaylist_returns403() throws Exception {
+        // La playlist pertenece a otro usuario — el usuario autenticado no debe poder leerla
+        UUID otherUserId = UUID.fromString("00000000-0000-0000-0000-000000000099");
+        Playlist foreignPlaylist = new Playlist(PLAYLIST_ID, otherUserId, "Ajena", null, null, LocalDateTime.now(), List.of());
+        when(getPlaylistByIdUseCase.execute(PLAYLIST_ID)).thenReturn(foreignPlaylist);
+
+        mockMvc.perform(get("/v1/playlists/" + PLAYLIST_ID))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+    }
+
+    @Test
     void getById_nonExistingPlaylist_returns404() throws Exception {
         when(getPlaylistByIdUseCase.execute(UNKNOWN_ID))
                 .thenThrow(new IllegalArgumentException("Playlist no encontrada: " + UNKNOWN_ID));

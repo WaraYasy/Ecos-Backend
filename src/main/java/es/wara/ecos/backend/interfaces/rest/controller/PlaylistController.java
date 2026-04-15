@@ -98,13 +98,19 @@ public class PlaylistController {
 
     /**
      * Devuelve los detalles de una playlist por su ID, incluyendo sus canciones.
+     * Solo el propietario puede acceder a ella.
      *
      * @param id identificador de la playlist
-     * @return {@code 200 OK} con la playlist, o {@code 404} si no existe
+     * @return {@code 200 OK} con la playlist, {@code 403} si no es el propietario,
+     *         o {@code 404} si no existe
      */
     @GetMapping("/{id}")
     public ResponseEntity<PlaylistResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(PlaylistResponse.from(getPlaylistByIdUseCase.execute(id)));
+        Playlist playlist = getPlaylistByIdUseCase.execute(id);
+        if (!playlist.getUserId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new ForbiddenException("No tienes permiso para acceder a esta playlist");
+        }
+        return ResponseEntity.ok(PlaylistResponse.from(playlist));
     }
 
     /**
