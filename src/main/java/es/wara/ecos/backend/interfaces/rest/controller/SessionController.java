@@ -4,6 +4,7 @@ import es.wara.ecos.backend.application.usecase.session.CreateExplorationSession
 import es.wara.ecos.backend.application.usecase.session.DeleteSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionByIdUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase;
+import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.ExplorationSession;
 import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import es.wara.ecos.backend.interfaces.rest.dto.CreateSessionRequest;
@@ -69,7 +70,11 @@ public class SessionController {
 
     @GetMapping("/{id}")
     public ResponseEntity<SessionResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(SessionResponse.from(getSessionByIdUseCase.execute(id)));
+        ExplorationSession session = getSessionByIdUseCase.execute(id);
+        if (!session.getUserId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new ForbiddenException("No tienes permiso para acceder a esta sesión");
+        }
+        return ResponseEntity.ok(SessionResponse.from(session));
     }
 
     @DeleteMapping("/{id}")

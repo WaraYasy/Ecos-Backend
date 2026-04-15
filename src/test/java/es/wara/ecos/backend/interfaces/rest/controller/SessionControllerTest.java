@@ -119,12 +119,26 @@ class SessionControllerTest {
     }
 
     @Test
-    void getById_existingSession_returns200() throws Exception {
+    void getById_ownSession_returns200() throws Exception {
         when(getSessionByIdUseCase.execute(SESSION_ID)).thenReturn(session("Rock 70s"));
 
         mockMvc.perform(get("/v1/sessions/" + SESSION_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Rock 70s"));
+                .andExpect(jsonPath("$.name").value("Rock 70s"))
+                .andExpect(jsonPath("$.id").value(SESSION_ID.toString()));
+    }
+
+    @Test
+    void getById_foreignSession_returns403() throws Exception {
+        // La sesión pertenece a otro usuario — el usuario autenticado no debe poder leerla
+        UUID otherUserId = UUID.fromString("00000000-0000-0000-0000-000000000099");
+        ExplorationSession foreignSession = new ExplorationSession(
+                SESSION_ID, otherUserId, SONG_A, "Sesión ajena", LocalDateTime.now(), List.of());
+        when(getSessionByIdUseCase.execute(SESSION_ID)).thenReturn(foreignSession);
+
+        mockMvc.perform(get("/v1/sessions/" + SESSION_ID))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("FORBIDDEN"));
     }
 
     @Test
