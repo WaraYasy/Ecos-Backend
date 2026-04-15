@@ -49,14 +49,15 @@ public class SessionRepositoryImpl implements SessionRepository {
         log.debug("SessionRepository.findByUserId: {} sesiones en BD → {}ms (userId={})",
                 entities.size(), sw.getTotalTimeMillis(), userId);
 
-        // La siguiente fase resuelve los lazy: nodes → song → album/audioFeatures/tags
-        // Si hay muchas sesiones con muchas canciones puede generar N+1 queries aquí.
+        // Resolución lazy: nodes → song → album/audioFeatures/tags.
+        // @BatchSize(50) en ExplorationSessionEntity.nodes y en SongEntity (clase)
+        // agrupa las cargas con WHERE id IN (...), evitando N+1.
         sw.start();
         List<ExplorationSession> result = entities.stream()
                 .map(mapper::toModel)
                 .toList();
         sw.stop();
-        log.debug("SessionRepository.findByUserId: mapping completado → {}ms (incluye lazy loading)",
+        log.debug("SessionRepository.findByUserId: mapping completado → {}ms (lazy resuelto en batch)",
                 sw.getLastTaskTimeMillis());
 
         return result;
