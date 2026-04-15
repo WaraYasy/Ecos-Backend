@@ -8,6 +8,7 @@ import es.wara.ecos.backend.domain.service.SimilarityService;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Construye el grafo neuronal inicial a partir de una canción raíz.
@@ -50,11 +51,18 @@ public class BuildGraphUseCase {
 
     /**
      * Genera el grafo desde la canción raíz.
+n     * <p>
+     * Los candidatos se recuperan en una sola query batch con
+     * {@code findAllById} para evitar N+1. Las posiciones se calculan
+     * en layout polar: raíz en (0,0), vecinos en círculo a distancia
+     * proporcional a {@code (1 − similitud) × LAYOUT_RADIUS}.
+     * </p>
      *
      * @param rootSongId identificador de la canción raíz
      * @param maxNodes   número máximo de nodos vecinos (tope: {@value MAX_NODES})
-     * @return grafo con nodos posicionados y aristas tipificadas
-     * @throws IllegalArgumentException si la canción no existe
+     * @return {@link GraphResponse} con nodos posicionados, aristas tipificadas
+     *         y el ID de la canción raíz
+     * @throws IllegalArgumentException si la canción raíz no existe en la BD
      */
     public GraphResponse execute(UUID rootSongId, int maxNodes) {
         int limit = Math.min(maxNodes, MAX_NODES);
@@ -97,8 +105,10 @@ public class BuildGraphUseCase {
 
     private List<ScoredSong> score(Song root, float[] rootEmbedding,
                                    List<UUID> candidateIds, int limit) {
+        Map<UUID, Song> byId = songRepository.findAllById(candidateIds).stream()
+                .collect(Collectors.toMap(Song::getId, s -> s));
         return candidateIds.stream()
-                .map(id -> songRepository.findById(id).orElse(null))
+                .map(byId::get)
                 .filter(Objects::nonNull)
                 .map(candidate -> {
                     float[] candEmb = embeddingRepository.findBySongId(candidate.getId())

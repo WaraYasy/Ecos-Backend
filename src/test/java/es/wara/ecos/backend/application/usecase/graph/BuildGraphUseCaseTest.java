@@ -94,8 +94,7 @@ class BuildGraphUseCaseTest {
                 .thenReturn(List.of(apiSong1, apiSong2));
         when(songRepository.findBySpotifyId("spotify-cand1")).thenReturn(Optional.of(cand1));
         when(songRepository.findBySpotifyId("spotify-cand2")).thenReturn(Optional.of(cand2));
-        when(songRepository.findById(CAND1_ID)).thenReturn(Optional.of(cand1));
-        when(songRepository.findById(CAND2_ID)).thenReturn(Optional.of(cand2));
+        when(songRepository.findAllById(anyList())).thenReturn(List.of(cand1, cand2));
         when(embeddingRepository.findBySongId(CAND1_ID)).thenReturn(Optional.empty());
         when(embeddingRepository.findBySongId(CAND2_ID)).thenReturn(Optional.empty());
 
@@ -117,7 +116,7 @@ class BuildGraphUseCaseTest {
                 .thenReturn(Optional.of(embedding(ROOT_ID, rootEmb)));
         when(embeddingRepository.findNearestNeighbors(any(), anyInt(), anyList()))
                 .thenReturn(List.of(CAND1_ID));
-        when(songRepository.findById(CAND1_ID)).thenReturn(Optional.of(cand1));
+        when(songRepository.findAllById(anyList())).thenReturn(List.of(cand1));
         when(embeddingRepository.findBySongId(CAND1_ID)).thenReturn(Optional.empty());
 
         GraphResponse result = useCase.execute(ROOT_ID, 8);
@@ -150,7 +149,7 @@ class BuildGraphUseCaseTest {
         when(embeddingRepository.findBySongId(ROOT_ID)).thenReturn(Optional.empty());
         when(musicProvider.getSimilarSongs(anyString(), anyString(), anyInt())).thenReturn(List.of(apiSong1));
         when(songRepository.findBySpotifyId("spotify-cand1")).thenReturn(Optional.of(cand1));
-        when(songRepository.findById(CAND1_ID)).thenReturn(Optional.of(cand1));
+        when(songRepository.findAllById(anyList())).thenReturn(List.of(cand1));
         when(embeddingRepository.findBySongId(CAND1_ID)).thenReturn(Optional.empty());
 
         GraphResponse result = useCase.execute(ROOT_ID, 8);

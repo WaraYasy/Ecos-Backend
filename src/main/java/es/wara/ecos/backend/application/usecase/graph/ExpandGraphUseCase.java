@@ -8,6 +8,7 @@ import es.wara.ecos.backend.domain.service.SimilarityService;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Expande el grafo añadiendo nuevos nodos a partir de un nodo existente.
@@ -41,12 +42,19 @@ public class ExpandGraphUseCase {
 
     /**
      * Expande el grafo desde el nodo indicado.
+     * <p>
+     * Excluye automáticamente {@code existingIds} y {@code targetSongId} de los
+     * candidatos para evitar duplicar nodos ya visibles en el cliente.
+     * Los candidatos se cargan en una sola query batch con {@code findAllById}.
+     * </p>
      *
-     * @param targetSongId   canción desde la que se expande
-     * @param existingIds    IDs ya presentes en el grafo (se excluyen de los resultados)
-     * @param maxNewNodes    máximo de nodos nuevos a añadir (tope: {@value MAX_NEW_NODES})
-     * @return grafo parcial con los nodos y aristas nuevos
-     * @throws IllegalArgumentException si la canción no existe
+     * @param targetSongId canción desde la que se expande
+     * @param existingIds  IDs ya presentes en el grafo del cliente (se excluyen
+     *                     de los resultados; puede ser vacío pero no null)
+     * @param maxNewNodes  máximo de nodos nuevos a añadir (tope: {@value MAX_NEW_NODES})
+     * @return {@link GraphResponse} parcial con solo los nodos y aristas nuevos
+     *         a fusionar en el grafo del cliente
+     * @throws IllegalArgumentException si la canción destino no existe en la BD
      */
     public GraphResponse execute(UUID targetSongId, List<UUID> existingIds, int maxNewNodes) {
         int limit = Math.min(maxNewNodes, MAX_NEW_NODES);
@@ -62,8 +70,10 @@ public class ExpandGraphUseCase {
 
         List<UUID> candidateIds = findCandidates(target, targetEmbedding, excluded, limit * 3);
 
+        Map<UUID, Song> byId = songRepository.findAllById(candidateIds).stream()
+                .collect(Collectors.toMap(Song::getId, s -> s));
         List<ScoredSong> scored = candidateIds.stream()
-                .map(id -> songRepository.findById(id).orElse(null))
+                .map(byId::get)
                 .filter(Objects::nonNull)
                 .map(candidate -> {
                     float[] candEmb = embeddingRepository.findBySongId(candidate.getId())
