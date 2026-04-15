@@ -14,8 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Implementación del puerto de dominio PlaylistRepository usando JPA.
@@ -59,14 +61,25 @@ public class PlaylistRepositoryImpl implements PlaylistRepository {
     @Override
     @Transactional(readOnly = true)
     public List<Playlist> findByUserId(UUID userId) {
-        return jpa.findByUser_Id(userId).stream()
+        List<PlaylistEntity> entities = jpa.findByUser_Id(userId);
+        if (entities.isEmpty()) return List.of();
+
+        // 2 queries totales en vez de N+1:
+        // 1) findByUser_Id → todas las playlists del usuario.
+        // 2) findByPlaylistIdIn → todas sus canciones con LEFT JOIN FETCH,
+        //    agrupadas en memoria por playlistId.
+        List<UUID> playlistIds = entities.stream().map(PlaylistEntity::getId).toList();
+        Map<UUID, List<es.wara.ecos.backend.domain.model.Song>> songsByPlaylist =
+                jpaPlaylistSong.findByPlaylistIdIn(playlistIds).stream()
+                        .collect(Collectors.groupingBy(
+                                ps -> ps.getId().getPlaylistId(),
+                                Collectors.mapping(ps -> songMapper.toModel(ps.getSong()), Collectors.toList())
+                        ));
+
+        return entities.stream()
                 .map(entity -> {
                     Playlist playlist = mapper.toModel(entity);
-                    List<es.wara.ecos.backend.domain.model.Song> songs =
-                            jpaPlaylistSong.findById_PlaylistIdOrderByPosition(entity.getId()).stream()
-                                    .map(ps -> songMapper.toModel(ps.getSong()))
-                                    .toList();
-                    playlist.setSongs(songs);
+                    playlist.setSongs(songsByPlaylist.getOrDefault(entity.getId(), List.of()));
                     return playlist;
                 })
                 .toList();

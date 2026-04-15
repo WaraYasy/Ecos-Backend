@@ -21,6 +21,9 @@ public interface JpaPlaylistSongRepository extends JpaRepository<PlaylistSongEnt
     @Query("SELECT ps FROM PlaylistSongEntity ps LEFT JOIN FETCH ps.song WHERE ps.id.playlistId = :playlistId ORDER BY ps.position ASC")
     List<PlaylistSongEntity> findById_PlaylistIdOrderByPosition(@Param("playlistId") UUID playlistId);
 
+    @Query("SELECT ps FROM PlaylistSongEntity ps LEFT JOIN FETCH ps.song WHERE ps.id.playlistId IN :playlistIds ORDER BY ps.position ASC")
+    List<PlaylistSongEntity> findByPlaylistIdIn(@Param("playlistIds") List<UUID> playlistIds);
+
     int countById_PlaylistId(UUID playlistId);
 
 }
