@@ -352,7 +352,7 @@ public class SpotifyClient implements SpotifyPlaylistPort {
      */
     public String getAccessToken() {
         if (isTokenValid()) {
-            log.debug("Usando token cacheado (válido hasta: {})", tokenExpiresAt);
+            log.debug("Usando token cacheado (válido hasta: {})", tokenExpiresAt.toString());
             return cachedToken;
         }
 
