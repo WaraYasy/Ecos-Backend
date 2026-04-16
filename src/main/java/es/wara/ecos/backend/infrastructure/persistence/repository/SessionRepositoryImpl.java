@@ -35,7 +35,7 @@ public class SessionRepositoryImpl implements SessionRepository {
     @Override
     @Transactional(readOnly = true)
     public Optional<ExplorationSession> findById(UUID id) {
-        return jpa.findById(id).map(mapper::toModel);
+        return jpa.findByIdWithNodes(id).map(mapper::toModel);
     }
 
     @Override
@@ -44,20 +44,20 @@ public class SessionRepositoryImpl implements SessionRepository {
         StopWatch sw = new StopWatch();
 
         sw.start();
-        var entities = jpa.findByUser_Id(userId);
+        // JOIN FETCH carga sesiones + nodos + canciones + álbumes en 1 query.
+        // Las colecciones de canción (artistas, tags, películas, audioFeatures)
+        // se resuelven en batch gracias a @BatchSize, sin N+1.
+        var entities = jpa.findByUser_IdWithNodes(userId);
         sw.stop();
-        log.debug("SessionRepository.findByUserId: {} sesiones en BD → {}ms (userId={})",
+        log.debug("SessionRepository.findByUserId: {} sesiones con nodos (JOIN FETCH) → {}ms (userId={})",
                 entities.size(), sw.getTotalTimeMillis(), userId);
 
-        // Resolución lazy: nodes → song → album/audioFeatures/tags.
-        // @BatchSize(50) en ExplorationSessionEntity.nodes y en SongEntity (clase)
-        // agrupa las cargas con WHERE id IN (...), evitando N+1.
         sw.start();
         List<ExplorationSession> result = entities.stream()
                 .map(mapper::toModel)
                 .toList();
         sw.stop();
-        log.debug("SessionRepository.findByUserId: mapping completado → {}ms (lazy resuelto en batch)",
+        log.debug("SessionRepository.findByUserId: mapping completado → {}ms",
                 sw.getLastTaskTimeMillis());
 
         return result;
