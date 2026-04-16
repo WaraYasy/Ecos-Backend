@@ -47,8 +47,8 @@ public class AddSongToPlaylistUseCase {
         songRepository.findById(songId)
                 .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + songId));
 
-        int nextPosition = playlistRepository.countSongs(playlistId) + 1;
-        playlistRepository.addSong(playlistId, songId, nextPosition);
+        // La posición se calcula de forma atómica en la BD (MAX+1 en el INSERT)
+        playlistRepository.addSong(playlistId, songId);
     }
 
 }

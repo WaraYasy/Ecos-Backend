@@ -40,13 +40,15 @@ public interface PlaylistRepository {
     Playlist save(Playlist playlist);
 
     /**
-     * Añade una canción a una playlist en la posición indicada.
+     * Añade una canción al final de una playlist.
+     * La posición se calcula de forma atómica en la BD (MAX + 1),
+     * eliminando la race condition del patrón read-modify-write.
+     * Si la canción ya existe en la playlist, la operación se ignora.
      *
      * @param playlistId identificador de la playlist destino
      * @param songId     identificador de la canción a añadir
-     * @param position   posición (basada en 1) donde se insertará la canción
      */
-    void addSong(UUID playlistId, UUID songId, int position);
+    void addSong(UUID playlistId, UUID songId);
 
     /**
      * Elimina una playlist por su identificador.
@@ -62,13 +64,5 @@ public interface PlaylistRepository {
      * @param songId     identificador de la canción a eliminar
      */
     void removeSong(UUID playlistId, UUID songId);
-
-    /**
-     * Cuenta el número de canciones en una playlist.
-     *
-     * @param playlistId identificador de la playlist
-     * @return número de canciones en la playlist
-     */
-    int countSongs(UUID playlistId);
 
 }

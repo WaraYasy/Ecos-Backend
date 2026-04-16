@@ -40,25 +40,15 @@ class AddSongToPlaylistUseCaseTest {
     }
 
     @Test
-    void execute_ownerAddsExistingSong_callsAddSongAtNextPosition() {
+    void execute_owner_delegatesAddSongToRepository() {
+        // La posición se calcula de forma atómica en la BD: el use case
+        // solo delega en el repositorio sin calcular posición en Java.
         when(playlistRepository.findById(PLAYLIST_ID)).thenReturn(Optional.of(buildPlaylist()));
         when(songRepository.findById(SONG_ID)).thenReturn(Optional.of(new Song()));
-        when(playlistRepository.countSongs(PLAYLIST_ID)).thenReturn(2);
 
         useCase.execute(PLAYLIST_ID, SONG_ID, OWNER_ID);
 
-        verify(playlistRepository).addSong(PLAYLIST_ID, SONG_ID, 3); // nextPosition = 2 + 1
-    }
-
-    @Test
-    void execute_emptyPlaylist_addsAtPositionOne() {
-        when(playlistRepository.findById(PLAYLIST_ID)).thenReturn(Optional.of(buildPlaylist()));
-        when(songRepository.findById(SONG_ID)).thenReturn(Optional.of(new Song()));
-        when(playlistRepository.countSongs(PLAYLIST_ID)).thenReturn(0);
-
-        useCase.execute(PLAYLIST_ID, SONG_ID, OWNER_ID);
-
-        verify(playlistRepository).addSong(PLAYLIST_ID, SONG_ID, 1);
+        verify(playlistRepository).addSong(PLAYLIST_ID, SONG_ID);
     }
 
     @Test
@@ -69,7 +59,7 @@ class AddSongToPlaylistUseCaseTest {
                 .isInstanceOf(ForbiddenException.class);
 
         verify(songRepository, never()).findById(SONG_ID);
-        verify(playlistRepository, never()).addSong(PLAYLIST_ID, SONG_ID, 1);
+        verify(playlistRepository, never()).addSong(PLAYLIST_ID, SONG_ID);
     }
 
     @Test

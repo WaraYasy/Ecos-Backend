@@ -2,9 +2,7 @@ package es.wara.ecos.backend.infrastructure.persistence.repository;
 
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
-import es.wara.ecos.backend.infrastructure.persistence.entity.PlaylistSongEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.PlaylistSongEntity.PlaylistSongId;
-import es.wara.ecos.backend.infrastructure.persistence.entity.SongEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.PlaylistEntity;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaPlaylistRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaPlaylistSongRepository;
@@ -91,18 +89,9 @@ public class PlaylistRepositoryImpl implements PlaylistRepository {
     }
 
     @Override
-    public void addSong(UUID playlistId, UUID songId, int position) {
-        PlaylistEntity playlist = new PlaylistEntity();
-        playlist.setId(playlistId);
-        SongEntity song = new SongEntity();
-        song.setId(songId);
-
-        PlaylistSongEntity entry = new PlaylistSongEntity();
-        entry.setId(new PlaylistSongId(playlistId, songId));
-        entry.setPlaylist(playlist);
-        entry.setSong(song);
-        entry.setPosition((short) position);
-        jpaPlaylistSong.save(entry);
+    @Transactional
+    public void addSong(UUID playlistId, UUID songId) {
+        jpaPlaylistSong.addSongAtNextPosition(playlistId, songId);
     }
 
     @Override
@@ -115,9 +104,5 @@ public class PlaylistRepositoryImpl implements PlaylistRepository {
         jpaPlaylistSong.deleteById(new PlaylistSongId(playlistId, songId));
     }
 
-    @Override
-    public int countSongs(UUID playlistId) {
-        return jpaPlaylistSong.countById_PlaylistId(playlistId);
-    }
 
 }
