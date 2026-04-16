@@ -182,6 +182,22 @@ El backend integra un **microservicio de IA** (FastAPI + Python) para búsqueda 
 | Semántica directa | `enhanced=false` (defecto) | Codifica la query y busca vectores más cercanos |
 | Modo imaginario | `enhanced=true` | Un LLM expande la query a keywords antes de buscar — ideal para frases evocadoras como "canciones tristes" o "música para una boda" |
 
+```mermaid
+flowchart LR
+    Q([query]) --> DB[(PostgreSQL\n5 cuadrantes)]
+    Q --> AI{Microservicio IA\ndisponible?}
+
+    AI -- sí, enhanced=false --> VEC[búsqueda vectorial\npgvector]
+    AI -- sí, enhanced=true --> LLM[LLM expande\nquery a keywords] --> VEC
+    AI -- no / timeout --> SKIP([omitir semántica])
+
+    DB --> MERGE[merge híbrido]
+    VEC --> MERGE
+    SKIP --> MERGE
+
+    MERGE -->|semánticos primero\nluego BD| R([resultados])
+```
+
 Los resultados del micro se **mezclan con los de BD** (merge híbrido): los matches semánticos aparecen primero ordenados por score, seguidos de los resultados de BD sin match semántico.
 
 ---
@@ -213,14 +229,68 @@ Los tests funcionales arrancan un contenedor PostgreSQL real. Requieren Docker D
 
 El backend sigue la **arquitectura hexagonal (Ports & Adapters)**:
 
-```
-interfaces/rest/   ← Controllers, DTOs, GlobalExceptionHandler
-application/       ← Use cases, SongIngestionService, MusicAggregationService
-domain/            ← Models, Ports — sin Spring ni JPA
-infrastructure/    ← JPA, Adapters (Spotify/Last.fm/TMDb/MusicBrainz/AI), JWT, Caché
+```mermaid
+graph TD
+    subgraph interfaces["interfaces/rest"]
+        C[Controllers]
+        DTO[DTOs]
+        EH[GlobalExceptionHandler]
+    end
+
+    subgraph application["application"]
+        UC[Use Cases]
+        SIS[SongIngestionService]
+        MAS[MusicAggregationService]
+    end
+
+    subgraph domain["domain (sin Spring, sin JPA)"]
+        M[Models]
+        P[Ports / interfaces]
+    end
+
+    subgraph infrastructure["infrastructure"]
+        JPA[JPA Repositories]
+        SP[SpotifyAdapter]
+        LF[LastFmAdapter]
+        TM[TMDbAdapter]
+        AI[AI Adapter]
+        JWT[JwtService]
+        CA[Caché Caffeine]
+    end
+
+    C --> UC
+    UC --> P
+    P -.implementa.-> JPA
+    P -.implementa.-> SP
+    P -.implementa.-> LF
+    P -.implementa.-> TM
+    P -.implementa.-> AI
 ```
 
 El dominio no depende de nada externo. La infraestructura implementa los Ports del dominio (inversión de dependencia).
+
+---
+
+## Flujo OAuth con Spotify
+
+```mermaid
+sequenceDiagram
+    actor U as Usuario (app móvil)
+    participant B as Backend
+    participant S as Spotify
+
+    U->>B: GET /v1/auth/spotify/login (JWT propio)
+    B->>B: genera state UUID → guarda en oauth_states (TTL 10 min)
+    B-->>U: 302 → URL autorización Spotify
+
+    U->>S: autoriza en Spotify
+    S->>B: GET /callback/spotify?code=...&state=...
+    B->>B: valida state (existe y no expirado) → borra oauth_states
+    B->>S: POST /token (code → access_token + refresh_token)
+    S-->>B: tokens
+    B->>B: cifra tokens AES-256 → guarda en spotify_tokens
+    B-->>U: 200 OK (cuenta vinculada)
+```
 
 ---
 
