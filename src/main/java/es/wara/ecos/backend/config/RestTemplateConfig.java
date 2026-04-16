@@ -182,11 +182,11 @@ public class RestTemplateConfig {
     private ClientHttpRequestInterceptor loggingInterceptor() {
         return (request, body, execution) -> {
             String uri = sanitizeUri(request.getURI().toString());
-            log.debug("→ HTTP {} {}", request.getMethod(), uri);
+            log.debug("→ HTTP {} {}", request.getMethod().name(), uri);
 
             var response = execution.execute(request, body);
 
-            log.debug("← HTTP {} {} → {}", request.getMethod(), uri, response.getStatusCode().value());
+            log.debug("← HTTP {} {} → {}", request.getMethod().name(), uri, response.getStatusCode().value());
 
             return response;
         };
