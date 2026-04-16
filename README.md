@@ -314,3 +314,9 @@ sequenceDiagram
 | `APP_DEEP_LINK_SCHEME` | Scheme del deep link móvil (default: `ecos`) | No |
 | `AI_SERVICE_URL` | URL base del microservicio de IA (sin barra final) | No |
 | `AI_SERVICE_API_KEY` | API key del microservicio de IA | No |
+
+---
+
+## Licencia
+
+MIT © 2026 [Wara Yasy Pacheco Arandia](LICENSE)
