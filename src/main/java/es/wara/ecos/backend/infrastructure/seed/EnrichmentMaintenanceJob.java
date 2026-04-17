@@ -85,7 +85,7 @@ public class EnrichmentMaintenanceJob {
     @Scheduled(cron = "${enrichment.preview.cron:0 0 2 * * *}")
     public void fillMissingPreviews() {
         Thread.ofVirtual().name("enrichment-preview").start(() -> {
-            List<SongEntity> songs = jpaSongRepository.findWithoutPreview(PageRequest.of(0, BATCH_SIZE));
+            List<SongEntity> songs = jpaSongRepository.findWithoutPreview(PageRequest.of(0, BATCH_SIZE)).getContent();
             if (songs.isEmpty()) {
                 log.debug("[Enrichment] Sin canciones con preview_url nulo");
                 return;
@@ -122,8 +122,7 @@ public class EnrichmentMaintenanceJob {
      */
     @Scheduled(cron = "${enrichment.tags.cron:0 30 2 * * *}")
     public void fillMissingTags() {
-        Thread.ofVirtual().name("enrichment-tags").start(() -> {
-            List<SongEntity> songs = jpaSongRepository.findWithoutTags(PageRequest.of(0, BATCH_SIZE));
+        Thread.ofVirtual().name("enrichment-tags").start(() -> {List<SongEntity> songs = jpaSongRepository.findWithoutTags(PageRequest.of(0, BATCH_SIZE)).getContent();
             if (songs.isEmpty()) {
                 log.debug("[Enrichment] Sin canciones sin tags");
                 return;
@@ -163,7 +162,7 @@ public class EnrichmentMaintenanceJob {
     @Scheduled(cron = "${enrichment.cover.cron:0 0 3 * * *}")
     public void fillMissingCoverAndArtistIds() {
         Thread.ofVirtual().name("enrichment-cover").start(() -> {
-            List<SongEntity> songs = jpaSongRepository.findForCoverEnrichment(PageRequest.of(0, BATCH_SIZE));
+            List<SongEntity> songs = jpaSongRepository.findForCoverEnrichment(PageRequest.of(0, BATCH_SIZE)).getContent();
             if (songs.isEmpty()) {
                 log.debug("[Enrichment] Sin álbumes con cover_url nulo");
                 return;
@@ -232,7 +231,7 @@ public class EnrichmentMaintenanceJob {
     @Scheduled(cron = "${enrichment.country.cron:0 30 3 * * *}")
     public void fillMissingCountries() {
         Thread.ofVirtual().name("enrichment-country").start(() -> {
-            List<ArtistEntity> artists = jpaArtistRepository.findWithoutCountry(PageRequest.of(0, BATCH_SIZE));
+            List<ArtistEntity> artists = jpaArtistRepository.findWithoutCountry(PageRequest.of(0, BATCH_SIZE)).getContent();
             if (artists.isEmpty()) {
                 log.debug("[Enrichment] Sin artistas con country nulo");
                 return;
