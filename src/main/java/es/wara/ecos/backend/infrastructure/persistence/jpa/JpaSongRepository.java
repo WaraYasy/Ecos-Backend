@@ -1,7 +1,9 @@
 package es.wara.ecos.backend.infrastructure.persistence.jpa;
 
 import es.wara.ecos.backend.infrastructure.persistence.entity.SongEntity;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -15,7 +17,7 @@ import java.util.UUID;
  * por título y mediante especificaciones JPA para búsqueda multidimensional.
  *
  * @author Wara Pacheco
- * @version 1.1
+ * @version 1.2
  * @since 1.0.0
  */
 public interface JpaSongRepository extends JpaRepository<SongEntity, UUID>,
@@ -27,13 +29,21 @@ public interface JpaSongRepository extends JpaRepository<SongEntity, UUID>,
 
     List<SongEntity> findByTitleContainingIgnoreCase(String title);
 
-    @Query("SELECT s FROM SongEntity s LEFT JOIN FETCH s.artists WHERE s.previewUrl IS NULL")
-    List<SongEntity> findWithoutPreview(Pageable pageable);
+    // DISTINCT evita duplicados cuando una canción tiene varios artistas (relación N:M)
+    @Query("SELECT DISTINCT s FROM SongEntity s LEFT JOIN FETCH s.artists WHERE s.album IS NULL")
+    List<SongEntity> findWithoutAlbum();
 
-    @Query("SELECT DISTINCT s FROM SongEntity s LEFT JOIN FETCH s.artists WHERE s.tags IS EMPTY")
-    List<SongEntity> findWithoutTags(Pageable pageable);
+    // @EntityGraph en vez de FETCH JOIN: permite paginación correcta en colecciones @ManyToMany
+    @EntityGraph(attributePaths = "artists")
+    @Query("SELECT s FROM SongEntity s WHERE s.previewUrl IS NULL")
+    Page<SongEntity> findWithoutPreview(Pageable pageable);
 
+    @EntityGraph(attributePaths = "artists")
+    @Query("SELECT s FROM SongEntity s WHERE s.tags IS EMPTY")
+    Page<SongEntity> findWithoutTags(Pageable pageable);
+
+    // album es @ManyToOne → FETCH JOIN sí es compatible con paginación
     @Query("SELECT s FROM SongEntity s LEFT JOIN FETCH s.album a WHERE s.spotifyId IS NOT NULL AND (a IS NULL OR a.coverUrl IS NULL)")
-    List<SongEntity> findForCoverEnrichment(Pageable pageable);
+    Page<SongEntity> findForCoverEnrichment(Pageable pageable);
 
 }
