@@ -17,6 +17,7 @@ public record UserResponse(
         String username,
         String email,
         String language,
+        boolean spotifyLinked,
         LocalDateTime createdAt
 ) {
 
@@ -26,6 +27,7 @@ public record UserResponse(
                 user.getUsername(),
                 user.getEmail(),
                 user.getLanguage(),
+                user.getProviderId() != null,
                 user.getCreatedAt()
         );
     }
