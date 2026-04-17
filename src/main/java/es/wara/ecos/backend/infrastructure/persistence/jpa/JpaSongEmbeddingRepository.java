@@ -41,4 +41,15 @@ public interface JpaSongEmbeddingRepository extends JpaRepository<SongEmbeddingE
             @Param("limit") int limit
     );
 
+    @Query(value = """
+            SELECT song_id
+            FROM song_embeddings
+            ORDER BY embedding <=> CAST(:queryVector AS vector)
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<UUID> findNearestNeighborsNoExclusions(
+            @Param("queryVector") String queryVector,
+            @Param("limit") int limit
+    );
+
 }

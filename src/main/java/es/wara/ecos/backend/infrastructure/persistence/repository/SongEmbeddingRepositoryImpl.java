@@ -41,6 +41,10 @@ public class SongEmbeddingRepositoryImpl implements SongEmbeddingRepository {
     @Override
     public List<UUID> findNearestNeighbors(float[] queryVector, int limit, List<UUID> excludeIds) {
         String vectorStr = SongEmbeddingMapper.formatVector(queryVector);
+        // NOT IN () con lista vacía genera SQL inválido en PostgreSQL; se usa versión sin exclusiones
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            return jpa.findNearestNeighborsNoExclusions(vectorStr, limit);
+        }
         return jpa.findNearestNeighbors(vectorStr, excludeIds, limit);
     }
 
