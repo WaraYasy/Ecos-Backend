@@ -49,16 +49,20 @@ public class GetSimilarSongsUseCase {
      * @return lista de hasta {@value LIMIT} canciones similares
      * @throws IllegalArgumentException si la canción no existe
      */
-    public List<Song> execute(UUID songId) {
+    public List<Song> execute(UUID songId, List<UUID> excludeIds) {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new IllegalArgumentException("Canción no encontrada: " + songId));
+
+        List<UUID> excluded = new java.util.ArrayList<>();
+        excluded.add(songId);
+        if (excludeIds != null) excluded.addAll(excludeIds);
 
         Optional<SongEmbedding> embedding = embeddingRepository.findBySongId(songId);
 
         if (embedding.isPresent()) {
-            log.debug("related [embedding] song={}", songId);
+            log.debug("related [embedding] song={} exclude={}", songId, excluded.size());
             List<UUID> neighborIds = embeddingRepository.findNearestNeighbors(
-                    embedding.get().getEmbedding(), LIMIT, List.of(songId));
+                    embedding.get().getEmbedding(), LIMIT, excluded);
             return neighborIds.stream()
                     .map(songRepository::findById)
                     .filter(Optional::isPresent)
@@ -73,6 +77,7 @@ public class GetSimilarSongsUseCase {
         return musicProvider.getSimilarSongs(artist, song.getTitle(), LIMIT)
                 .stream()
                 .filter(s -> s.getTitle() != null)
+                .filter(s -> s.getId() == null || !excluded.contains(s.getId()))
                 .map(s -> s.getId() != null ? s : songRepository.save(s))
                 .toList();
     }

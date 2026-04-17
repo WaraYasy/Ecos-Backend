@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -63,8 +64,10 @@ public class SongController {
      * @return {@code 200 OK} con la lista de canciones relacionadas
      */
     @GetMapping("/{id}/related")
-    public ResponseEntity<List<SongResponse>> getRelated(@PathVariable UUID id) {
-        List<SongResponse> related = getSimilarSongsUseCase.execute(id)
+    public ResponseEntity<List<SongResponse>> getRelated(
+            @PathVariable UUID id,
+            @RequestParam(required = false) List<UUID> exclude) {
+        List<SongResponse> related = getSimilarSongsUseCase.execute(id, exclude)
                 .stream()
                 .map(SongResponse::from)
                 .toList();
