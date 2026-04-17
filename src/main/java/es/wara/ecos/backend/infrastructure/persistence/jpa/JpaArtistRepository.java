@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.infrastructure.persistence.jpa;
 
 import es.wara.ecos.backend.infrastructure.persistence.entity.ArtistEntity;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -18,11 +19,14 @@ public interface JpaArtistRepository extends JpaRepository<ArtistEntity, UUID> {
 
     List<ArtistEntity> findTop6ByNameContainingIgnoreCase(String name);
 
-    @Query("SELECT DISTINCT a.country FROM ArtistEntity a " +
-           "WHERE a.country IS NOT NULL AND LOWER(a.country) LIKE LOWER(CONCAT('%', :q, '%'))")
+    // ILIKE usa el índice trigrama idx_artists_country_trgm (V32); limitado a 10 para UI
+    @Query(value = "SELECT DISTINCT country FROM artists " +
+                   "WHERE country IS NOT NULL AND country ILIKE CONCAT('%', :q, '%') " +
+                   "ORDER BY country LIMIT 10",
+           nativeQuery = true)
     List<String> findDistinctCountriesContaining(@Param("q") String q);
 
     @Query("SELECT a FROM ArtistEntity a WHERE a.country IS NULL AND a.name IS NOT NULL")
-    List<ArtistEntity> findWithoutCountry(Pageable pageable);
+    Page<ArtistEntity> findWithoutCountry(Pageable pageable);
 
 }
