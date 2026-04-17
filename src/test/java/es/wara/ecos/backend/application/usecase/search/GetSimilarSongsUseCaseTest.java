@@ -69,7 +69,7 @@ class GetSimilarSongsUseCaseTest {
                 .thenReturn(List.of(NEIGHBOR_ID));
         when(songRepository.findById(NEIGHBOR_ID)).thenReturn(Optional.of(neighbor));
 
-        List<Song> result = useCase.execute(SONG_ID);
+        List<Song> result = useCase.execute(SONG_ID, null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo(NEIGHBOR_ID);
@@ -85,13 +85,33 @@ class GetSimilarSongsUseCaseTest {
         when(embeddingRepository.findNearestNeighbors(any(float[].class), anyInt(), anyList()))
                 .thenReturn(List.of());
 
-        List<Song> result = useCase.execute(SONG_ID);
+        List<Song> result = useCase.execute(SONG_ID, null);
 
         assertThat(result).isEmpty();
         // Verifica que se llamó con la canción raíz en la lista de excluidos
         verify(embeddingRepository).findNearestNeighbors(
                 any(float[].class), anyInt(),
                 org.mockito.ArgumentMatchers.argThat(ids -> ((List<?>) ids).contains(SONG_ID)));
+    }
+
+    @Test
+    void execute_withExcludeIds_mergesThemWithSongId() {
+        UUID extraExcluded = UUID.fromString("00000000-0000-0000-0000-000000000055");
+        Song song = buildSong(SONG_ID, "Chariots of Fire", "Vangelis");
+
+        when(songRepository.findById(SONG_ID)).thenReturn(Optional.of(song));
+        when(embeddingRepository.findBySongId(SONG_ID)).thenReturn(Optional.of(buildEmbedding(SONG_ID)));
+        when(embeddingRepository.findNearestNeighbors(any(float[].class), anyInt(), anyList()))
+                .thenReturn(List.of());
+
+        useCase.execute(SONG_ID, List.of(extraExcluded));
+
+        verify(embeddingRepository).findNearestNeighbors(
+                any(float[].class), anyInt(),
+                org.mockito.ArgumentMatchers.argThat(ids -> {
+                    List<?> list = (List<?>) ids;
+                    return list.contains(SONG_ID) && list.contains(extraExcluded);
+                }));
     }
 
     // ── Fallback: Last.fm ─────────────────────────────────────────────────────
@@ -108,7 +128,7 @@ class GetSimilarSongsUseCaseTest {
         when(musicProvider.getSimilarSongs("Vangelis", "Chariots of Fire", 8)).thenReturn(List.of(similar));
         when(songRepository.save(any(Song.class))).thenReturn(persisted);
 
-        List<Song> result = useCase.execute(SONG_ID);
+        List<Song> result = useCase.execute(SONG_ID, null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo(NEIGHBOR_ID);
@@ -123,7 +143,7 @@ class GetSimilarSongsUseCaseTest {
         when(embeddingRepository.findBySongId(SONG_ID)).thenReturn(Optional.empty());
         when(musicProvider.getSimilarSongs("", "Unknown Song", 8)).thenReturn(List.of());
 
-        useCase.execute(SONG_ID);
+        useCase.execute(SONG_ID, null);
 
         verify(musicProvider).getSimilarSongs("", "Unknown Song", 8);
     }
@@ -134,7 +154,7 @@ class GetSimilarSongsUseCaseTest {
     void execute_songNotFound_throwsIllegalArgumentException() {
         when(songRepository.findById(UNKNOWN_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> useCase.execute(UNKNOWN_ID))
+        assertThatThrownBy(() -> useCase.execute(UNKNOWN_ID, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(UNKNOWN_ID.toString());
     }

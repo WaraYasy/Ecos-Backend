@@ -15,6 +15,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -68,7 +70,7 @@ class SongControllerTest {
         related.setId(UUID.randomUUID());
         related.setTitle("Related Song");
         when(getSongByIdUseCase.execute(SONG_ID)).thenReturn(buildSong());
-        when(getSimilarSongsUseCase.execute(SONG_ID)).thenReturn(List.of(related));
+        when(getSimilarSongsUseCase.execute(eq(SONG_ID), any())).thenReturn(List.of(related));
 
         mockMvc.perform(get("/v1/songs/" + SONG_ID + "/related"))
                 .andExpect(status().isOk())
@@ -78,7 +80,7 @@ class SongControllerTest {
 
     @Test
     void getRelated_nonExistingSong_returns404() throws Exception {
-        when(getSimilarSongsUseCase.execute(UNKNOWN_ID))
+        when(getSimilarSongsUseCase.execute(eq(UNKNOWN_ID), any()))
                 .thenThrow(new IllegalArgumentException("Canción no encontrada: " + UNKNOWN_ID));
 
         mockMvc.perform(get("/v1/songs/" + UNKNOWN_ID + "/related"))
