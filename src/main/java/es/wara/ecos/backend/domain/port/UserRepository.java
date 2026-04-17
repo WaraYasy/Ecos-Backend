@@ -41,6 +41,14 @@ public interface UserRepository {
     Optional<User> findByProviderId(String providerId);
 
     /**
+     * Comprueba si existe un usuario con el identificador dado sin cargar la entidad completa.
+     *
+     * @param id identificador interno del usuario
+     * @return {@code true} si el usuario existe
+     */
+    boolean existsById(UUID id);
+
+    /**
      * Persiste un usuario en el repositorio.
      *
      * @param user usuario a guardar

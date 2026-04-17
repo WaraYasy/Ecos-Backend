@@ -52,8 +52,9 @@ public class CalculateUserProfileUseCase {
         StopWatch sw = new StopWatch("CalculateUserProfile");
 
         sw.start("findUser");
-        userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
+        if (!userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("Usuario no encontrado: " + userId);
+        }
         sw.stop();
 
         sw.start("fetchSessions");

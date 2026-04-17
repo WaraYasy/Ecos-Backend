@@ -7,7 +7,6 @@ import es.wara.ecos.backend.domain.model.MusicProfile;
 import es.wara.ecos.backend.domain.model.SessionNode;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.model.Tag;
-import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.SessionRepository;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -19,7 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -74,7 +72,7 @@ class CalculateUserProfileUseCaseTest {
 
     @Test
     void execute_userNotFound_throwsIllegalArgumentException() {
-        when(userRepository.findById(UNKNOWN_ID)).thenReturn(Optional.empty());
+        when(userRepository.existsById(UNKNOWN_ID)).thenReturn(false);
 
         assertThatThrownBy(() -> useCase.execute(UNKNOWN_ID))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -82,7 +80,7 @@ class CalculateUserProfileUseCaseTest {
 
     @Test
     void execute_noSessions_returnsZeroProfile() {
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new User()));
+        when(userRepository.existsById(USER_ID)).thenReturn(true);
         when(sessionRepository.findByUserId(USER_ID)).thenReturn(List.of());
 
         MusicProfile result = useCase.execute(USER_ID);
@@ -98,7 +96,7 @@ class CalculateUserProfileUseCaseTest {
     void execute_songsWithAudioFeatures_calculatesAvgEnergyCorrectly() {
         Song s1 = songWith(new BigDecimal("0.4"), 0, List.of(), null);
         Song s2 = songWith(new BigDecimal("0.6"), 2, List.of(), null);
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new User()));
+        when(userRepository.existsById(USER_ID)).thenReturn(true);
         when(sessionRepository.findByUserId(USER_ID)).thenReturn(List.of(sessionWith(List.of(s1, s2))));
 
         MusicProfile result = useCase.execute(USER_ID);
@@ -113,7 +111,7 @@ class CalculateUserProfileUseCaseTest {
         // s1 tiene 3 tags "rock", s2 tiene 1 tag "pop" → total 4, géneros únicos 2
         Song s1 = songWith(null, null, List.of(rock, rock, rock), null);
         Song s2 = songWith(null, null, List.of(pop), null);
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new User()));
+        when(userRepository.existsById(USER_ID)).thenReturn(true);
         when(sessionRepository.findByUserId(USER_ID)).thenReturn(List.of(sessionWith(List.of(s1, s2))));
 
         MusicProfile result = useCase.execute(USER_ID);
@@ -129,7 +127,7 @@ class CalculateUserProfileUseCaseTest {
         Song s1 = songWith(null, null, List.of(), 1985);
         Song s2 = songWith(null, null, List.of(), 1987);
         Song s3 = songWith(null, null, List.of(), 1995);
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(new User()));
+        when(userRepository.existsById(USER_ID)).thenReturn(true);
         when(sessionRepository.findByUserId(USER_ID)).thenReturn(List.of(sessionWith(List.of(s1, s2, s3))));
 
         MusicProfile result = useCase.execute(USER_ID);
