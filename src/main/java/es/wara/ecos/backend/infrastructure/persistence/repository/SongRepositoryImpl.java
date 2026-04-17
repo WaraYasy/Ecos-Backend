@@ -392,19 +392,19 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     /** Persiste los tags nuevos de una canción ya existente, ignorando los que ya tenga.
-     *  Thread-safe: usa ON CONFLICT DO NOTHING para evitar race conditions entre hilos. */
+     *  Thread-safe: usa ON CONFLICT DO NOTHING para evitar race conditions entre hilos.
+     *  Usa batchUpdate para reducir los round-trips a la BD a uno solo por canción. */
     private void addMissingTags(SongEntity song, List<Tag> tags) {
         if (tags == null || tags.isEmpty()) return;
-        for (Tag tag : tags) {
-            if (tag.getName() == null || tag.getName().isBlank()) continue;
-            jdbc.update(
-                "INSERT INTO song_tags (song_id, tag, weight) VALUES (?, ?, ?) " +
-                "ON CONFLICT (song_id, tag) DO NOTHING",
-                song.getId(),
-                tag.getName(),
-                tag.getWeight()
-            );
-        }
+        List<Object[]> batch = tags.stream()
+                .filter(t -> t.getName() != null && !t.getName().isBlank())
+                .map(t -> new Object[]{ song.getId(), t.getName(), t.getWeight() })
+                .toList();
+        if (batch.isEmpty()) return;
+        jdbc.batchUpdate(
+            "INSERT INTO song_tags (song_id, tag, weight) VALUES (?, ?, ?) ON CONFLICT (song_id, tag) DO NOTHING",
+            batch
+        );
     }
 
     // ─────────────────────────────────────────────────────────────────────────
