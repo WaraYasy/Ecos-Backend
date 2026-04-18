@@ -7,10 +7,20 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 
+/**
+ * Configuración del pool de hilos para tareas asíncronas ({@code @Async}).
+ *
+ * @author Wara Pacheco
+ * @since 1.0.0
+ */
 @Configuration
 @EnableAsync
 public class AsyncConfig {
 
+    /**
+     * Pool compartido para exportaciones a Spotify y recálculo de perfiles de usuario.
+     * Core=2 hilos siempre activos, máximo 5, cola de 100 tareas antes de rechazar.
+     */
     @Bean(name = "exportExecutor")
     public Executor exportExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();

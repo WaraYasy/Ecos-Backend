@@ -56,6 +56,12 @@ public class SessionController {
         this.calculateUserProfileUseCase = calculateUserProfileUseCase;
     }
 
+    /**
+     * Guarda una sesión de exploración y dispara el recálculo asíncrono del perfil musical.
+     *
+     * @param request datos de la sesión (canción inicial, lista ordenada, nombre opcional)
+     * @return {@code 201 Created} con la sesión persistida
+     */
     @PostMapping
     public ResponseEntity<SessionResponse> create(@Valid @RequestBody CreateSessionRequest request) {
         UUID userId = SecurityUtils.getCurrentUserId();
