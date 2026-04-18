@@ -1,9 +1,10 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
+import es.wara.ecos.backend.application.service.ExportJob;
+import es.wara.ecos.backend.application.service.ExportJobService;
 import es.wara.ecos.backend.application.usecase.playlist.AddSongToPlaylistUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.CreatePlaylistUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.DeletePlaylistUseCase;
-import es.wara.ecos.backend.application.usecase.playlist.ExportPlaylistToSpotifyUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.GetPlaylistByIdUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.GetUserPlaylistsUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistUseCase;
@@ -12,6 +13,7 @@ import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import es.wara.ecos.backend.interfaces.rest.dto.AddSongRequest;
+import es.wara.ecos.backend.interfaces.rest.dto.ExportJobResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.PlaylistRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.PlaylistResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.UpdatePlaylistRequest;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 
 /**
  * Controlador REST para gestión de playlists de ECOS.
@@ -47,7 +50,7 @@ public class PlaylistController {
     private final DeletePlaylistUseCase deletePlaylistUseCase;
     private final AddSongToPlaylistUseCase addSongToPlaylistUseCase;
     private final RemoveSongFromPlaylistUseCase removeSongFromPlaylistUseCase;
-    private final ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase;
+    private final ExportJobService exportJobService;
     private final PlaylistRepository playlistRepository;
 
     public PlaylistController(
@@ -57,7 +60,7 @@ public class PlaylistController {
             DeletePlaylistUseCase deletePlaylistUseCase,
             AddSongToPlaylistUseCase addSongToPlaylistUseCase,
             RemoveSongFromPlaylistUseCase removeSongFromPlaylistUseCase,
-            ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase,
+            ExportJobService exportJobService,
             PlaylistRepository playlistRepository
     ) {
         this.getPlaylistByIdUseCase = getPlaylistByIdUseCase;
@@ -66,7 +69,7 @@ public class PlaylistController {
         this.deletePlaylistUseCase = deletePlaylistUseCase;
         this.addSongToPlaylistUseCase = addSongToPlaylistUseCase;
         this.removeSongFromPlaylistUseCase = removeSongFromPlaylistUseCase;
-        this.exportPlaylistToSpotifyUseCase = exportPlaylistToSpotifyUseCase;
+        this.exportJobService = exportJobService;
         this.playlistRepository = playlistRepository;
     }
 
@@ -181,20 +184,36 @@ public class PlaylistController {
     }
 
     /**
-     * Exporta una playlist de ECOS a la cuenta de Spotify del usuario.
+     * Inicia la exportación asíncrona de una playlist a Spotify.
      * <p>
-     * Requiere que el usuario haya vinculado previamente su cuenta de Spotify
-     * mediante el flujo OAuth en {@code /v1/auth/spotify/login}.
+     * Devuelve inmediatamente un {@code jobId} para consultar el estado en
+     * {@code GET /{id}/export/spotify/{jobId}}.
+     * Requiere que el usuario haya vinculado previamente su cuenta de Spotify.
      * </p>
      *
      * @param id identificador de la playlist a exportar
-     * @return {@code 200 OK} con la playlist actualizada (incluyendo el ID de Spotify)
+     * @return {@code 202 Accepted} con el jobId del proceso en background
      */
     @PostMapping("/{id}/export/spotify")
-    public ResponseEntity<PlaylistResponse> exportToSpotify(@PathVariable UUID id) {
+    public ResponseEntity<ExportJobResponse> exportToSpotify(@PathVariable UUID id) {
         UUID userId = SecurityUtils.getCurrentUserId();
-        Playlist playlist = exportPlaylistToSpotifyUseCase.execute(id, userId);
-        return ResponseEntity.ok(PlaylistResponse.from(playlist));
+        ExportJob job = exportJobService.submit(id, userId);
+        return ResponseEntity.accepted().body(ExportJobResponse.from(job));
+    }
+
+    /**
+     * Consulta el estado de un job de exportación a Spotify.
+     *
+     * @param id    identificador de la playlist
+     * @param jobId identificador del job devuelto por {@code POST /{id}/export/spotify}
+     * @return {@code 200 OK} con el estado actual, {@code 404} si el job no existe o expiró
+     */
+    @GetMapping("/{id}/export/spotify/{jobId}")
+    public ResponseEntity<ExportJobResponse> exportStatus(@PathVariable UUID id,
+                                                          @PathVariable String jobId) {
+        Optional<ExportJob> job = exportJobService.findById(jobId);
+        return job.map(j -> ResponseEntity.ok(ExportJobResponse.from(j)))
+                  .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
 }
