@@ -94,7 +94,8 @@ public class SpotifyAuthController {
             LoginResponse login = loginResult.get();
             String deepLink = deepLinkScheme + "://auth/callback"
                     + "?token=" + login.token()
-                    + "&userId=" + login.userId();
+                    + "&userId=" + login.userId()
+                    + (login.accountLinked() ? "&linked=true" : "");
             return ResponseEntity.status(HttpStatus.FOUND)
                     .location(URI.create(deepLink))
                     .build();
