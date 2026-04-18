@@ -41,6 +41,13 @@ public class ProfileClient {
         this.properties   = properties;
     }
 
+    /**
+     * Solicita el perfil musical calculado por el microservicio de IA.
+     *
+     * @param userId identificador del usuario
+     * @return el perfil si el micro responde correctamente; {@code Optional.empty()} si no está
+     *         disponible o devuelve un código no 2xx
+     */
     public Optional<MusicProfile> getProfile(UUID userId) {
         if (!properties.isAvailable()) return Optional.empty();
         try {

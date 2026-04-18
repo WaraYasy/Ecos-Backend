@@ -124,6 +124,17 @@ public class CalculateUserProfileUseCase {
         return profile;
     }
 
+    /**
+     * Versión asíncrona de {@link #execute(UUID)}: lanza el cálculo en el pool
+     * {@code exportExecutor} sin bloquear al llamador.
+     * <p>
+     * Diseñado para dispararse desde {@code POST /v1/sessions} tras guardar una sesión,
+     * de forma que el perfil siempre refleje los últimos datos sin penalizar la respuesta HTTP.
+     * Los errores se absorben con un log de advertencia para no propagar excepciones al pool.
+     * </p>
+     *
+     * @param userId identificador del usuario cuyo perfil se recalcula
+     */
     @Async("exportExecutor")
     public void executeAsync(UUID userId) {
         try {
@@ -211,11 +222,17 @@ public class CalculateUserProfileUseCase {
                 ));
     }
 
+    /** Serializa un objeto a JSON para almacenarlo en columnas JSONB; devuelve {@code null} si falla. */
     private String toJson(Object value) {
         try { return objectMapper.writeValueAsString(value); }
         catch (JsonProcessingException e) { return null; }
     }
 
+    /**
+     * Persiste el perfil calculado en {@code user_profiles}.
+     * Si la fila ya existe la actualiza (upsert manual); si no, la crea asociando el {@code UserEntity}.
+     * Los errores no se propagan para no interrumpir el flujo principal ni el async.
+     */
     private void persist(UUID userId, MusicProfile profile) {
         try {
             UserProfileEntity entity = userProfileRepository.findById(userId)
