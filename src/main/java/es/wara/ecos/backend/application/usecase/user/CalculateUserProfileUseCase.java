@@ -12,6 +12,7 @@ import es.wara.ecos.backend.infrastructure.persistence.entity.UserEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.UserProfileEntity;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaUserProfileRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StopWatch;
 
@@ -121,6 +122,15 @@ public class CalculateUserProfileUseCase {
 
         persist(userId, profile);
         return profile;
+    }
+
+    @Async("exportExecutor")
+    public void executeAsync(UUID userId) {
+        try {
+            execute(userId);
+        } catch (Exception e) {
+            log.warn("CalculateUserProfile async falló para userId={}: {}", userId, e.getMessage());
+        }
     }
 
     /** Extrae todas las canciones únicas de las sesiones del usuario. */
