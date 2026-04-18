@@ -87,7 +87,7 @@ class SpotifyAuthControllerTest {
 
     @Test
     void callback_loginFlow_redirectsToDeepLink() throws Exception {
-        LoginResponse login = new LoginResponse("jwt-token-123", USER_ID);
+        LoginResponse login = new LoginResponse("jwt-token-123", USER_ID, false);
         when(spotifyAuthPort.exchangeCodeForToken("abc", "login-state"))
                 .thenReturn(Optional.of(login));
 
@@ -97,6 +97,19 @@ class SpotifyAuthControllerTest {
                 .andExpect(status().isFound())
                 .andExpect(header().string("Location", containsString("ecos://auth/callback")))
                 .andExpect(header().string("Location", containsString("token=jwt-token-123")));
+    }
+
+    @Test
+    void callback_loginFlow_linkedAccount_includesLinkedParamInDeepLink() throws Exception {
+        LoginResponse login = new LoginResponse("jwt-token-123", USER_ID, true);
+        when(spotifyAuthPort.exchangeCodeForToken("abc", "login-state"))
+                .thenReturn(Optional.of(login));
+
+        mockMvc.perform(get("/callback/spotify")
+                        .param("code", "abc")
+                        .param("state", "login-state"))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", containsString("linked=true")));
     }
 
     @Test

@@ -1,9 +1,13 @@
 package es.wara.ecos.backend.infrastructure.adapter.spotify;
 
+import es.wara.ecos.backend.domain.model.User;
+import es.wara.ecos.backend.domain.port.UserRepository;
 import es.wara.ecos.backend.infrastructure.persistence.entity.OAuthStateEntity;
 import es.wara.ecos.backend.infrastructure.persistence.entity.SpotifyTokenEntity;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaOAuthStateRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSpotifyTokenRepository;
+import es.wara.ecos.backend.infrastructure.security.JwtService;
+import es.wara.ecos.backend.interfaces.rest.dto.LoginResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -44,6 +49,8 @@ class SpotifyAuthServiceTest {
     @Mock JpaSpotifyTokenRepository tokenRepository;
     @Mock JpaOAuthStateRepository oAuthStateRepository;
     @Mock TextEncryptor encryptor;
+    @Mock UserRepository userRepository;
+    @Mock JwtService jwtService;
 
     @InjectMocks
     SpotifyAuthService service;
@@ -178,5 +185,106 @@ class SpotifyAuthServiceTest {
         assertThatThrownBy(() -> service.getTokenForUser(USER_ID))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("vinculado");
+    }
+
+    // ── LOGIN flow (account linking) ─────────────────────────────────────────
+
+    @Test
+    void exchangeCodeForToken_loginFlow_emailMatchesExisting_returnsLinkedTrue() {
+        OAuthStateEntity state = loginState();
+        when(oAuthStateRepository.findById("login-state")).thenReturn(Optional.of(state));
+        mockSpotifyProfileCall("spotify-123", "wara@ecos.es", "Wara");
+        when(encryptor.encrypt(anyString())).thenReturn("encrypted");
+        when(tokenRepository.findById(any())).thenReturn(Optional.empty());
+
+        User existingUser = existingUser();
+        when(userRepository.findByProviderId("spotify-123")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("wara@ecos.es")).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtService.generateToken(any())).thenReturn("jwt-token");
+
+        Optional<LoginResponse> result = service.exchangeCodeForToken("auth-code", "login-state");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().accountLinked()).isTrue();
+    }
+
+    @Test
+    void exchangeCodeForToken_loginFlow_newUser_returnsLinkedFalse() {
+        OAuthStateEntity state = loginState();
+        when(oAuthStateRepository.findById("login-state")).thenReturn(Optional.of(state));
+        mockSpotifyProfileCall("spotify-new", "new@ecos.es", "NewUser");
+        when(encryptor.encrypt(anyString())).thenReturn("encrypted");
+        when(tokenRepository.findById(any())).thenReturn(Optional.empty());
+
+        when(userRepository.findByProviderId("spotify-new")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("new@ecos.es")).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
+        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtService.generateToken(any())).thenReturn("jwt-token");
+
+        Optional<LoginResponse> result = service.exchangeCodeForToken("auth-code", "login-state");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().accountLinked()).isFalse();
+    }
+
+    // ── createSpotifyUser — race condition retry ─────────────────────────────
+
+    @Test
+    void createSpotifyUser_usernameCollision_retriesAndSucceeds() {
+        OAuthStateEntity state = loginState();
+        when(oAuthStateRepository.findById("login-state")).thenReturn(Optional.of(state));
+        mockSpotifyProfileCall("spotify-456", "retry@ecos.es", "Retry");
+        when(encryptor.encrypt(anyString())).thenReturn("encrypted");
+        when(tokenRepository.findById(any())).thenReturn(Optional.empty());
+
+        when(userRepository.findByProviderId("spotify-456")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("retry@ecos.es")).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
+
+        User saved = new User();
+        saved.setId(UUID.randomUUID());
+        when(userRepository.save(any()))
+                .thenThrow(new DataIntegrityViolationException("duplicate key: username"))
+                .thenReturn(saved);
+        when(jwtService.generateToken(any())).thenReturn("jwt-token");
+
+        Optional<LoginResponse> result = service.exchangeCodeForToken("auth-code", "login-state");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().accountLinked()).isFalse();
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    private OAuthStateEntity loginState() {
+        OAuthStateEntity state = new OAuthStateEntity();
+        state.setState("login-state");
+        state.setPurpose("LOGIN");
+        state.setUserId(null);
+        state.setExpiresAt(Instant.now().plusSeconds(300));
+        return state;
+    }
+
+    private Map<String, Object> spotifyTokenBody() {
+        return Map.of("access_token", "at", "refresh_token", "rt", "expires_in", 3600);
+    }
+
+    private User existingUser() {
+        User u = new User();
+        u.setId(USER_ID);
+        u.setEmail("wara@ecos.es");
+        u.setUsername("wara");
+        u.setAuthProvider("local");
+        return u;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void mockSpotifyProfileCall(String spotifyId, String email, String displayName) {
+        when(restTemplate.postForEntity(anyString(), any(), eq(Map.class)))
+                .thenReturn(ResponseEntity.ok(spotifyTokenBody()));
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
+                .thenReturn(ResponseEntity.ok(Map.of("id", spotifyId, "email", email, "display_name", displayName)));
     }
 }
