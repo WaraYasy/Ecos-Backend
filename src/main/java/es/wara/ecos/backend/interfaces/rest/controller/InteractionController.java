@@ -40,7 +40,7 @@ import java.util.UUID;
 @Tag(name = "Interactions", description = "Registro de interacciones de usuario con canciones")
 public class InteractionController {
 
-    private static final Set<String> VALID_ACTIONS = Set.of("play", "skip", "add_playlist", "expand_node");
+    private static final Set<String> VALID_ACTIONS = Set.of("play", "skip", "add_playlist", "expand_node", "dislike");
 
     private final UserInteractionRepositoryImpl interactionRepository;
     private final JpaSongRepository jpaSongRepository;
