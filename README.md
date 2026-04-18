@@ -22,6 +22,7 @@ Este repositorio contiene el **backend Spring Boot** que alimenta la app.
 | APIs externas | Spotify · Last.fm · TMDb · MusicBrainz |
 | IA / Semántica | Microservicio Python (FastAPI + pgvector + embeddings) |
 | Seguridad | JWT (jjwt 0.12.6) · BCrypt · Spring Security · OAuth2 Spotify |
+| Cola async | Redis (jobs de exportación a Spotify) |
 | Caché | Caffeine (in-memory, TTL por capa) |
 | Tests | JUnit 5 · Mockito · Testcontainers · MockRestServiceServer |
 | Docs API | SpringDoc OpenAPI (Swagger UI) |
@@ -31,7 +32,7 @@ Este repositorio contiene el **backend Spring Boot** que alimenta la app.
 ## Requisitos previos
 
 - **Java 21** o superior
-- **Docker Desktop** en ejecución (para PostgreSQL local)
+- **Docker Desktop** en ejecución (para PostgreSQL y Redis locales)
 - Cuentas de desarrollador con claves de API:
   - [Spotify for Developers](https://developer.spotify.com)
   - [The Movie Database (TMDb)](https://www.themoviedb.org/settings/api)
@@ -84,7 +85,7 @@ AI_SERVICE_URL=https://tu-micro-ia.railway.app
 AI_SERVICE_API_KEY=tu_api_key_del_micro
 ```
 
-### 3. Iniciar PostgreSQL con Docker
+### 3. Iniciar PostgreSQL y Redis con Docker
 
 ```bash
 docker run -d \
@@ -94,6 +95,11 @@ docker run -d \
   -e POSTGRES_PASSWORD=tu_password_local \
   -p 5432:5432 \
   pgvector/pgvector:pg16
+
+docker run -d \
+  --name ecos_redis \
+  -p 6379:6379 \
+  redis:7-alpine
 ```
 
 Flyway aplica las migraciones automáticamente al arrancar.
@@ -148,7 +154,8 @@ PATCH  /v1/playlists/{id}                  body: {name?, description?}
 DELETE /v1/playlists/{id}
 POST   /v1/playlists/{id}/songs
 DELETE /v1/playlists/{id}/songs/{songId}
-POST   /v1/playlists/{id}/export/spotify
+POST   /v1/playlists/{id}/export/spotify       → 202 {jobId, status}
+GET    /v1/playlists/{id}/export/spotify/{jobId}  → estado del job
 
 # Sesiones del grafo
 GET  /v1/sessions
@@ -221,7 +228,7 @@ Los resultados del micro se **mezclan con los de BD** (merge híbrido): los matc
 | BackendApplicationTests | 1 |
 | **Total** | **~305** |
 
-Los tests funcionales arrancan un contenedor PostgreSQL real. Requieren Docker Desktop en ejecución.
+Los tests funcionales arrancan contenedores PostgreSQL y Redis reales. Requieren Docker Desktop en ejecución.
 
 ---
 
@@ -314,6 +321,10 @@ sequenceDiagram
 | `APP_DEEP_LINK_SCHEME` | Scheme del deep link móvil (default: `ecos`) | No |
 | `AI_SERVICE_URL` | URL base del microservicio de IA (sin barra final) | No |
 | `AI_SERVICE_API_KEY` | API key del microservicio de IA | No |
+| `REDIS_HOST` | Host de Redis (default: `localhost`) | No (local) |
+| `REDIS_PORT` | Puerto de Redis (default: `6379`) | No (local) |
+| `REDIS_PASSWORD` | Contraseña de Redis si requiere autenticación | No |
+| `REDIS_URL` | URL completa de Redis — Railway la genera automáticamente | Sí (prod) |
 
 ---
 
