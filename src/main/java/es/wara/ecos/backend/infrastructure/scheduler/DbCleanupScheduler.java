@@ -9,14 +9,17 @@ import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -37,10 +40,10 @@ import java.util.UUID;
  *   <li>Fusiona canciones duplicadas por título + artista.</li>
  *   <li>Rellena {@code preview_url} y {@code cover_url} vacíos vía iTunes.</li>
  * </ol>
- * <p>Al finalizar envía un informe HTML por email a {@code cleanup.report.to}.</p>
+ * <p>Al finalizar escribe un informe de texto en {@code /data/cleanup-YYYY-MM-DD.log}.</p>
  *
  * @author Wara Pacheco
- * @version 1.1
+ * @version 1.2
  * @since 1.0.0
  */
 @Slf4j
@@ -56,29 +59,23 @@ public class DbCleanupScheduler {
     private final JpaSongRepository   songRepo;
     private final JpaArtistRepository artistRepo;
     private final RestTemplate        restTemplate;
-    private final JavaMailSender      mailSender;
 
     @Value("${cleanup.scheduler.itunes.delay-ms:400}")
     private long itunesDelayMs;
 
-    @Value("${cleanup.report.to}")
-    private String reportTo;
-
-    @Value("${spring.mail.username}")
-    private String reportFrom;
+    @Value("${cleanup.log.dir:/data}")
+    private String logDir;
 
     public DbCleanupScheduler(JdbcTemplate jdbc,
                                JpaAlbumRepository albumRepo,
                                JpaSongRepository songRepo,
                                JpaArtistRepository artistRepo,
-                               RestTemplate restTemplate,
-                               JavaMailSender mailSender) {
-        this.jdbc        = jdbc;
-        this.albumRepo   = albumRepo;
-        this.songRepo    = songRepo;
-        this.artistRepo  = artistRepo;
+                               RestTemplate restTemplate) {
+        this.jdbc         = jdbc;
+        this.albumRepo    = albumRepo;
+        this.songRepo     = songRepo;
+        this.artistRepo   = artistRepo;
         this.restTemplate = restTemplate;
-        this.mailSender  = mailSender;
     }
 
     // ── Informe de fase ───────────────────────────────────────────────────────
@@ -103,7 +100,7 @@ public class DbCleanupScheduler {
         results.add(runPhase("5 · Media (preview/cover)", this::fillMedia));
 
         log.info("[Cleanup] === Pipeline completado ===");
-        sendReport(start, results);
+        writeReport(start, results);
     }
 
     private PhaseResult runPhase(String name, PhaseSupplier fn) {
@@ -379,64 +376,34 @@ public class DbCleanupScheduler {
         return summary;
     }
 
-    // ── Informe por email ─────────────────────────────────────────────────────
+    // ── Informe en fichero ────────────────────────────────────────────────────
 
-    private void sendReport(LocalDateTime start, List<PhaseResult> results) {
-        try {
-            long errors = results.stream().filter(r -> !r.ok()).count();
-            String subject = "[ECOS] Limpieza BD — %s%s".formatted(
-                    start.format(DT_FMT),
-                    errors > 0 ? " ⚠ %d error(es)".formatted(errors) : " ✓"
-            );
-
-            var msg = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
-            helper.setFrom(reportFrom);
-            helper.setTo(reportTo);
-            helper.setSubject(subject);
-            helper.setText(buildHtml(start, results), true);
-
-            mailSender.send(msg);
-            log.info("[Cleanup] Informe enviado a {}", reportTo);
-        } catch (Exception e) {
-            log.error("[Cleanup] No se pudo enviar el informe por email", e);
-        }
-    }
-
-    private String buildHtml(LocalDateTime start, List<PhaseResult> results) {
+    private void writeReport(LocalDateTime start, List<PhaseResult> results) {
         long errors = results.stream().filter(r -> !r.ok()).count();
-        String statusColor  = errors > 0 ? "#e74c3c" : "#27ae60";
-        String statusLabel  = errors > 0 ? "CON ERRORES" : "COMPLETADO";
+        String status = errors > 0 ? "CON ERRORES (%d)".formatted(errors) : "OK";
 
-        StringBuilder rows = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
+        sb.append("=".repeat(60)).append("\n");
+        sb.append("ECOS · Limpieza BD — %s — %s\n".formatted(start.format(DT_FMT), status));
+        sb.append("=".repeat(60)).append("\n");
         for (PhaseResult r : results) {
-            String icon    = r.ok() ? "✅" : "❌";
-            String detail  = r.ok() ? r.summary() : "<span style='color:#e74c3c'>%s</span>".formatted(r.error());
-            rows.append("<tr>")
-                .append("<td style='padding:8px 12px;border-bottom:1px solid #eee'>%s %s</td>".formatted(icon, r.name()))
-                .append("<td style='padding:8px 12px;border-bottom:1px solid #eee;color:#555'>%s</td>".formatted(detail))
-                .append("</tr>");
+            String mark = r.ok() ? "[OK]" : "[ERROR]";
+            sb.append("  %s %s\n".formatted(mark, r.name()));
+            if (r.ok())  sb.append("       %s\n".formatted(r.summary()));
+            else         sb.append("       %s\n".formatted(r.error()));
         }
+        sb.append("\n");
 
-        return """
-            <html><body style="font-family:sans-serif;color:#333;max-width:600px;margin:auto">
-              <h2 style="border-bottom:3px solid %s;padding-bottom:8px">
-                ECOS · Informe de limpieza
-              </h2>
-              <p style="color:#666">Ejecutado: <strong>%s</strong></p>
-              <p>Estado: <strong style="color:%s">%s</strong></p>
-              <table style="width:100%%;border-collapse:collapse;margin-top:16px">
-                <thead>
-                  <tr style="background:#f5f5f5">
-                    <th style="padding:8px 12px;text-align:left">Fase</th>
-                    <th style="padding:8px 12px;text-align:left">Resultado</th>
-                  </tr>
-                </thead>
-                <tbody>%s</tbody>
-              </table>
-              <p style="margin-top:24px;font-size:12px;color:#aaa">ECOS Backend · Railway</p>
-            </body></html>
-            """.formatted(statusColor, start.format(DT_FMT), statusColor, statusLabel, rows);
+        try {
+            Path dir  = Path.of(logDir);
+            Files.createDirectories(dir);
+            Path file = dir.resolve("cleanup-%s.log".formatted(LocalDate.now()));
+            Files.writeString(file, sb.toString(),
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            log.info("[Cleanup] Informe escrito en {}", file);
+        } catch (IOException e) {
+            log.error("[Cleanup] No se pudo escribir el informe en {}", logDir, e);
+        }
     }
 
     // ── API helpers ───────────────────────────────────────────────────────────

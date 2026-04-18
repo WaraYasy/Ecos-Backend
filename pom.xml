@@ -156,11 +156,6 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
-		<!-- Email: informe post-limpieza vía Gmail SMTP -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-mail</artifactId>
-		</dependency>
 
 		<!-- Logstash encoder: serializa log events a JSON estructurado -->
 		<dependency>
