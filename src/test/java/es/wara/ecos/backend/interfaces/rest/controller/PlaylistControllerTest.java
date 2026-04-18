@@ -1,9 +1,10 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
+import es.wara.ecos.backend.application.service.ExportJob;
+import es.wara.ecos.backend.application.service.ExportJobService;
 import es.wara.ecos.backend.application.usecase.playlist.AddSongToPlaylistUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.CreatePlaylistUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.DeletePlaylistUseCase;
-import es.wara.ecos.backend.application.usecase.playlist.ExportPlaylistToSpotifyUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.GetPlaylistByIdUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.GetUserPlaylistsUseCase;
 import es.wara.ecos.backend.application.usecase.playlist.RemoveSongFromPlaylistUseCase;
@@ -72,7 +73,7 @@ class PlaylistControllerTest {
     RemoveSongFromPlaylistUseCase removeSongFromPlaylistUseCase;
 
     @MockitoBean
-    ExportPlaylistToSpotifyUseCase exportPlaylistToSpotifyUseCase;
+    ExportJobService exportJobService;
 
     @MockitoBean
     PlaylistRepository playlistRepository;
@@ -99,14 +100,35 @@ class PlaylistControllerTest {
     }
 
     @Test
-    void exportToSpotify_validRequest_returns200WithPlaylistResponse() throws Exception {
-        Playlist exported = buildPlaylist("spotify-pl-id");
-        when(exportPlaylistToSpotifyUseCase.execute(PLAYLIST_ID, USER_ID)).thenReturn(exported);
+    void exportToSpotify_validRequest_returns202WithJobId() throws Exception {
+        ExportJob job = new ExportJob("job-abc", PLAYLIST_ID, USER_ID,
+                ExportJob.Status.PENDING, null, null, java.time.LocalDateTime.now());
+        when(exportJobService.submit(PLAYLIST_ID, USER_ID)).thenReturn(job);
 
         mockMvc.perform(post("/v1/playlists/" + PLAYLIST_ID + "/export/spotify"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.jobId").value("job-abc"))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+    }
+
+    @Test
+    void exportStatus_existingJob_returns200WithStatus() throws Exception {
+        ExportJob job = new ExportJob("job-abc", PLAYLIST_ID, USER_ID,
+                ExportJob.Status.DONE, "spotify-pl-id", null, java.time.LocalDateTime.now());
+        when(exportJobService.findById("job-abc")).thenReturn(java.util.Optional.of(job));
+
+        mockMvc.perform(get("/v1/playlists/" + PLAYLIST_ID + "/export/spotify/job-abc"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(PLAYLIST_ID.toString()))
-                .andExpect(jsonPath("$.name").value("Mi playlist"));
+                .andExpect(jsonPath("$.status").value("DONE"))
+                .andExpect(jsonPath("$.spotifyPlaylistId").value("spotify-pl-id"));
+    }
+
+    @Test
+    void exportStatus_unknownJob_returns404() throws Exception {
+        when(exportJobService.findById("bad-job")).thenReturn(java.util.Optional.empty());
+
+        mockMvc.perform(get("/v1/playlists/" + PLAYLIST_ID + "/export/spotify/bad-job"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

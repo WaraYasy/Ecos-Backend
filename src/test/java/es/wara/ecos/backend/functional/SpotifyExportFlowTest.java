@@ -16,11 +16,13 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -91,7 +93,7 @@ class SpotifyExportFlowTest extends BaseFunctionalTest {
     // ── tests ─────────────────────────────────────────────────────────────────
 
     @Test
-    void exportToSpotify_linkedUser_returns200WithPlaylistId() throws Exception {
+    void exportToSpotify_linkedUser_returns202AndJobCompletesDone() throws Exception {
         LoginResult login = registerAndLogin("wara", "wara@ecos.es");
         String playlistId = createPlaylist(login.token());
 
@@ -102,24 +104,50 @@ class SpotifyExportFlowTest extends BaseFunctionalTest {
                 .thenReturn("spotify-playlist-abc");
         doNothing().when(spotifyClient).addTracksToPlaylist(anyString(), anyString(), any(List.class));
 
-        mockMvc.perform(post("/v1/playlists/" + playlistId + "/export/spotify")
+        MvcResult submitResult = mockMvc.perform(post("/v1/playlists/" + playlistId + "/export/spotify")
+                        .header("Authorization", "Bearer " + login.token()))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.jobId").exists())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andReturn();
+
+        String jobId = objectMapper.readTree(submitResult.getResponse().getContentAsString())
+                .get("jobId").asText();
+
+        // El worker async completa en milisegundos al estar Spotify mockeado
+        Thread.sleep(500);
+
+        mockMvc.perform(get("/v1/playlists/" + playlistId + "/export/spotify/" + jobId)
                         .header("Authorization", "Bearer " + login.token()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(playlistId));
+                .andExpect(jsonPath("$.status").value("DONE"))
+                .andExpect(jsonPath("$.spotifyPlaylistId").value("spotify-playlist-abc"));
     }
 
     @Test
-    void exportToSpotify_userNotLinkedToSpotify_returns404() throws Exception {
+    void exportToSpotify_userNotLinkedToSpotify_jobFails() throws Exception {
         LoginResult login = registerAndLogin("wara", "wara@ecos.es");
         String playlistId = createPlaylist(login.token());
 
         when(spotifyAuthPort.getTokenForUser(login.userId()))
                 .thenThrow(new IllegalArgumentException("El usuario no ha vinculado su cuenta de Spotify"));
 
-        mockMvc.perform(post("/v1/playlists/" + playlistId + "/export/spotify")
+        MvcResult submitResult = mockMvc.perform(post("/v1/playlists/" + playlistId + "/export/spotify")
                         .header("Authorization", "Bearer " + login.token()))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.jobId").exists())
+                .andReturn();
+
+        String jobId = objectMapper.readTree(submitResult.getResponse().getContentAsString())
+                .get("jobId").asText();
+
+        Thread.sleep(500);
+
+        mockMvc.perform(get("/v1/playlists/" + playlistId + "/export/spotify/" + jobId)
+                        .header("Authorization", "Bearer " + login.token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FAILED"))
+                .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
