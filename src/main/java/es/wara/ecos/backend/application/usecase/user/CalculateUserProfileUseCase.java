@@ -5,6 +5,12 @@ import es.wara.ecos.backend.domain.model.MusicProfile;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.SessionRepository;
 import es.wara.ecos.backend.domain.port.UserRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import es.wara.ecos.backend.infrastructure.adapter.ai.ProfileClient;
+import es.wara.ecos.backend.infrastructure.persistence.entity.UserEntity;
+import es.wara.ecos.backend.infrastructure.persistence.entity.UserProfileEntity;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaUserProfileRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StopWatch;
@@ -33,10 +39,20 @@ public class CalculateUserProfileUseCase {
 
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
+    private final ProfileClient profileClient;
+    private final JpaUserProfileRepository userProfileRepository;
+    private final ObjectMapper objectMapper;
 
-    public CalculateUserProfileUseCase(UserRepository userRepository, SessionRepository sessionRepository) {
-        this.userRepository = userRepository;
-        this.sessionRepository = sessionRepository;
+    public CalculateUserProfileUseCase(UserRepository userRepository,
+                                       SessionRepository sessionRepository,
+                                       ProfileClient profileClient,
+                                       JpaUserProfileRepository userProfileRepository,
+                                       ObjectMapper objectMapper) {
+        this.userRepository        = userRepository;
+        this.sessionRepository     = sessionRepository;
+        this.profileClient         = profileClient;
+        this.userProfileRepository = userProfileRepository;
+        this.objectMapper          = objectMapper;
     }
 
     /**
@@ -56,6 +72,21 @@ public class CalculateUserProfileUseCase {
             throw new IllegalArgumentException("Usuario no encontrado: " + userId);
         }
         sw.stop();
+
+        // Intentar micro primero
+        sw.start("microProfile");
+        var microProfile = profileClient.getProfile(userId);
+        sw.stop();
+
+        if (microProfile.isPresent()) {
+            log.debug("CalculateUserProfile: perfil obtenido del micro para userId={} → {}ms",
+                    userId, sw.getLastTaskTimeMillis());
+            persist(userId, microProfile.get());
+            return microProfile.get();
+        }
+
+        // Fallback: cálculo local desde sesiones
+        log.debug("CalculateUserProfile: micro no disponible, calculando localmente userId={}", userId);
 
         sw.start("fetchSessions");
         List<ExplorationSession> sessions = sessionRepository.findByUserId(userId);
@@ -87,6 +118,8 @@ public class CalculateUserProfileUseCase {
         } else {
             log.debug("CalculateUserProfile: completado userId={} → {}ms total", userId, total);
         }
+
+        persist(userId, profile);
         return profile;
     }
 
@@ -166,6 +199,36 @@ public class CalculateUserProfileUseCase {
                         Map.Entry::getKey,
                         e -> Math.round(e.getValue() / total * 100.0) / 100.0
                 ));
+    }
+
+    private String toJson(Object value) {
+        try { return objectMapper.writeValueAsString(value); }
+        catch (JsonProcessingException e) { return null; }
+    }
+
+    private void persist(UUID userId, MusicProfile profile) {
+        try {
+            UserProfileEntity entity = userProfileRepository.findById(userId)
+                    .orElseGet(() -> {
+                        UserProfileEntity e = new UserProfileEntity();
+                        UserEntity user = new UserEntity();
+                        user.setId(userId);
+                        e.setUser(user);
+                        return e;
+                    });
+            entity.setAvgEnergy(profile.getAvgEnergy());
+            entity.setHarmonicRichness(profile.getHarmonicRichness());
+            entity.setEclecticity(profile.getEclecticity());
+            if (profile.getFavoriteEras() != null) {
+                entity.setFavoriteEras(toJson(profile.getFavoriteEras()));
+            }
+            if (profile.getTopGenres() != null) {
+                entity.setTopGenres(toJson(profile.getTopGenres()));
+            }
+            userProfileRepository.save(entity);
+        } catch (Exception e) {
+            log.warn("No se pudo persistir user_profile para userId={}: {}", userId, e.getMessage());
+        }
     }
 
     /** Los 5 géneros/etiquetas más frecuentes en el historial del usuario. */
