@@ -190,22 +190,45 @@ El backend integra un **microservicio de IA** (FastAPI + Python) para búsqueda 
 | Modo imaginario | `enhanced=true` | Un LLM expande la query a keywords antes de buscar — ideal para frases evocadoras como "canciones tristes" o "música para una boda" |
 
 ```mermaid
-flowchart LR
-    Q([query]) --> DB[(PostgreSQL\n5 cuadrantes)]
-    Q --> AI{Microservicio IA\ndisponible?}
+sequenceDiagram
+    participant C as SearchController
+    participant UC as SearchSongsUseCase
+    participant DB as PostgreSQL
+    participant AI as Microservicio IA
+    participant LLM as LLM (expand query)
 
-    AI -- sí, enhanced=false --> VEC[búsqueda vectorial\npgvector]
-    AI -- sí, enhanced=true --> LLM[LLM expande\nquery a keywords] --> VEC
-    AI -- no / timeout --> SKIP([omitir semántica])
+    C->>UC: execute(params)
 
-    DB --> MERGE[merge híbrido]
-    VEC --> MERGE
-    SKIP --> MERGE
+    par SQL y semántico en paralelo
+        UC->>DB: songRepository.search(params)
+        DB-->>UC: Page<Song> (resultados SQL)
+    and
+        alt enhanced=false
+            UC->>AI: GET /search/semantic?q=...
+            AI-->>UC: [uuid, score, ...]
+        else enhanced=true
+            UC->>AI: GET /search/semantic/enhanced?q=...
+            AI->>LLM: expandir query evocadora a keywords
+            LLM-->>AI: keywords expandidas
+            AI-->>UC: [uuid, score, ...] + expandedQuery
+        else micro no disponible / timeout
+            AI-->>UC: [] (lista vacía, sin error)
+        end
+    end
 
-    MERGE -->|semánticos primero\nluego BD| R([resultados])
+    alt resultados SQL < 5 y cuadrante on-demand (movie / artist / q)
+        UC->>DB: ingestionService.ingest(params)
+        note over DB: fetch Spotify + Last.fm → persiste
+        UC->>DB: songRepository.search(params)
+        DB-->>UC: Page<Song> actualizada
+    end
+
+    note over UC: merge híbrido:<br/>1. semánticos (orden score)<br/>2. solo-BD al final<br/>3. truncar a pageSize
+
+    UC-->>C: Page<Song> final
 ```
 
-Los resultados del micro se **mezclan con los de BD** (merge híbrido): los matches semánticos aparecen primero ordenados por score, seguidos de los resultados de BD sin match semántico.
+Los resultados del micro se **mezclan con los de BD** (merge híbrido): los matches semánticos aparecen primero ordenados por score, seguidos de los resultados de BD sin match semántico. La consulta SQL y la semántica se ejecutan **en paralelo** (`CompletableFuture`) para minimizar latencia.
 
 ---
 
