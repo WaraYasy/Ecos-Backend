@@ -11,6 +11,7 @@ import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaOAuthStateReposito
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSpotifyTokenRepository;
 import es.wara.ecos.backend.infrastructure.security.JwtService;
 import es.wara.ecos.backend.interfaces.rest.dto.LoginResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -172,14 +173,15 @@ public class SpotifyAuthService implements SpotifyAuthPort {
         String email        = (String) profile.get("email");
         String displayName  = (String) profile.get("display_name");
 
+        boolean[] linked = {false};
         User user = userRepository.findByProviderId(spotifyId)
                 .orElseGet(() -> userRepository.findByEmail(email)
-                        .map(existing -> linkSpotify(existing, spotifyId))
+                        .map(existing -> { linked[0] = true; return linkSpotify(existing, spotifyId); })
                         .orElseGet(() -> createSpotifyUser(spotifyId, email, displayName)));
 
         persistToken(user.getId(), tokenBody);
-        log.info("Login con Spotify completado: userId={}, spotifyId={}", user.getId(), spotifyId);
-        return new LoginResponse(jwtService.generateToken(user.getId()), user.getId());
+        log.info("Login con Spotify completado: userId={}, spotifyId={}, linked={}", user.getId(), spotifyId, linked[0]);
+        return new LoginResponse(jwtService.generateToken(user.getId()), user.getId(), linked[0]);
     }
 
     /** Vincula el provider Spotify a una cuenta local existente (merge de cuentas). */
@@ -194,17 +196,24 @@ public class SpotifyAuthService implements SpotifyAuthPort {
 
     /** Crea un nuevo usuario de ECOS cuyo único método de login es Spotify. */
     private User createSpotifyUser(String spotifyId, String email, String displayName) {
-        String username = resolveUsername(displayName, email);
-        log.info("Creando usuario desde Spotify: spotifyId={}, username={}", spotifyId, username);
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            String username = resolveUsername(displayName, email);
+            log.info("Creando usuario desde Spotify: spotifyId={}, username={} (intento {})", spotifyId, username, attempt);
 
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(email);
-        user.setAuthProvider("spotify");
-        user.setProviderId(spotifyId);
-        user.setLanguage("es");
-        user.setCreatedAt(LocalDateTime.now());
-        return userRepository.save(user);
+            User user = new User();
+            user.setUsername(username);
+            user.setEmail(email);
+            user.setAuthProvider("spotify");
+            user.setProviderId(spotifyId);
+            user.setLanguage("es");
+            user.setCreatedAt(LocalDateTime.now());
+            try {
+                return userRepository.save(user);
+            } catch (DataIntegrityViolationException e) {
+                log.warn("Colisión de username en intento {}: {}", attempt, username);
+            }
+        }
+        throw new IllegalStateException("No se pudo generar un username único para el usuario de Spotify tras 3 intentos");
     }
 
     /**
