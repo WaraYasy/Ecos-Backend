@@ -7,36 +7,53 @@ import es.wara.ecos.backend.domain.model.MusicProfile;
 import es.wara.ecos.backend.domain.model.SessionNode;
 import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.model.Tag;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import es.wara.ecos.backend.domain.port.SessionRepository;
 import es.wara.ecos.backend.domain.port.UserRepository;
+import es.wara.ecos.backend.infrastructure.adapter.ai.ProfileClient;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaUserProfileRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CalculateUserProfileUseCaseTest {
 
-    @Mock
-    UserRepository userRepository;
+    @Mock UserRepository userRepository;
+    @Mock SessionRepository sessionRepository;
+    @Mock ProfileClient profileClient;
+    @Mock JpaUserProfileRepository userProfileRepository;
 
-    @Mock
-    SessionRepository sessionRepository;
-
-    @InjectMocks
     CalculateUserProfileUseCase useCase;
+
+    @BeforeEach
+    void setUp() {
+        useCase = new CalculateUserProfileUseCase(
+                userRepository, sessionRepository,
+                profileClient, userProfileRepository,
+                new ObjectMapper());
+        // Por defecto el micro no está disponible → ejercita el cálculo local
+        // lenient: el test de usuario no encontrado lanza antes de llegar a estos stubs
+        lenient().when(profileClient.getProfile(any())).thenReturn(Optional.empty());
+        lenient().when(userProfileRepository.findById(any())).thenReturn(Optional.empty());
+        lenient().when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+    }
 
     private static final UUID USER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID UNKNOWN_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");
