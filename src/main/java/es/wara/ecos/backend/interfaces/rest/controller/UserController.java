@@ -7,12 +7,14 @@ import es.wara.ecos.backend.application.usecase.user.RegisterUserUseCase;
 import es.wara.ecos.backend.application.usecase.user.UpdateUserPreferencesUseCase;
 import es.wara.ecos.backend.application.usecase.user.UpdateUserUseCase;
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
+import es.wara.ecos.backend.domain.port.UserRepository;
 import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import es.wara.ecos.backend.interfaces.rest.dto.ChangePasswordRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.CreateUserRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.MusicProfileResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.UpdatePreferencesRequest;
 import es.wara.ecos.backend.interfaces.rest.dto.UpdateUserRequest;
+import es.wara.ecos.backend.interfaces.rest.dto.UserCodeResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.UserResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.UUID;
 
@@ -58,6 +61,7 @@ public class UserController {
     private final UpdateUserUseCase updateUserUseCase;
     private final ChangePasswordUseCase changePasswordUseCase;
     private final CalculateUserProfileUseCase calculateUserProfileUseCase;
+    private final UserRepository userRepository;
 
     public UserController(
             RegisterUserUseCase registerUserUseCase,
@@ -65,7 +69,8 @@ public class UserController {
             UpdateUserPreferencesUseCase updateUserPreferencesUseCase,
             UpdateUserUseCase updateUserUseCase,
             ChangePasswordUseCase changePasswordUseCase,
-            CalculateUserProfileUseCase calculateUserProfileUseCase
+            CalculateUserProfileUseCase calculateUserProfileUseCase,
+            UserRepository userRepository
     ) {
         this.registerUserUseCase = registerUserUseCase;
         this.getUserProfileUseCase = getUserProfileUseCase;
@@ -73,6 +78,7 @@ public class UserController {
         this.updateUserUseCase = updateUserUseCase;
         this.changePasswordUseCase = changePasswordUseCase;
         this.calculateUserProfileUseCase = calculateUserProfileUseCase;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -167,6 +173,20 @@ public class UserController {
         }
         changePasswordUseCase.execute(id, request.currentPassword(), request.newPassword());
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Resuelve un código de usuario corto (ECO-XXXX-XXXX) al userId y username correspondientes.
+     * Solo expone datos mínimos — nunca email ni datos privados.
+     *
+     * @param code código de usuario en formato ECO-XXXX-XXXX (case-insensitive)
+     * @return {@code 200 OK} con userId y username, o {@code 404} si el código no existe
+     */
+    @GetMapping("/by-code/{code}")
+    public ResponseEntity<UserCodeResponse> getByCode(@PathVariable String code) {
+        return userRepository.findByUserCode(code.toUpperCase())
+                .map(u -> ResponseEntity.ok(new UserCodeResponse(u.getId(), u.getUsername())))
+                .orElseThrow(() -> new IllegalArgumentException("No existe ningún usuario con el código: " + code));
     }
 
     /**
