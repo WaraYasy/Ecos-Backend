@@ -33,7 +33,7 @@ class ChangePasswordUseCaseTest {
     private static final UUID UNKNOWN_ID = UUID.fromString("00000000-0000-0000-0000-000000000999");
 
     private User user() {
-        return new User(USER_ID, "wara", "wara@ecos.es", "es", "hashed_old", null, null, LocalDateTime.now());
+        return new User(USER_ID, "wara", "wara@ecos.es", "es", "hashed_old", null, null, LocalDateTime.now(), null);
     }
 
     @Test

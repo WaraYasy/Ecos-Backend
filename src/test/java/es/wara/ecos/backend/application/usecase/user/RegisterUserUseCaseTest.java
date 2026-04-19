@@ -35,9 +35,10 @@ class RegisterUserUseCaseTest {
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Test
-    void execute_uniqueData_createsUserWithCreatedAt() {
+    void execute_uniqueData_createsUserWithCreatedAtAndUserCode() {
         when(userRepository.findByUsername("wara")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("wara@ecos.es")).thenReturn(Optional.empty());
+        when(userRepository.existsByUserCode(any())).thenReturn(false);
         when(passwordHasher.hash("secreta")).thenReturn("hashed-password");
         when(userRepository.save(any())).thenAnswer(inv -> {
             User u = inv.getArgument(0);
@@ -52,6 +53,25 @@ class RegisterUserUseCaseTest {
         assertThat(result.getEmail()).isEqualTo("wara@ecos.es");
         assertThat(result.getLanguage()).isEqualTo("es");
         assertThat(result.getPasswordHash()).isEqualTo("hashed-password");
+        assertThat(result.getUserCode()).matches("ECO-[A-Z2-9]{4}-[A-Z2-9]{4}");
+    }
+
+    @Test
+    void execute_userCodeCollision_retriesAndSucceeds() {
+        when(userRepository.findByUsername("wara")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("wara@ecos.es")).thenReturn(Optional.empty());
+        when(passwordHasher.hash("secreta")).thenReturn("hashed-password");
+        // Primera llamada colisiona, segunda es única
+        when(userRepository.existsByUserCode(any())).thenReturn(true, false);
+        when(userRepository.save(any())).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(USER_ID);
+            return u;
+        });
+
+        User result = useCase.execute("wara", "wara@ecos.es", "secreta", "es");
+
+        assertThat(result.getUserCode()).matches("ECO-[A-Z2-9]{4}-[A-Z2-9]{4}");
     }
 
     @Test

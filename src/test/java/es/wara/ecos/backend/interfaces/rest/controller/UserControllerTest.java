@@ -10,6 +10,7 @@ import es.wara.ecos.backend.application.usecase.user.UpdateUserUseCase;
 import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.model.MusicProfile;
 import es.wara.ecos.backend.domain.model.User;
+import es.wara.ecos.backend.domain.port.UserRepository;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
 import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.AfterEach;
@@ -26,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -75,10 +77,13 @@ class UserControllerTest {
     @MockitoBean
     CalculateUserProfileUseCase calculateUserProfileUseCase;
 
+    @MockitoBean
+    UserRepository userRepository;
+
     private static final UUID USER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID UNKNOWN_ID = UUID.fromString("00000000-0000-0000-0000-000000000999");
 
-    private static final User USER = new User(USER_ID, "wara", "wara@ecos.es", "es", null, null, null, LocalDateTime.now());
+    private static final User USER = new User(USER_ID, "wara", "wara@ecos.es", "es", null, null, null, LocalDateTime.now(), null);
 
     @AfterEach
     void clearSecurityContext() {
@@ -149,7 +154,7 @@ class UserControllerTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
 
-        User updated = new User(USER_ID, "wara", "wara@ecos.es", "en", null, null, null, LocalDateTime.now());
+        User updated = new User(USER_ID, "wara", "wara@ecos.es", "en", null, null, null, LocalDateTime.now(), null);
         when(updateUserPreferencesUseCase.execute(eq(USER_ID), eq("en"))).thenReturn(updated);
 
         mockMvc.perform(put("/v1/users/" + USER_ID + "/preferences")
@@ -166,7 +171,7 @@ class UserControllerTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
 
-        User updated = new User(USER_ID, "nueva", "wara@ecos.es", "fr", null, null, null, LocalDateTime.now());
+        User updated = new User(USER_ID, "nueva", "wara@ecos.es", "fr", null, null, null, LocalDateTime.now(), null);
         when(updateUserUseCase.execute(eq(USER_ID), eq("nueva"), eq("fr"))).thenReturn(updated);
 
         mockMvc.perform(patch("/v1/users/" + USER_ID)
@@ -285,6 +290,57 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userId").value(USER_ID.toString()))
                 .andExpect(jsonPath("$.topGenres[0]").value("rock"));
+    }
+
+    // ─── GET /v1/users/by-code/{code} ─────────────────────────────────────────
+
+    @Test
+    void getByCode_existingCode_returns200WithUserIdAndUsername() throws Exception {
+        User user = new User();
+        user.setId(USER_ID);
+        user.setUsername("wara");
+        user.setUserCode("ECO-TEST-0001");
+        when(userRepository.findByUserCode("ECO-TEST-0001")).thenReturn(Optional.of(user));
+
+        mockMvc.perform(get("/v1/users/by-code/ECO-TEST-0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(USER_ID.toString()))
+                .andExpect(jsonPath("$.username").value("wara"));
+    }
+
+    @Test
+    void getByCode_existingCodeLowercase_returns200() throws Exception {
+        User user = new User();
+        user.setId(USER_ID);
+        user.setUsername("wara");
+        user.setUserCode("ECO-TEST-0001");
+        when(userRepository.findByUserCode("ECO-TEST-0001")).thenReturn(Optional.of(user));
+
+        mockMvc.perform(get("/v1/users/by-code/eco-test-0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(USER_ID.toString()));
+    }
+
+    @Test
+    void getByCode_unknownCode_returns404() throws Exception {
+        when(userRepository.findByUserCode("ECO-FAKE-9999")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/v1/users/by-code/ECO-FAKE-9999"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getByCode_responseDoesNotExposeEmail() throws Exception {
+        User user = new User();
+        user.setId(USER_ID);
+        user.setUsername("wara");
+        user.setEmail("privado@ecos.es");
+        user.setUserCode("ECO-TEST-0001");
+        when(userRepository.findByUserCode("ECO-TEST-0001")).thenReturn(Optional.of(user));
+
+        mockMvc.perform(get("/v1/users/by-code/ECO-TEST-0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").doesNotExist());
     }
 
 }
