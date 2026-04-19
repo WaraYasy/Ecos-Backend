@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.infrastructure.adapter.spotify;
 
+import es.wara.ecos.backend.application.usecase.user.UserCodeGenerator;
 import es.wara.ecos.backend.domain.model.User;
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import es.wara.ecos.backend.domain.port.UserRepository;
@@ -200,6 +201,13 @@ public class SpotifyAuthService implements SpotifyAuthPort {
             String username = resolveUsername(displayName, email);
             log.info("Creando usuario desde Spotify: spotifyId={}, username={} (intento {})", spotifyId, username, attempt);
 
+            String userCode;
+            int codeAttempts = 0;
+            do {
+                userCode = UserCodeGenerator.generate();
+                if (++codeAttempts > 5) throw new IllegalStateException("No se pudo generar un código de usuario único");
+            } while (userRepository.existsByUserCode(userCode));
+
             User user = new User();
             user.setUsername(username);
             user.setEmail(email);
@@ -207,6 +215,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
             user.setProviderId(spotifyId);
             user.setLanguage("es");
             user.setCreatedAt(LocalDateTime.now());
+            user.setUserCode(userCode);
             try {
                 return userRepository.save(user);
             } catch (DataIntegrityViolationException e) {

@@ -30,5 +30,6 @@ public class User {
     private String authProvider;
     private String providerId;
     private LocalDateTime createdAt;
+    private String userCode;
 
 }

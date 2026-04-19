@@ -25,6 +25,7 @@ public class UserMapper {
         user.setAuthProvider(entity.getAuthProvider());
         user.setProviderId(entity.getProviderId());
         user.setCreatedAt(entity.getCreatedAt());
+        user.setUserCode(entity.getUserCode());
         return user;
     }
 
@@ -39,6 +40,7 @@ public class UserMapper {
         entity.setAuthProvider(model.getAuthProvider() != null ? model.getAuthProvider() : "local");
         entity.setProviderId(model.getProviderId());
         entity.setCreatedAt(model.getCreatedAt());
+        entity.setUserCode(model.getUserCode());
         return entity;
     }
 

@@ -49,4 +49,7 @@ public class UserEntity {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Column(name = "user_code", unique = true, nullable = false, length = 13)
+    private String userCode;
+
 }

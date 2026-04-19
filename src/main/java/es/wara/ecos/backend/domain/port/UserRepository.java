@@ -40,6 +40,10 @@ public interface UserRepository {
 
     Optional<User> findByProviderId(String providerId);
 
+    Optional<User> findByUserCode(String userCode);
+
+    boolean existsByUserCode(String userCode);
+
     /**
      * Comprueba si existe un usuario con el identificador dado sin cargar la entidad completa.
      *

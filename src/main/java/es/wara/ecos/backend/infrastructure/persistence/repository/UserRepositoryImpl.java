@@ -61,6 +61,16 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByUserCode(String userCode) {
+        return jpa.findByUserCode(userCode).map(mapper::toModel);
+    }
+
+    @Override
+    public boolean existsByUserCode(String userCode) {
+        return jpa.existsByUserCode(userCode);
+    }
+
+    @Override
     public boolean existsById(UUID id) {
         return jpa.existsById(id);
     }
