@@ -7,11 +7,15 @@ import es.wara.ecos.backend.domain.model.Song;
 import es.wara.ecos.backend.domain.port.SessionRepository;
 import es.wara.ecos.backend.domain.port.SongRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Caso de uso para guardar una sesión de exploración musical.
@@ -45,8 +49,11 @@ public class CreateExplorationSessionUseCase {
      * @throws ConflictException        si el usuario ya tiene 2 sesiones guardadas
      * @throws IllegalArgumentException si la canción inicial no existe
      */
+    @Transactional
     public ExplorationSession execute(UUID userId, UUID startSongId, List<UUID> songIds, String name) {
-        if (sessionRepository.countByUserId(userId) >= MAX_SESSIONS) {
+        // Bloqueo pesimista: el conteo se hace dentro de la transacción con lock sobre las
+        // filas del usuario, evitando que dos peticiones concurrentes burlen el límite de 2.
+        if (sessionRepository.countByUserIdForUpdate(userId) >= MAX_SESSIONS) {
             throw new ConflictException(
                     "Ya tienes " + MAX_SESSIONS + " sesiones guardadas. Elimina una para poder guardar otra.");
         }
@@ -60,10 +67,14 @@ public class CreateExplorationSessionUseCase {
         session.setName(name);
         session.setCreatedAt(LocalDateTime.now());
 
-        List<SessionNode> nodes = new ArrayList<>();
+        // Una sola query para todas las canciones en lugar de N findById individuales
         List<UUID> ids = songIds != null ? songIds : List.of();
+        Map<UUID, Song> songMap = songRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Song::getId, Function.identity()));
+
+        List<SessionNode> nodes = new ArrayList<>();
         for (int i = 0; i < ids.size(); i++) {
-            Song song = songRepository.findById(ids.get(i)).orElse(null);
+            Song song = songMap.get(ids.get(i));
             if (song != null) {
                 SessionNode node = new SessionNode();
                 node.setSong(song);

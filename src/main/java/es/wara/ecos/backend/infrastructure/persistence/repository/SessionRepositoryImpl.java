@@ -68,14 +68,19 @@ public class SessionRepositoryImpl implements SessionRepository {
     public ExplorationSession save(ExplorationSession session) {
         var saved = jpa.save(mapper.toEntity(session));
         jpa.flush();
-        // Recargamos desde BD para que las relaciones lazy se resuelvan en la misma transacción
-        return mapper.toModel(jpa.findById(saved.getId()).orElseThrow());
+        return mapper.toModel(jpa.findByIdWithNodes(saved.getId()).orElseThrow());
     }
 
     @Override
     @Transactional(readOnly = true)
     public long countByUserId(UUID userId) {
         return jpa.countByUser_Id(userId);
+    }
+
+    @Override
+    @Transactional
+    public long countByUserIdForUpdate(UUID userId) {
+        return jpa.countByUser_IdForUpdate(userId);
     }
 
     @Override

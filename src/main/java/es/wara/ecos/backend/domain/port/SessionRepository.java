@@ -49,6 +49,15 @@ public interface SessionRepository {
     long countByUserId(UUID userId);
 
     /**
+     * Cuenta las sesiones con bloqueo pesimista para uso en operaciones de escritura.
+     * Debe ejecutarse dentro de una transacción activa.
+     *
+     * @param userId identificador del usuario
+     * @return número de sesiones del usuario
+     */
+    long countByUserIdForUpdate(UUID userId);
+
+    /**
      * Elimina una sesión por su identificador.
      *
      * @param id identificador de la sesión a eliminar
