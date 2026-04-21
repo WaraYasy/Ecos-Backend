@@ -1,7 +1,9 @@
 package es.wara.ecos.backend.infrastructure.persistence.jpa;
 
 import es.wara.ecos.backend.infrastructure.persistence.entity.ExplorationSessionEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -34,6 +36,7 @@ public interface JpaSessionRepository extends JpaRepository<ExplorationSessionEn
             LEFT JOIN FETCH n.song song
             LEFT JOIN FETCH song.album
             LEFT JOIN FETCH song.audioFeatures
+            LEFT JOIN FETCH song.artists
             WHERE s.user.id = :userId
             """)
     List<ExplorationSessionEntity> findByUser_IdWithNodes(@Param("userId") UUID userId);
@@ -47,10 +50,19 @@ public interface JpaSessionRepository extends JpaRepository<ExplorationSessionEn
             LEFT JOIN FETCH s.nodes n
             LEFT JOIN FETCH n.song song
             LEFT JOIN FETCH song.album
+            LEFT JOIN FETCH song.artists
             WHERE s.id = :id
             """)
     Optional<ExplorationSessionEntity> findByIdWithNodes(@Param("id") UUID id);
 
     long countByUser_Id(UUID userId);
+
+    /**
+     * Cuenta sesiones con SELECT FOR UPDATE para evitar race condition al crear sesiones.
+     * El lock impide que dos transacciones concurrentes burlen el límite de MAX_SESSIONS.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT COUNT(s) FROM ExplorationSessionEntity s WHERE s.user.id = :userId")
+    long countByUser_IdForUpdate(@Param("userId") UUID userId);
 
 }
