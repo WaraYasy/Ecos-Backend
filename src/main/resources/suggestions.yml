@@ -1,41 +1,40 @@
 suggestions:
   items:
-    - label: "Estudiar bajo la lluvia"
+    - label: "Lofi para estudiar"
       params:
-        q: "study lofi rain"
-        enhanced: true
-
-    - label: "Tarde de jazz tranquilo"
-      params:
-        genre: jazz
-        texture: acoustic
-
-    - label: "Rock de los 80"
-      params:
-        genre: rock
-        decade: "1980s"
-
-    - label: "Electrónica para concentrarse"
-      params:
-        aesthetic: "dark academia"
-        genre: electronic
-
-    - label: "Indie melancólico"
-      params:
-        genre: indie
-        mode: minor
-
-    - label: "Música de película"
-      params:
-        texture: orchestral
+        aesthetic: lofi
         instrumental: true
 
-    - label: "Verano y buen rollo"
+    - label: "Jazz de los años 60"
       params:
-        genre: pop
-        mode: major
+        genre: jazz
+        decade: "1960s"
 
-    - label: "Hip-hop para entrenar"
+    - label: "Para entrenar a tope"
       params:
-        genre: hiphop
-        energyMin: 0.7
+        energyMin: 0.80
+        valenceMin: 0.60
+
+    - label: "Tristeza de madrugada"
+      params:
+        valenceMax: 0.35
+        mode: minor
+
+    - label: "Banda sonora de Interstellar"
+      params:
+        movie: "Interstellar"
+
+    - label: "Música de Brasil"
+      params:
+        country: Brazil
+        genre: bossa nova
+
+    - label: "Nostalgia Y2K"
+      params:
+        aesthetic: y2k
+        decade: "2000s"
+
+    - label: "Rock psicodélico de los 70"
+      params:
+        genre: psychedelic rock
+        decade: "1970s"
