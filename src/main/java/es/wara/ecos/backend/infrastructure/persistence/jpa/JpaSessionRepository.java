@@ -35,8 +35,6 @@ public interface JpaSessionRepository extends JpaRepository<ExplorationSessionEn
             LEFT JOIN FETCH s.nodes n
             LEFT JOIN FETCH n.song song
             LEFT JOIN FETCH song.album
-            LEFT JOIN FETCH song.audioFeatures
-            LEFT JOIN FETCH song.artists
             WHERE s.user.id = :userId
             """)
     List<ExplorationSessionEntity> findByUser_IdWithNodes(@Param("userId") UUID userId);
@@ -50,7 +48,6 @@ public interface JpaSessionRepository extends JpaRepository<ExplorationSessionEn
             LEFT JOIN FETCH s.nodes n
             LEFT JOIN FETCH n.song song
             LEFT JOIN FETCH song.album
-            LEFT JOIN FETCH song.artists
             WHERE s.id = :id
             """)
     Optional<ExplorationSessionEntity> findByIdWithNodes(@Param("id") UUID id);

@@ -32,8 +32,7 @@ class SessionFlowTest extends BaseFunctionalTest {
 
     @BeforeEach
     void cleanDb() {
-        jdbc.execute("TRUNCATE TABLE artists CASCADE");
-        jdbc.execute("TRUNCATE TABLE users CASCADE");
+        jdbc.execute("TRUNCATE TABLE artists, users CASCADE");
         insertSongFixtures();
     }
 

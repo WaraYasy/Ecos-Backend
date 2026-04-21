@@ -29,7 +29,7 @@ public class OAuthStateCleanupScheduler {
     }
 
     @Transactional
-    @Scheduled(fixedRate = 3_600_000)
+    @Scheduled(cron = "${oauth.cleanup.cron:0 0 * * * *}")
     public void cleanupExpiredStates() {
         int deleted = oAuthStateRepository.deleteByExpiresAtBefore(Instant.now());
         if (deleted > 0) {
