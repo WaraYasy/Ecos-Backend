@@ -5,10 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.web.client.RestTemplate;
 
@@ -16,6 +18,7 @@ import java.net.Authenticator;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -78,6 +81,17 @@ public class RestTemplateConfig {
         RestTemplate restTemplate = new RestTemplate(
                 new BufferingClientHttpRequestFactory(clientHttpRequestFactory())
         );
+        // iTunes API devuelve text/javascript en lugar de application/json;
+        // añadirlo al converter Jackson evita el "no suitable HttpMessageConverter" en ItunesClient.
+        restTemplate.getMessageConverters().stream()
+                .filter(c -> c instanceof MappingJackson2HttpMessageConverter)
+                .map(c -> (MappingJackson2HttpMessageConverter) c)
+                .findFirst()
+                .ifPresent(c -> {
+                    List<MediaType> types = new ArrayList<>(c.getSupportedMediaTypes());
+                    types.add(MediaType.valueOf("text/javascript"));
+                    c.setSupportedMediaTypes(types);
+                });
         restTemplate.setInterceptors(List.of(loggingInterceptor()));
         return restTemplate;
     }
