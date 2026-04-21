@@ -142,117 +142,102 @@ public class SongRepositoryImpl implements SongRepository {
     /**
      * Persiste una canción aplicando deduplicación en tres niveles:
      * <ol>
-     *   <li>Si el ISRC ya existe → actualizar campos faltantes y merge de tags.</li>
+     *   <li>Si el ISRC ya existe → {@link #mergeExisting} (actualiza campos faltantes + tags).</li>
      *   <li>Si el spotifyId ya existe → ídem.</li>
-     *   <li>Si no existe → insertar nueva con todas sus relaciones.</li>
+     *   <li>Si no existe → {@link #insertNew} (inserta con todas sus relaciones).</li>
      * </ol>
-     * Los helper {@code upsertAlbum}, {@code upsertArtist} y {@code upsertMovie}
-     * usan {@code ON CONFLICT DO NOTHING} para ser seguros ante concurrencia.
      */
     @Override
     @Transactional
     public Song save(Song song) {
-        // Normalizar ISRC: eliminar guiones (US-RC1-76-07839 → USRC17607839)
-        // para que siempre quede en formato compacto de 12 chars y no exceda VARCHAR(15)
-        if (song.getIsrc() != null) {
-            song.setIsrc(song.getIsrc().replace("-", ""));
-        }
+        normalizeIsrc(song);
 
-        // 1. Dedup por ISRC
         if (song.getIsrc() != null) {
             Optional<SongEntity> byIsrc = jpa.findByIsrc(song.getIsrc());
-            if (byIsrc.isPresent()) {
-                SongEntity existing = byIsrc.get();
-                boolean updated = false;
-                if (song.getSpotifyId() != null
-                        && !song.getSpotifyId().equals(existing.getSpotifyId())) {
-                    existing.setSpotifyId(song.getSpotifyId());
-                    updated = true;
-                }
-                if (existing.getAlbum() == null && song.getAlbum() != null) {
-                    AlbumEntity album = upsertAlbum(song.getAlbum());
-                    if (album != null) { existing.setAlbum(album); updated = true; }
-                }
-                if (existing.getMovies().isEmpty() && song.getMovies() != null && !song.getMovies().isEmpty()) {
-                    upsertMoviesToSong(existing, song.getMovies());
-                    updated = true;
-                }
-                if (existing.getPreviewUrl() == null && song.getPreviewUrl() != null) {
-                    existing.setPreviewUrl(song.getPreviewUrl());
-                    updated = true;
-                }
-                if (updated) jpa.save(existing);
-                addMissingTags(existing, song.getTags());
-                return mapper.toModel(existing);
-            }
+            if (byIsrc.isPresent()) return mergeExisting(byIsrc.get(), song);
         }
 
-        // 2. Dedup por spotifyId
         if (song.getSpotifyId() != null) {
             Optional<SongEntity> bySpotifyId = jpa.findBySpotifyId(song.getSpotifyId());
-            if (bySpotifyId.isPresent()) {
-                SongEntity existing = bySpotifyId.get();
-                boolean updated = false;
-                if (existing.getAlbum() == null && song.getAlbum() != null) {
-                    AlbumEntity album = upsertAlbum(song.getAlbum());
-                    if (album != null) { existing.setAlbum(album); updated = true; }
-                }
-                if (existing.getMovies().isEmpty() && song.getMovies() != null && !song.getMovies().isEmpty()) {
-                    upsertMoviesToSong(existing, song.getMovies());
-                    updated = true;
-                }
-                if (existing.getPreviewUrl() == null && song.getPreviewUrl() != null) {
-                    existing.setPreviewUrl(song.getPreviewUrl());
-                    updated = true;
-                }
-                if (updated) jpa.save(existing);
-                addMissingTags(existing, song.getTags());
-                return mapper.toModel(existing);
-            }
+            if (bySpotifyId.isPresent()) return mergeExisting(bySpotifyId.get(), song);
         }
 
-        // 3. Nueva canción
+        return insertNew(song);
+    }
+
+    /** Elimina guiones del ISRC para mantener el formato compacto de 12 chars (VARCHAR 15). */
+    private void normalizeIsrc(Song song) {
+        if (song.getIsrc() != null) song.setIsrc(song.getIsrc().replace("-", ""));
+    }
+
+    /**
+     * Actualiza solo los campos nulos de una canción ya existente y fusiona sus tags.
+     * Cubre tanto la rama ISRC como la de spotifyId: si se llega por ISRC con un spotifyId
+     * nuevo (edición diferente de Spotify), el campo se actualiza; si se llega por spotifyId,
+     * el check de igualdad es false y no hay cambio.
+     */
+    private Song mergeExisting(SongEntity existing, Song song) {
+        boolean updated = false;
+        if (song.getSpotifyId() != null && !song.getSpotifyId().equals(existing.getSpotifyId())) {
+            existing.setSpotifyId(song.getSpotifyId());
+            updated = true;
+        }
+        if (existing.getAlbum() == null && song.getAlbum() != null) {
+            AlbumEntity album = upsertAlbum(song.getAlbum());
+            if (album != null) { existing.setAlbum(album); updated = true; }
+        }
+        if (existing.getMovies().isEmpty() && song.getMovies() != null && !song.getMovies().isEmpty()) {
+            upsertMoviesToSong(existing, song.getMovies());
+            updated = true;
+        }
+        if (existing.getPreviewUrl() == null && song.getPreviewUrl() != null) {
+            existing.setPreviewUrl(song.getPreviewUrl());
+            updated = true;
+        }
+        if (updated) jpa.save(existing);
+        addMissingTags(existing, song.getTags());
+        return mapper.toModel(existing);
+    }
+
+    /**
+     * Inserta una canción nueva con todas sus relaciones.
+     * Usa {@code saveAndFlush} para que el INSERT llegue a la BD antes de que
+     * {@code addMissingTags} ejecute el batchUpdate de song_tags vía JdbcTemplate;
+     * sin flush previo, JPA tiene el INSERT pendiente y la FK falla.
+     * En caso de race condition (otro hilo insertó la misma canción), re-fetchea y merge.
+     */
+    private Song insertNew(Song song) {
         SongEntity entity = mapper.toEntity(song);
 
-        if (song.getAlbum() != null) {
-            entity.setAlbum(upsertAlbum(song.getAlbum()));
-        }
+        if (song.getAlbum() != null) entity.setAlbum(upsertAlbum(song.getAlbum()));
 
         if (song.getArtists() != null) {
             for (es.wara.ecos.backend.domain.model.Artist artist : song.getArtists()) {
                 if (artist.getName() == null || artist.getName().isBlank()) continue;
-                ArtistEntity artistEntity = upsertArtist(artist);
-                if (artistEntity != null) entity.getArtists().add(artistEntity);
+                ArtistEntity ae = upsertArtist(artist);
+                if (ae != null) entity.getArtists().add(ae);
             }
         }
 
         if (song.getMovies() != null) {
             for (Movie movie : song.getMovies()) {
                 if (movie.getTitle() == null) continue;
-                MovieEntity movieEntity = upsertMovie(movie);
-                if (movieEntity != null) entity.getMovies().add(movieEntity);
+                MovieEntity me = upsertMovie(movie);
+                if (me != null) entity.getMovies().add(me);
             }
         }
 
         SongEntity saved;
         try {
-            saved = jpa.save(entity);
+            saved = jpa.saveAndFlush(entity);
         } catch (DataIntegrityViolationException e) {
-            // Race condition: otro hilo insertó la misma canción simultáneamente.
-            // La canción SÍ está en BD — re-fetchear por spotifyId o ISRC y continuar.
             if (song.getSpotifyId() != null) {
                 Optional<SongEntity> existing = jpa.findBySpotifyId(song.getSpotifyId());
-                if (existing.isPresent()) {
-                    addMissingTags(existing.get(), song.getTags());
-                    return mapper.toModel(existing.get());
-                }
+                if (existing.isPresent()) return mergeExisting(existing.get(), song);
             }
             if (song.getIsrc() != null) {
                 Optional<SongEntity> existing = jpa.findByIsrc(song.getIsrc());
-                if (existing.isPresent()) {
-                    addMissingTags(existing.get(), song.getTags());
-                    return mapper.toModel(existing.get());
-                }
+                if (existing.isPresent()) return mergeExisting(existing.get(), song);
             }
             throw e;
         }
@@ -264,7 +249,6 @@ public class SongRepositoryImpl implements SongRepository {
         }
 
         addMissingTags(saved, song.getTags());
-
         return mapper.toModel(saved);
     }
 
