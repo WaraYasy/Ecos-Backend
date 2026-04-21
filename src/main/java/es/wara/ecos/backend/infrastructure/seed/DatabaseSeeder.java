@@ -84,6 +84,7 @@ public class DatabaseSeeder implements ApplicationRunner {
         total += seedTerms("década",    terms.getDecades(),     this::ingestByDecade);
         total += seedTerms("país",      terms.getCountries(),   this::ingestByCountry);
         total += seedTerms("película",  terms.getMovies(),      this::ingestByMovie);
+        total += seedTerms("artista",   terms.getArtists(),     this::ingestByArtist);
 
         long elapsed = (System.currentTimeMillis() - start) / 1000;
         log.info("[Seed] Completado en {}s — {} términos procesados. Total canciones en BD: {}",
@@ -135,6 +136,10 @@ public class DatabaseSeeder implements ApplicationRunner {
 
     private int ingestByMovie(String movie) {
         return ingestionService.ingest(params().movie(movie).build());
+    }
+
+    private int ingestByArtist(String artist) {
+        return ingestionService.ingest(params().artist(artist).build());
     }
 
     private SearchParams.Builder params() {

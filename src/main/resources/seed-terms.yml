@@ -7,10 +7,10 @@ seed:
 
   genres:
     # Géneros principales
-    - rock
+    - rock latino
     - jazz
     - pop
-    - electronic
+    - latin rock
     - classical
     - hiphop
     - rnb
@@ -64,11 +64,11 @@ seed:
 
   countries:
     # Países con escenas musicales destacadas
-    - Japan
-    - Brazil
-    - France
-    - Jamaica
-    - Nigeria
+    - Bolivia
+    - España
+    - Rusia
+    - Chile
+    - Ecuador
     - South Korea
     - Iceland
     - Argentina
@@ -104,3 +104,33 @@ seed:
     - Parasite
     - The Social Network
     - Blade Runner
+
+  artists:
+    # Artistas icónicos con catálogos amplios y variados
+    - Radiohead
+    - Ado
+    - Björk
+    - Massive Attack
+    - Portishead
+    - Nick Cave
+    - PJ Harvey
+    - Sigur Rós
+    - Aphex Twin
+    - Cocteau Twins
+    - The Cure
+    - Sufjan Stevens
+    - Arca
+    - James Blake
+    - FKA twigs
+    - Bon Iver
+    # Latinoamérica
+    - Soda Stereo
+    - Café Tacvba
+    - Aterciopelados
+    - Caetano Veloso
+    - Mercedes Sosa
+    - Calle 13
+    - Julieta Venegas
+    - Los Jaivas
+    - Silvio Rodríguez
+    - Gustavo Cerati
