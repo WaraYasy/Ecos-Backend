@@ -6,50 +6,51 @@ seed:
   minSongs: 200
 
   genres:
-    # Géneros principales
-    - rock latino
-    - jazz
+    # Géneros principales (coinciden con tags reales en DB)
     - pop
-    - latin rock
-    - classical
-    - hiphop
-    - rnb
-    - indie
+    - rock
+    - rap
+    - r&b
+    - edm
     - latin
     - metal
+    - indie
+    - hip hop
+    - country
     # Géneros de nicho
-    - shoegaze
-    - dream pop
-    - post-punk
-    - ambient
-    - bossa nova
-    - folk
+    - alternative rock
+    - punk
     - soul
-    - garage rock
-    - psychedelic rock
+    - folk
+    - classic rock
+    - jazz
+    - dream pop
     - synth pop
+    - shoegaze
+    - ambient
 
   aesthetics:
-    # Estéticas principales
-    - darkAcademia
-    - cottagecore
-    - y2k
-    - vaporwave
-    - lofi
-    - cyberpunk
-    - solarpunk
-    - dreamcore
-    # Estéticas de nicho
-    - witchcore
-    - dark romance
-    - hauntology
-    - balletcore
-    - goblincore
+    # Valores que coinciden con tags reales en DB (búsqueda parcial)
+    - lo-fi
     - indie sleaze
-    - angelcore
+    - dreamcore
+    - cyberpunk
     - weirdcore
-    - fairycore
-    - academia
+    - hauntology
+    - angelcore
+    - vaporwave
+    - y2k
+    - dark wave
+    - new wave
+    - witch house
+    - chillwave
+    - shoegaze
+    - slowcore
+    - post-punk
+    - art pop
+    - psychedelic
+    - baroque pop
+    - bedroom pop
 
   decades:
     - "1940s"

@@ -89,14 +89,16 @@ public class SongSpecification {
             }
 
             // ── Cuadrante 2: Estética ─────────────────────────────────────────
-            // EXISTS correlacionado: evita materializar todos los song_id coincidentes
+            // LIKE en vez de equals: los tags de DB son géneros de Spotify, no etiquetas
+            // estéticas exactas — la coincidencia parcial amplía el resultado sin perder relevancia
             if (params.aesthetic() != null && !params.aesthetic().isBlank()) {
                 Subquery<Integer> sub = query.subquery(Integer.class);
                 Root<SongTagEntity> tagRoot = sub.from(SongTagEntity.class);
                 sub.select(cb.literal(1));
+                String pattern = "%" + params.aesthetic().toLowerCase() + "%";
                 sub.where(cb.and(
                         cb.equal(tagRoot.get("id").get("songId"), root.get("id")),
-                        cb.equal(tagRoot.get("id").get("tag"), params.aesthetic().toLowerCase())
+                        cb.like(tagRoot.get("id").get("tag"), pattern)
                 ));
                 predicates.add(cb.exists(sub));
             }
