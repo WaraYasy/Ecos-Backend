@@ -6,10 +6,9 @@ seed:
   minSongs: 200
 
   genres:
-    # Géneros principales (coinciden con tags reales en DB)
+    # Géneros principales
     - pop
     - rock
-    - rap
     - r&b
     - edm
     - latin
@@ -17,20 +16,23 @@ seed:
     - indie
     - hip hop
     - country
+    - reggaeton
     # Géneros de nicho
     - alternative rock
     - punk
     - soul
     - folk
-    - classic rock
+    - afrobeats
     - jazz
     - dream pop
     - synth pop
     - shoegaze
     - ambient
+    - bossa nova
+    - cumbia
+    - k-pop
 
   aesthetics:
-    # Valores que coinciden con tags reales en DB (búsqueda parcial)
     - lo-fi
     - indie sleaze
     - dreamcore
@@ -51,6 +53,10 @@ seed:
     - psychedelic
     - baroque pop
     - bedroom pop
+    - hyperpop
+    - cottagecore
+    - dark academia
+    - folktronica
 
   decades:
     - "1940s"
@@ -64,58 +70,47 @@ seed:
     - "2020s"
 
   countries:
-    # Países con escenas musicales destacadas
-    - Bolivia
-    - España
-    - Rusia
-    - Chile
-    - Ecuador
-    - South Korea
-    - Iceland
     - Argentina
-    - United Kingdom
-    - United States
+    - Brazil
+    - Chile
     - Colombia
     - Cuba
-    - Ethiopia
-    - India
+    - Mexico
     - Portugal
     - Spain
+    - United Kingdom
+    - United States
+    - France
+    - Japan
+    - South Korea
+    - India
+    - Nigeria
+    - Jamaica
+    - Iceland
+    - Russia
+    - Ethiopia
 
   movies:
-    # Películas con bandas sonoras icónicas
-    - Babel
-    - Amélie
+    - Amores Perros
+    - Harry Potter
+    - Blade Runner 2049
     - Interstellar
-    - Lost in Translation
-    - The Virgin Suicides
-    - Her
     - Drive
     - Moonlight
-    - Call Me By Your Name
-    - The Grand Budapest Hotel
+    - Her
+    - Pan's Labyrinth
+    - In the Mood for Love
+    - Lost in Translation
     - Eternal Sunshine of the Spotless Mind
-    - Spirited Away
-    - Portrait of a Lady on Fire
-    - Before Sunrise
-    - Dune
-    - Annihilation
-    - Midsommar
-    - Everything Everywhere All at Once
-    - Parasite
-    - The Social Network
-    - Blade Runner
+    - Mulholland Drive
 
   artists:
-    # Artistas icónicos con catálogos amplios y variados
-    - Radiohead
+    # Globales
     - Ado
     - Björk
     - Massive Attack
-    - Portishead
-    - Nick Cave
-    - PJ Harvey
-    - Sigur Rós
+    - hatsune miku
+    - le sserafim
     - Aphex Twin
     - Cocteau Twins
     - The Cure
@@ -127,11 +122,8 @@ seed:
     # Latinoamérica
     - Soda Stereo
     - Café Tacvba
-    - Aterciopelados
-    - Caetano Veloso
-    - Mercedes Sosa
-    - Calle 13
-    - Julieta Venegas
-    - Los Jaivas
-    - Silvio Rodríguez
-    - Gustavo Cerati
+    - Los Prisioneros
+    - Natalia Lafourcade
+    - Jorge Drexler
+    - C. Tangana
+    - Mon Laferte
