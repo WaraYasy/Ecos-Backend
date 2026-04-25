@@ -5,46 +5,48 @@ suggestions:
 
     - label: "Así sonaría el despacho de Dumbledore"
       params:
-        aesthetic: dark academia
+        genre: classical
         instrumental: true
         mode: minor
-        energyMax: 0.40
+        energyMax: 0.45
         valenceMax: 0.45
 
     - label: "Lofi para estudiar"
       params:
-        aesthetic: lofi
+        aesthetic: lo-fi
         instrumental: true
 
     - label: "Nostalgia Y2K"
       params:
-        aesthetic: y2k
+        genre: dance pop
+        energyMin: 0.65
+        valenceMin: 0.60
         decade: "2000s"
 
     - label: "Tarde de domingo en Tokio"
       params:
         aesthetic: city pop
-        country: Japan
-        decade: "1980s"
+        valenceMin: 0.40
 
     - label: "Cottagecore en el campo"
       params:
-        aesthetic: cottagecore
-        energyMax: 0.55
+        genre: folk
+        acousticnessMin: 0.5
+        energyMax: 0.60
         mode: major
 
     - label: "Dark fantasy — el bosque por la noche"
       params:
-        aesthetic: dark fantasy
+        genre: metal
         mode: minor
-        instrumental: true
-        energyMin: 0.35
-        energyMax: 0.70
+        energyMax: 0.60
+        valenceMax: 0.30
 
     # ── Situaciones / Moods ────────────────────────────────────────────
 
     - label: "Llorando en la ducha a las 3am"
       params:
+        acousticnessMin: 0.50
         mode: minor
         energyMax: 0.35
         valenceMax: 0.35
@@ -77,8 +79,7 @@ suggestions:
     - label: "Anime opening de tu vida real"
       params:
         genre: anime
-        energyMin: 0.75
-        bpmMin: 130
+        energyMin: 0.65
 
     - label: "El boss final del videojuego"
       params:
@@ -89,17 +90,21 @@ suggestions:
     - label: "Motivación máxima — modo entrenamiento"
       params:
         energyMin: 0.80
+        danceabilityMin: 0.65
         bpmMin: 120
 
     - label: "Slow dance bajo las estrellas"
       params:
         valenceMin: 0.50
         energyMax: 0.50
+        danceabilityMin: 0.50
+        acousticnessMin: 0.20
         mode: major
 
     - label: "Un domingo perezoso y sin planes"
       params:
         energyMax: 0.45
+        acousticnessMin: 0.40
         mode: major
 
     - label: "El atardecer que no quieres que acabe"
@@ -107,17 +112,18 @@ suggestions:
         valenceMin: 0.60
         energyMin: 0.30
         energyMax: 0.60
+        acousticnessMin: 0.30
 
     - label: "Jazz de medianoche"
       params:
         genre: jazz
-        energyMax: 0.50
-        valenceMin: 0.30
-        valenceMax: 0.70
+        energyMax: 0.60
+        instrumentalnessMin: 0.10
 
     - label: "Orquesta épica al borde del abismo"
       params:
         instrumental: true
+        instrumentalnessMin: 0.50
         energyMin: 0.60
 
     # ── Géneros / Décadas ──────────────────────────────────────────────
@@ -129,8 +135,7 @@ suggestions:
 
     - label: "In the Yellow Submarine"
       params:
-        genre: psychedelic pop
-        country: United Kingdom
+        genre: classic rock
         decade: "1960s"
 
     - label: "Rock psicodélico de los 70"
@@ -140,8 +145,7 @@ suggestions:
 
     - label: "Música de Brasil"
       params:
-        country: Brazil
-        genre: bossa nova
+        genre: brazil
 
     - label: "Rap que tiene razón"
       params:
@@ -167,31 +171,29 @@ suggestions:
     - label: "El pop que te queda en la cabeza"
       params:
         genre: dance pop
-        valenceMin: 0.60
+        valenceMin: 0.55
 
     - label: "K-pop máxima energía"
       params:
         genre: k-pop
-        energyMin: 0.70
-        valenceMin: 0.50
+        energyMin: 0.60
 
     - label: "Afrobeat que mueve los pies"
       params:
         genre: afrobeat
-        energyMin: 0.60
+        danceabilityMin: 0.60
 
     - label: "Folk en una hoguera de verano"
       params:
         genre: folk
-        valenceMin: 0.45
+        acousticnessMin: 0.40
         mode: major
 
     - label: "Soul que llega al alma"
       params:
         genre: soul
-        valenceMin: 0.40
+        valenceMin: 0.35
         energyMin: 0.35
-        energyMax: 0.75
 
     - label: "Alt-rock de los 90 que define una era"
       params:
@@ -202,7 +204,6 @@ suggestions:
       params:
         genre: edm
         energyMin: 0.80
-        bpmMin: 120
 
     # ── Guiños a cultura pop ────────────────────────────────────────────
 
@@ -228,12 +229,13 @@ suggestions:
         valenceMin: 0.50
         energyMin: 0.40
         energyMax: 0.70
+        danceabilityMin: 0.45
         mode: major
 
     # Breaking Bad — Walter White en modo quimio-epicidad total
     - label: "Walter White entrando en modo Heisenberg"
       params:
-        valenceMax: 0.30
+        valenceMax: 0.35
         energyMin: 0.60
         mode: minor
         bpmMin: 100
@@ -242,171 +244,157 @@ suggestions:
     - label: "El pub de los Shelby — Peaky Blinders"
       params:
         genre: blues
+        acousticnessMin: 0.20
         energyMin: 0.40
-        energyMax: 0.75
         mode: minor
 
     # Fleabag — indie británico, ironía y corazón roto
     - label: "Cuando Fleabag rompe la cuarta pared"
       params:
         genre: indie
-        valenceMin: 0.30
-        valenceMax: 0.65
-        energyMax: 0.65
+        acousticnessMin: 0.20
+        valenceMax: 0.70
+        energyMax: 0.70
 
     # Ratatouille — la cocina de Gusteau, jazz y magia parisina
     - label: "La cocina de Gusteau a medianoche"
       params:
         genre: jazz
-        country: France
-        valenceMin: 0.50
-        energyMin: 0.35
-        energyMax: 0.70
+        aesthetic: french
+        valenceMin: 0.40
+        energyMin: 0.30
 
     # Pride & Prejudice — Elisabeth leyendo la carta de Darcy, lluvia y velas
     - label: "Elisabeth Bennet leyendo la carta de Darcy"
       params:
         instrumental: true
-        energyMax: 0.40
-        valenceMin: 0.35
-        valenceMax: 0.65
+        acousticnessMin: 0.40
+        energyMax: 0.45
         mode: minor
 
     # The Office — el karaoke de Dundie Night
     - label: "Noche de Dundies en The Office"
       params:
-        valenceMin: 0.65
+        valenceMin: 0.60
+        danceabilityMin: 0.55
         energyMin: 0.50
-        energyMax: 0.80
         decade: "2000s"
 
     # Spirited Away / Ghibli — el tren sobre el mar de Chihiro
     - label: "El tren sobre el mar de Chihiro"
       params:
         instrumental: true
-        energyMax: 0.40
+        acousticnessMin: 0.30
+        energyMax: 0.45
         valenceMin: 0.40
-        valenceMax: 0.70
         mode: major
 
     # Ted Lasso — el vestuario antes del partido, creer siempre
     - label: "El discurso de Ted Lasso antes del partido"
       params:
-        valenceMin: 0.65
-        energyMin: 0.55
+        valenceMin: 0.60
+        energyMin: 0.50
         mode: major
 
     # Forrest Gump — corriendo sin parar por América
     - label: "Forrest Gump corriendo por la autopista"
       params:
         genre: country
-        energyMin: 0.55
-        valenceMin: 0.60
+        energyMin: 0.50
+        valenceMin: 0.55
         mode: major
-        bpmMin: 100
 
     # The Mandalorian — cruzando la galaxia con Baby Yoda
     - label: "El Mandaloriano cruzando la galaxia"
       params:
         instrumental: true
         energyMin: 0.40
-        energyMax: 0.75
-        valenceMin: 0.35
+        energyMax: 0.80
+        valenceMin: 0.30
         mode: minor
 
     # Stranger Things — sintetizadores, misterio y los 80
     - label: "D&D en el sótano de Mike — Stranger Things"
       params:
         aesthetic: synthwave
-        decade: "1980s"
         energyMin: 0.50
-        valenceMax: 0.60
-        mode: minor
 
     # Harry Potter — El Gran Comedor iluminado por miles de velas
     - label: "Cena de Navidad en el Gran Comedor"
       params:
         genre: classical
-        valenceMin: 0.60
+        valenceMin: 0.40
         mode: major
-        instrumental: true
 
     # The Bear — tensión, gritos de "Yes Chef!" y ritmo frenético
     - label: "Servicio de cena en The Bear — ¡Yes Chef!"
       params:
-        energyMin: 0.80
-        bpmMin: 130
-        valenceMax: 0.50
+        energyMin: 0.75
+        bpmMin: 120
         mode: minor
 
     # Succession — traición familiar en un jet privado
     - label: "Traición en el jet privado de los Roy"
       params:
         genre: classical
-        energyMin: 0.40
-        energyMax: 0.70
+        energyMax: 0.80
         mode: minor
 
     # Euphoria — purpurina, luces de neón y melancolía pop
     - label: "Luces de neón y purpurina — Euphoria vibes"
       params:
         aesthetic: dream pop
-        energyMin: 0.45
-        valenceMax: 0.60
+        energyMin: 0.40
+        danceabilityMin: 0.55
 
     # The Last of Us — una guitarra solitaria en un mundo post-apocalíptico
     - label: "Caminando con Joel y Ellie"
       params:
         genre: folk
-        energyMax: 0.40
+        acousticnessMin: 0.50
         mode: minor
-        instrumental: true
 
     # Spider-Verse — Miles Morales saltando al vacío en Brooklyn
     - label: "Saltando desde un rascacielos — Spider-Verse"
       params:
         genre: hip hop
-        energyMin: 0.75
-        valenceMin: 0.60
+        energyMin: 0.70
+        danceabilityMin: 0.65
 
     # Twin Peaks — café negro y tarta de cerezas en el Double R Diner
     - label: "Café negro y tarta de cerezas en Twin Peaks"
       params:
         genre: jazz
-        energyMax: 0.40
-        bpmMax: 90
-        valenceMax: 0.50
+        energyMax: 0.50
         instrumental: true
 
     # Lord of the Rings — la paz de la Comarca antes de la aventura
     - label: "Un mañana soleada en la Comarca"
       params:
         genre: folk
-        valenceMin: 0.75
+        acousticnessMin: 0.50
         mode: major
-        instrumental: true
 
     # Barbie — rosa, purpurina y crisis existenciales bailables
     - label: "Fiesta rosa con crisis existencial"
       params:
         genre: dance pop
-        energyMin: 0.75
-        valenceMin: 0.80
+        energyMin: 0.70
+        valenceMin: 0.75
+        danceabilityMin: 0.75
 
     # Batman — vigilando Gotham desde las gárgolas
     - label: "Vigilando Gotham bajo la lluvia"
       params:
         instrumental: true
-        energyMin: 0.50
-        energyMax: 0.80
+        energyMin: 0.45
+        energyMax: 0.85
         mode: minor
-        valenceMax: 0.30
 
     # Bridgerton — cotilleos de la alta sociedad y arreglos de cuerda
     - label: "El último cotilleo de Lady Whistledown"
       params:
         genre: classical
-        energyMin: 0.50
-        valenceMin: 0.60
+        energyMin: 0.40
         instrumental: true
         mode: major
