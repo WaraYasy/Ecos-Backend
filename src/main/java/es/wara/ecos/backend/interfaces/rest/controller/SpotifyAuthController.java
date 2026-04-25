@@ -76,7 +76,8 @@ public class SpotifyAuthController {
      * <ul>
      *   <li>Flujo <b>LOGIN</b>: genera JWT y redirige a
      *       {@code ecos://auth/callback?token=<jwt>&userId=<id>}</li>
-     *   <li>Flujo <b>LINK</b>: persiste el token y devuelve {@code 200 OK}</li>
+     *   <li>Flujo <b>LINK</b>: persiste el token y redirige a
+     *       {@code ecos://auth/callback?linked=true}</li>
      * </ul>
      * </p>
      *
@@ -101,6 +102,9 @@ public class SpotifyAuthController {
                     .build();
         }
 
-        return ResponseEntity.ok("Cuenta Spotify vinculada");
+        String deepLink = deepLinkScheme + "://auth/callback?linked=true";
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(deepLink))
+                .build();
     }
 }

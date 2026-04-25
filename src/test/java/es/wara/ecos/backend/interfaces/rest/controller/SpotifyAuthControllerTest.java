@@ -74,15 +74,15 @@ class SpotifyAuthControllerTest {
     }
 
     @Test
-    void callback_linkFlow_returns200WithConfirmation() throws Exception {
+    void callback_linkFlow_redirectsToDeepLinkWithLinkedTrue() throws Exception {
         when(spotifyAuthPort.exchangeCodeForToken("abc", "link-state"))
                 .thenReturn(Optional.empty());
 
         mockMvc.perform(get("/callback/spotify")
                         .param("code", "abc")
                         .param("state", "link-state"))
-                .andExpect(status().isOk())
-                .andExpect(content().string("Cuenta Spotify vinculada"));
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "ecos://auth/callback?linked=true"));
     }
 
     @Test
