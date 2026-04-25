@@ -164,14 +164,30 @@ public class CsvImportRunner {
             // Saltar si la canción ya existe (fuera de tx para no contaminar nada)
             if (songRepo.findBySpotifyId(spotifyId).isPresent()) return new int[]{0, 1, 0};
 
+            // Arrays de un elemento para capturar resultados del lambda (effectively final)
+            ArtistEntity[] artistRef = {null};
+            AlbumEntity[]  albumRef  = {null};
+
             tx.execute(status -> {
-                ArtistEntity artist = resolveArtist(r, artistCache);
-                AlbumEntity  album  = resolveAlbum(r, artist, albumCache);
-                SongEntity   song   = createSong(r, album, artist);
+                artistRef[0] = resolveArtist(r, artistCache);
+                albumRef[0]  = resolveAlbum(r, artistRef[0], albumCache);
+                SongEntity song = createSong(r, albumRef[0], artistRef[0]);
                 createAudioFeatures(r, song);
                 createTag(r, song);
                 return null;
             });
+
+            // Actualizar cachés SOLO tras commit exitoso (evita entradas fantasma por rollback)
+            if (artistRef[0] != null && artistRef[0].getName() != null) {
+                artistCache.put(artistRef[0].getName().toLowerCase(), artistRef[0]);
+            }
+            if (albumRef[0] != null) {
+                String key = albumRef[0].getSpotifyId() != null
+                        ? albumRef[0].getSpotifyId()
+                        : albumRef[0].getTitle() != null ? albumRef[0].getTitle().toLowerCase(java.util.Locale.ROOT) : null;
+                if (key != null) albumCache.put(key, albumRef[0]);
+            }
+
             return new int[]{1, 0, 0};
         } catch (Exception e) {
             log.warn("[CsvImport] Error en fila '{}': {}", safeGet(r, "spotify_id"), e.getMessage());
@@ -187,35 +203,51 @@ public class CsvImportRunner {
         String name = safeGet(r, "artist_name");
         if (name == null || name.isBlank()) return null;
 
-        String key = name.toLowerCase();
+        String key = name.toLowerCase(java.util.Locale.ROOT);
         if (cache.containsKey(key)) return cache.get(key);
 
-        ArtistEntity artist = artistRepo.findByNameIgnoreCase(name)
+        // spotify_id y country los llena el EnrichmentJob
+        return artistRepo.findByNameIgnoreCase(name)
                 .orElseGet(() -> {
                     ArtistEntity a = new ArtistEntity();
                     a.setName(name);
-                    // spotify_id y country los llena el EnrichmentJob
                     return artistRepo.save(a);
                 });
-        cache.put(key, artist);
-        return artist;
+        // cache.put se hace en processRow tras commit exitoso
     }
 
     private AlbumEntity resolveAlbum(CSVRecord r, ArtistEntity artist, Map<String, AlbumEntity> cache) {
         String albumSpotifyId = safeGet(r, "album_spotify_id");
-        if (albumSpotifyId == null || albumSpotifyId.isBlank()) return null;
+        String albumTitle     = safeGet(r, "album_title");
 
-        if (cache.containsKey(albumSpotifyId)) return cache.get(albumSpotifyId);
+        // Sin spotify_id ni título no hay suficiente información para crear el álbum
+        if (albumSpotifyId == null && albumTitle == null) return null;
 
-        AlbumEntity album = albumRepo.findBySpotifyId(albumSpotifyId)
-                .orElseGet(() -> {
-                    AlbumEntity a = new AlbumEntity();
-                    a.setSpotifyId(albumSpotifyId);
-                    a.setTitle(coalesce(safeGet(r, "album_title"), "Unknown Album"));
-                    a.setYear(parseShort(safeGet(r, "release_year")));
-                    a.setArtist(artist);
-                    return albumRepo.save(a);
-                });
+        String cacheKey = albumSpotifyId != null ? albumSpotifyId : albumTitle.toLowerCase(java.util.Locale.ROOT);
+        if (cache.containsKey(cacheKey)) return cache.get(cacheKey);
+
+        AlbumEntity album;
+        if (albumSpotifyId != null) {
+            album = albumRepo.findBySpotifyId(albumSpotifyId)
+                    .orElseGet(() -> {
+                        AlbumEntity a = new AlbumEntity();
+                        a.setSpotifyId(albumSpotifyId);
+                        a.setTitle(coalesce(albumTitle, "Unknown Album"));
+                        a.setYear(parseShort(safeGet(r, "release_year")));
+                        a.setArtist(artist);
+                        return albumRepo.save(a);
+                    });
+        } else {
+            // Fallback: CSV sin album_spotify_id — dedup por título
+            album = albumRepo.findFirstByTitleIgnoreCase(albumTitle)
+                    .orElseGet(() -> {
+                        AlbumEntity a = new AlbumEntity();
+                        a.setTitle(albumTitle);
+                        a.setYear(parseShort(safeGet(r, "release_year")));
+                        a.setArtist(artist);
+                        return albumRepo.save(a);
+                    });
+        }
 
         // Actualizar cover_url si el álbum ya existía sin él
         String coverUrl = safeGet(r, "cover_url");
@@ -223,7 +255,7 @@ public class CsvImportRunner {
             album.setCoverUrl(coverUrl);
             albumRepo.save(album);
         }
-        cache.put(albumSpotifyId, album);
+        // cache.put se hace en processRow tras commit exitoso
         return album;
     }
 
@@ -273,7 +305,7 @@ public class CsvImportRunner {
         String genre = safeGet(r, "genre_hint");
         if (genre == null || genre.isBlank()) return;
 
-        String normalized = genre.toLowerCase().trim();
+        String normalized = genre.toLowerCase(java.util.Locale.ROOT).strip();
         if (normalized.length() > TAG_MAX_LENGTH) {
             normalized = normalized.substring(0, TAG_MAX_LENGTH);
         }
@@ -326,6 +358,7 @@ public class CsvImportRunner {
     private String safeGet(CSVRecord r, String col) {
         try {
             String v = r.get(col);
+            if (v != null) v = v.strip();
             return (v == null || v.isBlank() || "nan".equalsIgnoreCase(v)) ? null : v;
         } catch (Exception e) {
             return null;
