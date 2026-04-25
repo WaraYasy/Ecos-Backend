@@ -54,6 +54,8 @@ public class SearchSuggestionsProperties {
         private BigDecimal energyMax;
         private BigDecimal valenceMin;
         private BigDecimal valenceMax;
+        private BigDecimal bpmMin;
+        private BigDecimal bpmMax;
         private Boolean enhanced;
 
         public String getQ() { return q; }
@@ -100,6 +102,12 @@ public class SearchSuggestionsProperties {
 
         public BigDecimal getValenceMax() { return valenceMax; }
         public void setValenceMax(BigDecimal valenceMax) { this.valenceMax = valenceMax; }
+
+        public BigDecimal getBpmMin() { return bpmMin; }
+        public void setBpmMin(BigDecimal bpmMin) { this.bpmMin = bpmMin; }
+
+        public BigDecimal getBpmMax() { return bpmMax; }
+        public void setBpmMax(BigDecimal bpmMax) { this.bpmMax = bpmMax; }
 
         public Boolean getEnhanced() { return enhanced; }
         public void setEnhanced(Boolean enhanced) { this.enhanced = enhanced; }

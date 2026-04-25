@@ -30,6 +30,7 @@ public record SearchSuggestionResponse(
                         p.getInstrumental(), p.getTexture(), p.getMode(),
                         p.getEnergyMin(), p.getEnergyMax(),
                         p.getValenceMin(), p.getValenceMax(),
+                        p.getBpmMin(), p.getBpmMax(),
                         p.getEnhanced()
                 )
         );
@@ -51,6 +52,8 @@ public record SearchSuggestionResponse(
             BigDecimal energyMax,
             BigDecimal valenceMin,
             BigDecimal valenceMax,
+            BigDecimal bpmMin,
+            BigDecimal bpmMax,
             Boolean enhanced
     ) {}
 }
