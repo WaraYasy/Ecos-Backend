@@ -9,6 +9,8 @@ import es.wara.ecos.backend.infrastructure.adapter.musicbrainz.dto.MusicBrainzSe
 import es.wara.ecos.backend.infrastructure.exception.ApiRateLimitException;
 import es.wara.ecos.backend.infrastructure.exception.ApiServerException;
 import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -23,6 +25,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -69,10 +72,10 @@ public class MusicBrainzClient {
     private static final String BASE_URL   = "https://musicbrainz.org/ws/2";
     private static final String USER_AGENT = "ECOS/1.0 (ecos-backend)";
 
-    /** Intervalo mínimo entre peticiones para respetar el rate limit de 1 req/s. */
-    private static final long REQUEST_INTERVAL_MS = 1100;
-
-    private volatile long lastRequestTime = 0;
+    /** 1 petición/segundo — límite oficial de MusicBrainz sin autenticación. */
+    private final Bucket rateLimiter = Bucket.builder()
+            .addLimit(Bandwidth.builder().capacity(1).refillGreedy(1, Duration.ofSeconds(1)).build())
+            .build();
 
     private final RestTemplate restTemplate;
 
@@ -329,26 +332,14 @@ public class MusicBrainzClient {
     // Métodos internos
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Aplica el throttle de 1 req/s requerido por MusicBrainz.
-     * Bloquea el hilo el tiempo necesario para respetar el intervalo mínimo.
-     */
-    private synchronized void throttle() {
-        long now = System.currentTimeMillis();
-        long waitMs = REQUEST_INTERVAL_MS - (now - lastRequestTime);
-        if (waitMs > 0) {
-            try {
-                Thread.sleep(waitMs);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        lastRequestTime = System.currentTimeMillis();
-    }
-
     /** Ejecuta una petición GET con User-Agent y throttle, lanzando excepciones tipadas. */
     private <T> T get(String url, Class<T> responseType) {
-        throttle();
+        try {
+            rateLimiter.asBlocking().consume(1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ExternalApiException(API_NAME, "Throttle interrumpido");
+        }
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("User-Agent", USER_AGENT);
