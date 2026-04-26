@@ -13,6 +13,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
@@ -155,5 +159,37 @@ class SpotifyClientTest {
         assertThat(result.getId()).isEqualTo("track-abc");
         assertThat(result.getName()).isEqualTo("Test Song");
         mockServer.verify();
+    }
+
+    @Test
+    void getAccessToken_concurrentCalls_onlyOneHttpRequest() throws InterruptedException {
+        // Solo se registra UNA expectativa — si dos hilos llaman a la API, el mock lanzará error
+        mockServer.expect(requestTo(TOKEN_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(TOKEN_RESPONSE, MediaType.APPLICATION_JSON));
+
+        int threads = 8;
+        var latch = new CountDownLatch(1);
+        var errors = new AtomicInteger(0);
+        var executor = Executors.newFixedThreadPool(threads);
+
+        for (int i = 0; i < threads; i++) {
+            executor.submit(() -> {
+                try {
+                    latch.await(); // todos arrancan a la vez
+                    String token = spotifyClient.getAccessToken();
+                    assertThat(token).isEqualTo("test-token");
+                } catch (Exception e) {
+                    errors.incrementAndGet();
+                }
+            });
+        }
+
+        latch.countDown(); // disparo simultáneo
+        executor.shutdown();
+        executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+
+        assertThat(errors.get()).isZero();
+        mockServer.verify(); // exactamente 1 petición HTTP, no 8
     }
 }

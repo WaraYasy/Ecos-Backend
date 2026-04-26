@@ -98,9 +98,9 @@ public class SpotifyClient implements SpotifyPlaylistPort {
 
     private final RestTemplate restTemplate;
 
-    // Caché del token OAuth2
-    private String cachedToken;
-    private Instant tokenExpiresAt;
+    // Caché del token OAuth2 — acceso protegido por el monitor de este objeto
+    private volatile String cachedToken;
+    private volatile Instant tokenExpiresAt;
 
     public SpotifyClient(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
@@ -350,7 +350,7 @@ public class SpotifyClient implements SpotifyPlaylistPort {
      * @throws ApiRateLimitException      si se excede el límite de peticiones de auth
      * @throws ApiServerException         si el servidor de auth de Spotify falla
      */
-    public String getAccessToken() {
+    public synchronized String getAccessToken() {
         if (isTokenValid()) {
             log.debug("Usando token cacheado (válido hasta: {})", tokenExpiresAt.toString());
             return cachedToken;
