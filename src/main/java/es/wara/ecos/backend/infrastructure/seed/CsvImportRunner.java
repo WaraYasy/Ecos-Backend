@@ -104,7 +104,6 @@ public class CsvImportRunner {
 
         Map<String, ArtistEntity> artistCache = new HashMap<>();
         Map<String, AlbumEntity>  albumCache  = new HashMap<>();
-        preloadCaches(artistCache, albumCache);
 
         int total = records.size(), imported = 0, skipped = 0, errors = 0;
         List<CSVRecord> batch = new ArrayList<>(BATCH_SIZE);
@@ -316,22 +315,6 @@ public class CsvImportRunner {
         tag.setSong(song);
         tag.setWeight(BigDecimal.ONE);
         songTagRepo.save(tag);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // INICIALIZACIÓN
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private void preloadCaches(Map<String, ArtistEntity> artistCache,
-                               Map<String, AlbumEntity>  albumCache) {
-        artistRepo.findAll().forEach(a -> {
-            if (a.getName() != null) artistCache.put(a.getName().toLowerCase(), a);
-        });
-        albumRepo.findAll().forEach(a -> {
-            if (a.getSpotifyId() != null) albumCache.put(a.getSpotifyId(), a);
-        });
-        log.info("[CsvImport] Caché precargada — {} artistas, {} álbumes ya en BD",
-                artistCache.size(), albumCache.size());
     }
 
     private List<CSVRecord> readCsvFromReader(Reader reader, String source) {
