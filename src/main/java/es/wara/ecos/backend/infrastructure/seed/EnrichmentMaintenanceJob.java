@@ -16,6 +16,7 @@ import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaArtistRepository;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongRepository;
 import es.wara.ecos.backend.infrastructure.persistence.mapper.SongMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -45,7 +46,8 @@ import java.util.List;
 @Component
 public class EnrichmentMaintenanceJob {
 
-    private static final int BATCH_SIZE = 30;
+    @Value("${enrichment.batch-size:30}")
+    private int batchSize;
     private static final long DELAY_MS = 500;
 
     private final JpaSongRepository jpaSongRepository;
@@ -85,7 +87,7 @@ public class EnrichmentMaintenanceJob {
     @Scheduled(cron = "${enrichment.preview.cron:0 0 2 * * *}")
     public void fillMissingPreviews() {
         Thread.ofVirtual().name("enrichment-preview").start(() -> {
-            List<SongEntity> songs = jpaSongRepository.findWithoutPreview(PageRequest.of(0, BATCH_SIZE)).getContent();
+            List<SongEntity> songs = jpaSongRepository.findWithoutPreview(PageRequest.of(0, batchSize)).getContent();
             if (songs.isEmpty()) {
                 log.debug("[Enrichment] Sin canciones con preview_url nulo");
                 return;
@@ -122,7 +124,7 @@ public class EnrichmentMaintenanceJob {
      */
     @Scheduled(cron = "${enrichment.tags.cron:0 30 2 * * *}")
     public void fillMissingTags() {
-        Thread.ofVirtual().name("enrichment-tags").start(() -> {List<SongEntity> songs = jpaSongRepository.findWithoutTags(PageRequest.of(0, BATCH_SIZE)).getContent();
+        Thread.ofVirtual().name("enrichment-tags").start(() -> {List<SongEntity> songs = jpaSongRepository.findWithoutTags(PageRequest.of(0, batchSize)).getContent();
             if (songs.isEmpty()) {
                 log.debug("[Enrichment] Sin canciones sin tags");
                 return;
@@ -162,7 +164,7 @@ public class EnrichmentMaintenanceJob {
     @Scheduled(cron = "${enrichment.cover.cron:0 0 3 * * *}")
     public void fillMissingCoverAndArtistIds() {
         Thread.ofVirtual().name("enrichment-cover").start(() -> {
-            List<SongEntity> songs = jpaSongRepository.findForCoverEnrichment(PageRequest.of(0, BATCH_SIZE)).getContent();
+            List<SongEntity> songs = jpaSongRepository.findForCoverEnrichment(PageRequest.of(0, batchSize)).getContent();
             if (songs.isEmpty()) {
                 log.debug("[Enrichment] Sin álbumes con cover_url nulo");
                 return;
@@ -231,7 +233,7 @@ public class EnrichmentMaintenanceJob {
     @Scheduled(cron = "${enrichment.country.cron:0 30 3 * * *}")
     public void fillMissingCountries() {
         Thread.ofVirtual().name("enrichment-country").start(() -> {
-            List<ArtistEntity> artists = jpaArtistRepository.findWithoutCountry(PageRequest.of(0, BATCH_SIZE)).getContent();
+            List<ArtistEntity> artists = jpaArtistRepository.findWithoutCountry(PageRequest.of(0, batchSize)).getContent();
             if (artists.isEmpty()) {
                 log.debug("[Enrichment] Sin artistas con country nulo");
                 return;
