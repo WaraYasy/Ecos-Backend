@@ -16,9 +16,11 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Importa el dataset de Spotify (CSV limpio) a la base de datos.
@@ -60,6 +62,10 @@ public class CsvImportRunner {
     private int limit;
 
     private static final int BATCH_SIZE = 200;
+
+    /** Separa colaboraciones del tipo "Artist A feat. Artist B". Solo feat/ft — &, x, with son nombres de bandas. */
+    private static final Pattern FEAT_PATTERN =
+            Pattern.compile("\\s+(?:feat\\.?|ft\\.?)\\s+", Pattern.CASE_INSENSITIVE);
 
     private final JpaArtistRepository    artistRepo;
     private final JpaAlbumRepository     albumRepo;
@@ -163,22 +169,27 @@ public class CsvImportRunner {
             // Saltar si la canción ya existe (fuera de tx para no contaminar nada)
             if (songRepo.findBySpotifyId(spotifyId).isPresent()) return new int[]{0, 1, 0};
 
-            // Arrays de un elemento para capturar resultados del lambda (effectively final)
-            ArtistEntity[] artistRef = {null};
-            AlbumEntity[]  albumRef  = {null};
+            // Lista mutable dentro del lambda (effectively final por ser referencia, no valor)
+            List<ArtistEntity> resolvedArtists = new ArrayList<>();
+            AlbumEntity[]      albumRef        = {null};
 
             tx.execute(status -> {
-                artistRef[0] = resolveArtist(r, artistCache);
-                albumRef[0]  = resolveAlbum(r, artistRef[0], albumCache);
-                SongEntity song = createSong(r, albumRef[0], artistRef[0]);
+                List<String> names = splitArtistNames(safeGet(r, "artist_name"));
+                for (String name : names) {
+                    ArtistEntity a = resolveArtistByName(name, artistCache);
+                    if (a != null) resolvedArtists.add(a);
+                }
+                ArtistEntity primary = resolvedArtists.isEmpty() ? null : resolvedArtists.get(0);
+                albumRef[0] = resolveAlbum(r, primary, albumCache);
+                SongEntity song = createSong(r, albumRef[0], resolvedArtists);
                 createAudioFeatures(r, song);
                 createTag(r, song);
                 return null;
             });
 
             // Actualizar cachés SOLO tras commit exitoso (evita entradas fantasma por rollback)
-            if (artistRef[0] != null && artistRef[0].getName() != null) {
-                artistCache.put(artistRef[0].getName().toLowerCase(), artistRef[0]);
+            for (ArtistEntity a : resolvedArtists) {
+                if (a.getName() != null) artistCache.put(a.getName().toLowerCase(), a);
             }
             if (albumRef[0] != null) {
                 String key = albumRef[0].getSpotifyId() != null
@@ -198,8 +209,15 @@ public class CsvImportRunner {
     // RESOLVERS
     // ─────────────────────────────────────────────────────────────────────────
 
-    private ArtistEntity resolveArtist(CSVRecord r, Map<String, ArtistEntity> cache) {
-        String name = safeGet(r, "artist_name");
+    private List<String> splitArtistNames(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        return Arrays.stream(FEAT_PATTERN.split(raw))
+                .map(String::strip)
+                .filter(s -> !s.isBlank())
+                .toList();
+    }
+
+    private ArtistEntity resolveArtistByName(String name, Map<String, ArtistEntity> cache) {
         if (name == null || name.isBlank()) return null;
 
         String key = name.toLowerCase(java.util.Locale.ROOT);
@@ -258,7 +276,7 @@ public class CsvImportRunner {
         return album;
     }
 
-    private SongEntity createSong(CSVRecord r, AlbumEntity album, ArtistEntity artist) {
+    private SongEntity createSong(CSVRecord r, AlbumEntity album, List<ArtistEntity> artists) {
         SongEntity song = new SongEntity();
         song.setSpotifyId(r.get("spotify_id"));
         song.setTitle(coalesce(safeGet(r, "title"), "Unknown Title"));
@@ -273,8 +291,8 @@ public class CsvImportRunner {
         }
         songRepo.save(song);
 
-        if (artist != null) {
-            song.getArtists().add(artist);
+        if (!artists.isEmpty()) {
+            song.getArtists().addAll(artists);
             songRepo.save(song);
         }
         return song;

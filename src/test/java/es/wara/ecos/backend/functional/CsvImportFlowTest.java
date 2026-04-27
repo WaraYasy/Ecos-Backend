@@ -177,6 +177,39 @@ class CsvImportFlowTest extends BaseFunctionalTest {
     }
 
     @Test
+    void colaboracionFeatCreaArtistasIndependientesEnSongArtists() {
+        String csv = HEADERS + "\n" +
+            "False,spot_feat,Fedde Le Grand feat. Mitch Crown,alb1,Nothing Matters,2009,," +
+            "Nothing Matters,220000,,," +
+            "0.8,128.0,0.7,0.9,0.05,0.0,0.03,-5.0,2,1,dance";
+
+        int[] result = csvImportRunner.importFromReader(new StringReader(csv), 0, "test");
+
+        assertThat(result[0]).isEqualTo(1);
+        assertThat(artistRepo.count()).as("debe haber 2 artistas").isEqualTo(2);
+        assertThat(artistRepo.findByNameIgnoreCase("Fedde Le Grand")).isPresent();
+        assertThat(artistRepo.findByNameIgnoreCase("Mitch Crown")).isPresent();
+        Integer links = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM song_artists WHERE song_id = " +
+            "(SELECT id FROM songs WHERE spotify_id = 'spot_feat')",
+            Integer.class);
+        assertThat(links).as("la canción debe tener 2 entradas en song_artists").isEqualTo(2);
+    }
+
+    @Test
+    void nombreArtistaSinFeatSeImportaIntacto() {
+        String csv = HEADERS + "\n" +
+            "False,spot_nofeat,Krept & Konan,alb2,Young Kingz,2013,," +
+            "Do It for the Ends,210000,,," +
+            "0.7,95.0,0.4,0.8,0.1,0.0,0.1,-7.0,4,1,grime";
+
+        csvImportRunner.importFromReader(new StringReader(csv), 0, "test");
+
+        assertThat(artistRepo.count()).as("Krept & Konan es un artista único").isEqualTo(1);
+        assertThat(artistRepo.findByNameIgnoreCase("Krept & Konan")).isPresent();
+    }
+
+    @Test
     void sinAlbumTitleNiSpotifyIdLaCancionSeGuardaSinAlbum() {
         String csv = HEADERS + "\n" +
             "False,spot_noalbum,Artista sin album,,,,,Canción suelta,180000,," +
