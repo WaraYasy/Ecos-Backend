@@ -39,7 +39,7 @@ import java.util.Optional;
  * </p>
  * <p>
  * <b>Rate limit:</b> MusicBrainz permite 1 petición/segundo sin autenticación.
- * Este cliente aplica un throttle automático de {@value #REQUEST_INTERVAL_MS} ms
+ * Este cliente aplica un throttle automático
  * entre peticiones para respetar ese límite.
  * </p>
  * <p>
