@@ -1,5 +1,7 @@
 # ECOS — Backend
 
+[![CI](https://github.com/WaraYasy/Ecos-Backend/actions/workflows/ci.yml/badge.svg)](https://github.com/WaraYasy/Ecos-Backend/actions/workflows/ci.yml)
+
 > Backend de la aplicación móvil **ECOS**: descubrimiento musical inteligente a través de un grafo neuronal interactivo.
 
 ---
@@ -88,21 +90,18 @@ AI_SERVICE_API_KEY=tu_api_key_del_micro
 ### 3. Iniciar PostgreSQL y Redis con Docker
 
 ```bash
-docker run -d \
-  --name ecos_postgres \
-  -e POSTGRES_DB=ecos_db \
-  -e POSTGRES_USER=ecos \
-  -e POSTGRES_PASSWORD=tu_password_local \
-  -p 5432:5432 \
-  pgvector/pgvector:pg16
-
-docker run -d \
-  --name ecos_redis \
-  -p 6379:6379 \
-  redis:7-alpine
+docker compose up postgres redis -d
 ```
 
-Flyway aplica las migraciones automáticamente al arrancar.
+Flyway aplica las migraciones automáticamente al arrancar la app.
+
+> **Alternativa manual** (sin `docker-compose.yml`):
+> ```bash
+> docker run -d --name ecos_postgres \
+>   -e POSTGRES_DB=ecos_db -e POSTGRES_USER=ecos -e POSTGRES_PASSWORD=tu_password \
+>   -p 5432:5432 pgvector/pgvector:pg16
+> docker run -d --name ecos_redis -p 6379:6379 redis:7-alpine
+> ```
 
 ### 4. Arrancar la aplicación
 
@@ -244,14 +243,14 @@ Los resultados del micro se **mezclan con los de BD** (merge híbrido): los matc
 
 | Suite | Tests |
 |---|---|
-| Use cases (Mockito) | 27 |
-| Controllers (`@WebMvcTest`) | 48 |
-| SemanticSearchClient (MockRestServiceServer) | 7 |
-| Funcionales (Testcontainers) | 18 |
-| BackendApplicationTests | 1 |
-| **Total** | **~305** |
+| Use cases (Mockito) | ~110 |
+| Controllers (`@WebMvcTest`) | ~190 |
+| Funcionales de flujo (Testcontainers) | ~43 |
+| Seguridad end-to-end (`SecurityFlowTest`) | 23 |
+| Otros (cliente IA, iTunes, mappers…) | ~4 |
+| **Total** | **370** |
 
-Los tests funcionales arrancan contenedores PostgreSQL y Redis reales. Requieren Docker Desktop en ejecución.
+Los tests funcionales arrancan contenedores PostgreSQL y Redis reales — requieren Docker Desktop en ejecución. Los tests de seguridad cubren rechazo JWT (firma incorrecta, expirado, alg:none), protección del endpoint de admin por API key, IDOR de usuario y no-crash ante payloads SQL injection.
 
 ---
 
