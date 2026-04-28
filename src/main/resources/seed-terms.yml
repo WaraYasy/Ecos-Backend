@@ -7,7 +7,6 @@ seed:
 
   genres:
     # Géneros principales
-    - pop
     - rock
     - r&b
     - edm
@@ -16,7 +15,6 @@ seed:
     - indie
     - hip hop
     - country
-    - reggaeton
     # Géneros de nicho
     - alternative rock
     - punk
@@ -33,15 +31,6 @@ seed:
     - k-pop
 
   aesthetics:
-    - lo-fi
-    - indie sleaze
-    - dreamcore
-    - cyberpunk
-    - weirdcore
-    - hauntology
-    - angelcore
-    - vaporwave
-    - y2k
     - dark wave
     - new wave
     - witch house
@@ -77,48 +66,21 @@ seed:
     - Cuba
     - Mexico
     - Portugal
-    - Spain
-    - United Kingdom
-    - United States
-    - France
-    - Japan
-    - South Korea
-    - India
-    - Nigeria
-    - Jamaica
-    - Iceland
-    - Russia
-    - Ethiopia
+    - España
 
   movies:
-    - Amores Perros
-    - Harry Potter
-    - Blade Runner 2049
-    - Interstellar
-    - Drive
-    - Moonlight
-    - Her
-    - Pan's Labyrinth
-    - In the Mood for Love
-    - Lost in Translation
-    - Eternal Sunshine of the Spotless Mind
-    - Mulholland Drive
+    - La odisea de los giles
 
   artists:
     # Globales
     - Ado
-    - Björk
-    - Massive Attack
-    - hatsune miku
+    - La vela puerca
+    - lord huron
+    - Hatsune Miku
     - le sserafim
     - Aphex Twin
-    - Cocteau Twins
-    - The Cure
-    - Sufjan Stevens
-    - Arca
-    - James Blake
-    - FKA twigs
-    - Bon Iver
+    - El cuarte de nos
+    - No te va gustar
     # Latinoamérica
     - Soda Stereo
     - Café Tacvba
