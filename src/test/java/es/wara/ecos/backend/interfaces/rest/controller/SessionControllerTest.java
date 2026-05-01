@@ -1,6 +1,7 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.session.CreateExplorationSessionUseCase;
+import es.wara.ecos.backend.application.usecase.session.CreatePlaylistFromSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.DeleteSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionByIdUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase;
@@ -8,6 +9,7 @@ import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase
 import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.ExplorationSession;
+import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.infrastructure.security.JwtAuthFilter;
 import es.wara.ecos.backend.infrastructure.security.RateLimitFilter;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +48,7 @@ class SessionControllerTest {
     @MockitoBean JwtAuthFilter jwtAuthFilter;
     @MockitoBean RateLimitFilter rateLimitFilter;
     @MockitoBean CreateExplorationSessionUseCase createSessionUseCase;
+    @MockitoBean CreatePlaylistFromSessionUseCase createPlaylistFromSessionUseCase;
     @MockitoBean DeleteSessionUseCase deleteSessionUseCase;
     @MockitoBean GetSessionByIdUseCase getSessionByIdUseCase;
     @MockitoBean GetSessionHistoryUseCase getSessionHistoryUseCase;
@@ -166,6 +169,29 @@ class SessionControllerTest {
                 .when(deleteSessionUseCase).execute(SESSION_ID, USER_ID);
 
         mockMvc.perform(delete("/v1/sessions/" + SESSION_ID))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("FORBIDDEN"));
+    }
+
+    @Test
+    void createPlaylist_ownSession_returns201WithPlaylist() throws Exception {
+        UUID playlistId = UUID.fromString("00000000-0000-0000-0000-000000000200");
+        Playlist playlist = new Playlist(playlistId, USER_ID, "Tarde de jazz", null, null,
+                LocalDateTime.now(), List.of());
+        when(createPlaylistFromSessionUseCase.execute(SESSION_ID, USER_ID)).thenReturn(playlist);
+
+        mockMvc.perform(post("/v1/sessions/" + SESSION_ID + "/playlist"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(playlistId.toString()))
+                .andExpect(jsonPath("$.name").value("Tarde de jazz"));
+    }
+
+    @Test
+    void createPlaylist_foreignSession_returns403() throws Exception {
+        doThrow(new ForbiddenException("No tienes permiso"))
+                .when(createPlaylistFromSessionUseCase).execute(SESSION_ID, USER_ID);
+
+        mockMvc.perform(post("/v1/sessions/" + SESSION_ID + "/playlist"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("FORBIDDEN"));
     }
