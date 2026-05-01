@@ -143,13 +143,23 @@ public class SimilarityService {
 
     // --- utilidades ---
 
+    /**
+     * Similitud coseno entre dos vectores de igual longitud.
+     * Devuelve 0 si alguno de los vectores es el vector nulo.
+     *
+     * @param a primer vector
+     * @param b segundo vector (debe tener la misma longitud que a)
+     * @return similitud coseno en [0.0, 1.0]
+     */
     private float cosineSimilarity(float[] a, float[] b) {
         double dot = 0, normA = 0, normB = 0;
+        // Producto punto y normas en una sola pasada para eficiencia
         for (int i = 0; i < a.length; i++) {
             dot   += a[i] * b[i];
             normA += a[i] * a[i];
             normB += b[i] * b[i];
         }
+        // Evitar división por cero cuando algún vector es nulo
         if (normA == 0 || normB == 0) return 0f;
         return (float) (dot / (Math.sqrt(normA) * Math.sqrt(normB)));
     }

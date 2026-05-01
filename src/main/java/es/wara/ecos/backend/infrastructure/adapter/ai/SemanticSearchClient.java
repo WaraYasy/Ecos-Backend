@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * Cliente HTTP para la búsqueda semántica del microservicio de IA.
  *
  * <pre>
- * GET /search/semantic?q=canciones+de+peliculas+tristes&limit=20
+ * GET /search/semantic?q=canciones+de+peliculas+tristes&amp;limit=20
  * </pre>
  *
  * <p>Devuelve UUIDs de canciones ordenados por similitud coseno con la consulta.

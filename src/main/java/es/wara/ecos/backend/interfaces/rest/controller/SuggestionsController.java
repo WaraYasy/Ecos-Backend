@@ -14,9 +14,9 @@ import java.util.List;
  * Endpoint de sugerencias de autocompletado para los campos de búsqueda.
  *
  * <pre>
- * GET /v1/suggestions?type=movie&q=avengers
- * GET /v1/suggestions?type=aesthetic&q=dark
- * GET /v1/suggestions?type=genre&q=rock
+ * GET /v1/suggestions?type=movie&amp;q=avengers
+ * GET /v1/suggestions?type=aesthetic&amp;q=dark
+ * GET /v1/suggestions?type=genre&amp;q=rock
  * </pre>
  *
  * <p>Devuelve hasta 6 sugerencias con {@code value} (lo que se envía al backend)

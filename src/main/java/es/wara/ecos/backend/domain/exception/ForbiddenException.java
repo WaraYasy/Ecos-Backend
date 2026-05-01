@@ -10,6 +10,11 @@ package es.wara.ecos.backend.domain.exception;
  */
 public class ForbiddenException extends RuntimeException {
 
+    /**
+     * Crea una excepción de acceso denegado con el mensaje descriptivo del recurso protegido.
+     *
+     * @param message descripción del acceso denegado (ej. "No tienes permiso para eliminar esta playlist")
+     */
     public ForbiddenException(String message) {
         super(message);
     }

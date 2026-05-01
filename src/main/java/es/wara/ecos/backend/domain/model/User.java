@@ -27,9 +27,12 @@ public class User {
     private String email;
     private String language;
     private String passwordHash;
+    /** Proveedor de autenticación: {@code "local"} o {@code "spotify"}. */
     private String authProvider;
+    /** ID del usuario en el proveedor OAuth externo (null si authProvider es "local"). */
     private String providerId;
     private LocalDateTime createdAt;
+    /** Código único de 5 caracteres alfanuméricos visible al usuario (ej. ABCD1), usado para crossover. */
     private String userCode;
 
 }

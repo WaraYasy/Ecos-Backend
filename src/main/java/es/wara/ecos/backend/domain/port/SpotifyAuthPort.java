@@ -12,6 +12,7 @@ import java.util.UUID;
  * </p>
  *
  * @author Wara Pacheco
+ * @since 1.0.0
  */
 public interface SpotifyAuthPort {
 

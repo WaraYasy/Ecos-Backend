@@ -38,10 +38,28 @@ public interface UserRepository {
      */
     Optional<User> findByEmail(String email);
 
+    /**
+     * Busca un usuario por su ID de proveedor OAuth externo (ej. ID de Spotify).
+     *
+     * @param providerId identificador único devuelto por el proveedor OAuth
+     * @return el usuario encontrado, o vacío si no existe
+     */
     Optional<User> findByProviderId(String providerId);
 
+    /**
+     * Busca un usuario por su código único de 5 caracteres alfanuméricos (ej. {@code ABCD1}).
+     *
+     * @param userCode código en mayúsculas
+     * @return el usuario encontrado, o vacío si no existe
+     */
     Optional<User> findByUserCode(String userCode);
 
+    /**
+     * Comprueba si existe un usuario con el código dado, usado para garantizar unicidad al generarlo.
+     *
+     * @param userCode código a comprobar
+     * @return {@code true} si ya existe un usuario con ese código
+     */
     boolean existsByUserCode(String userCode);
 
     /**

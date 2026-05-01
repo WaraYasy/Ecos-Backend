@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
-fi * Entidad JPA que mapea la tabla {@code sessions}.
+ * Entidad JPA que mapea la tabla {@code sessions}.
  * <p>
  * Representa una sesión de exploración del grafo neuronal: el recorrido que
  * un usuario realiza partiendo de una canción raíz y navegando por canciones

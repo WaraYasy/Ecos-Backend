@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
  * <p>
  * Estrategia de candidatos (local-first):
  * <ol>
- *   <li>Vecinos semánticos por pgvector (<=> coseno) si existen embeddings.</li>
+ *   <li>Vecinos semánticos por pgvector ({@code <=>} coseno) si existen embeddings.</li>
  *   <li>Fallback: {@link MusicProvider#getSimilarSongs} → canciones ya en nuestra BD por spotifyId.</li>
  * </ol>
  * Para cada candidato carga sus features completos de BD, calcula similitud multi-factor
@@ -51,7 +51,7 @@ public class BuildGraphUseCase {
 
     /**
      * Genera el grafo desde la canción raíz.
-n     * <p>
+     * <p>
      * Los candidatos se recuperan en una sola query batch con
      * {@code findAllById} para evitar N+1. Las posiciones se calculan
      * en layout polar: raíz en (0,0), vecinos en círculo a distancia

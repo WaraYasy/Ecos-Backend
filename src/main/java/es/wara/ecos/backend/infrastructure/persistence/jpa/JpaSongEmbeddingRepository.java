@@ -10,7 +10,7 @@ import java.util.UUID;
 
 /**
  * Repositorio Spring Data JPA para SongEmbeddingEntity.
- * La búsqueda de vecinos más cercanos usa una native query con el operador <=> de pgvector
+ * La búsqueda de vecinos más cercanos usa una native query con el operador {@code <=>} de pgvector
  * (distancia coseno), que requiere el índice ivfflat de V25.
  *
  * @author Wara Pacheco

@@ -10,6 +10,11 @@ package es.wara.ecos.backend.domain.exception;
  */
 public class ConflictException extends RuntimeException {
 
+    /**
+     * Crea una excepción de conflicto con el mensaje descriptivo del recurso duplicado.
+     *
+     * @param message descripción del conflicto (ej. "El email ya está registrado")
+     */
     public ConflictException(String message) {
         super(message);
     }

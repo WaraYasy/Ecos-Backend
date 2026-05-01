@@ -26,8 +26,18 @@ public class GraphEdge {
     /** Componente de similitud dominante que origina esta conexión. */
     private EdgeType type;
 
+    /** Tipos de arista según el componente de similitud dominante. */
     public enum EdgeType {
-        AUDIO, SEMANTIC, TAG, ERA, MOVIE
+        /** Similitud dominada por características de audio (energy, valence, BPM…). */
+        AUDIO,
+        /** Similitud dominada por embeddings semánticos (pgvector). */
+        SEMANTIC,
+        /** Similitud dominada por etiquetas Last.fm compartidas. */
+        TAG,
+        /** Similitud dominada por cercanía temporal entre las canciones. */
+        ERA,
+        /** Similitud dominada por películas compartidas en las que aparecen. */
+        MOVIE
     }
 
 }

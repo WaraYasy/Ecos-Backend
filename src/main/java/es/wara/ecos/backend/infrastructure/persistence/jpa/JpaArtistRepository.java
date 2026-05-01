@@ -11,21 +11,38 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Repositorio Spring Data JPA para {@link ArtistEntity}.
+ * <p>
+ * Además de las operaciones CRUD heredadas de {@code JpaRepository}, expone
+ * consultas específicas de dominio para búsqueda por Spotify ID, por nombre
+ * (ignorando mayúsculas) y para sugerencias de autocompletado de artistas y países.
+ * </p>
+ *
+ * @author Wara Pacheco
+ * @version 1.1
+ * @since 1.0.0
+ */
 public interface JpaArtistRepository extends JpaRepository<ArtistEntity, UUID> {
 
     Optional<ArtistEntity> findBySpotifyId(String spotifyId);
 
     Optional<ArtistEntity> findByNameIgnoreCase(String name);
 
+    /** Devuelve hasta 6 artistas cuyo nombre contiene {@code name} (case-insensitive). */
     List<ArtistEntity> findTop6ByNameContainingIgnoreCase(String name);
 
-    // ILIKE usa el índice trigrama idx_artists_country_trgm (V32); limitado a 10 para UI
+    /**
+     * Devuelve hasta 10 países distintos de artistas que contengan {@code q}.
+     * Usa ILIKE con el índice trigrama {@code idx_artists_country_trgm} (migración V32).
+     */
     @Query(value = "SELECT DISTINCT country FROM artists " +
                    "WHERE country IS NOT NULL AND country ILIKE CONCAT('%', :q, '%') " +
                    "ORDER BY country LIMIT 10",
            nativeQuery = true)
     List<String> findDistinctCountriesContaining(@Param("q") String q);
 
+    /** Devuelve artistas sin país asignado para el trabajo de enriquecimiento. */
     @Query("SELECT a FROM ArtistEntity a WHERE a.country IS NULL AND a.name IS NOT NULL")
     Page<ArtistEntity> findWithoutCountry(Pageable pageable);
 
