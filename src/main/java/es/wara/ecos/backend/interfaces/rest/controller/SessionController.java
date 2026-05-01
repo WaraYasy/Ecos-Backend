@@ -1,14 +1,17 @@
 package es.wara.ecos.backend.interfaces.rest.controller;
 
 import es.wara.ecos.backend.application.usecase.session.CreateExplorationSessionUseCase;
+import es.wara.ecos.backend.application.usecase.session.CreatePlaylistFromSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.DeleteSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionByIdUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase;
 import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase;
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.ExplorationSession;
+import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.infrastructure.security.SecurityUtils;
 import es.wara.ecos.backend.interfaces.rest.dto.CreateSessionRequest;
+import es.wara.ecos.backend.interfaces.rest.dto.PlaylistResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.SessionResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -37,6 +40,7 @@ import java.util.UUID;
 public class SessionController {
 
     private final CreateExplorationSessionUseCase createSessionUseCase;
+    private final CreatePlaylistFromSessionUseCase createPlaylistFromSessionUseCase;
     private final DeleteSessionUseCase deleteSessionUseCase;
     private final GetSessionByIdUseCase getSessionByIdUseCase;
     private final GetSessionHistoryUseCase getSessionHistoryUseCase;
@@ -44,12 +48,14 @@ public class SessionController {
 
     public SessionController(
             CreateExplorationSessionUseCase createSessionUseCase,
+            CreatePlaylistFromSessionUseCase createPlaylistFromSessionUseCase,
             DeleteSessionUseCase deleteSessionUseCase,
             GetSessionByIdUseCase getSessionByIdUseCase,
             GetSessionHistoryUseCase getSessionHistoryUseCase,
             CalculateUserProfileUseCase calculateUserProfileUseCase
     ) {
         this.createSessionUseCase = createSessionUseCase;
+        this.createPlaylistFromSessionUseCase = createPlaylistFromSessionUseCase;
         this.deleteSessionUseCase = deleteSessionUseCase;
         this.getSessionByIdUseCase = getSessionByIdUseCase;
         this.getSessionHistoryUseCase = getSessionHistoryUseCase;
@@ -93,6 +99,20 @@ public class SessionController {
         UUID userId = SecurityUtils.getCurrentUserId();
         deleteSessionUseCase.execute(id, userId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Crea una playlist a partir de las canciones de una sesión de exploración,
+     * respetando el orden de visita. Solo el propietario puede convertir su sesión.
+     *
+     * @param id identificador de la sesión de origen
+     * @return {@code 201 Created} con la playlist recién creada
+     */
+    @PostMapping("/{id}/playlist")
+    public ResponseEntity<PlaylistResponse> createPlaylist(@PathVariable UUID id) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        Playlist playlist = createPlaylistFromSessionUseCase.execute(id, userId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(PlaylistResponse.from(playlist));
     }
 
 }
