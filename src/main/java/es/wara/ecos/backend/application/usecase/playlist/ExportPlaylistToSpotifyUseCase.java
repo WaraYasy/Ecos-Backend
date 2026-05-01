@@ -11,6 +11,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -56,7 +64,30 @@ public class ExportPlaylistToSpotifyUseCase {
     void loadCoverImage() {
         try {
             ClassPathResource resource = new ClassPathResource("static/jpg/ecos-cover.jpg");
-            coverImageBytes = resource.getInputStream().readAllBytes();
+            BufferedImage original = ImageIO.read(resource.getInputStream());
+            if (original == null) {
+                log.warn("No se pudo leer la imagen de portada de ECOS");
+                return;
+            }
+
+            // Spotify: payload Base64 ≤ 256 KB → el JPEG debe pesar ≤ ~190 KB
+            // 300×300 a calidad 0.85 produce ~20–40 KB para este logo
+            BufferedImage scaled = new BufferedImage(300, 300, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(original, 0, 0, 300, 300, null);
+            g.dispose();
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            param.setCompressionQuality(0.85f);
+            writer.setOutput(ImageIO.createImageOutputStream(out));
+            writer.write(null, new IIOImage(scaled, null, null), param);
+            writer.dispose();
+
+            coverImageBytes = out.toByteArray();
             log.info("Imagen de portada ECOS cargada ({} bytes)", coverImageBytes.length);
         } catch (IOException e) {
             log.warn("No se pudo cargar la imagen de portada de ECOS: {}", e.getMessage());
