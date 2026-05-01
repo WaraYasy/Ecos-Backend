@@ -18,7 +18,7 @@ import java.util.UUID;
  *
  * <ul>
  *   <li>{@code GET /recommendations/{userId}} — recomendaciones personalizadas.</li>
- *   <li>{@code GET /recommendations/crossover?userAId=&userBId=} — recomendaciones cruzadas.</li>
+ *   <li>{@code GET /recommendations/crossover?userId1=&userId2=} — recomendaciones cruzadas.</li>
  * </ul>
  *
  * @author Wara Pacheco
@@ -77,7 +77,7 @@ public class RecommendationClient {
         if (!properties.isAvailable()) return Optional.empty();
         try {
             String url = properties.getUrl() + "/recommendations/crossover"
-                    + "?userAId=" + userAId + "&userBId=" + userBId;
+                    + "?userId1=" + userAId + "&userId2=" + userBId;
             ResponseEntity<CrossoverResponse> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
@@ -86,14 +86,13 @@ public class RecommendationClient {
             );
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 CrossoverResponse body = response.getBody();
-                return Optional.of(new CrossoverResult(
-                        body.recommendations() != null ? body.recommendations() : List.of(),
-                        body.overlapCount() != null ? body.overlapCount() : 0
-                ));
+                List<ScoredSongId> recs = body.results() != null ? body.results() : List.of();
+                int overlap = body.overlapCount() != null ? body.overlapCount() : 0;
+                return Optional.of(new CrossoverResult(recs, overlap));
             }
             return Optional.empty();
         } catch (RestClientException e) {
-            log.warn("Error en crossover ({} + {}): {}", userAId, userBId, e.getMessage());
+            log.warn("Crossover ({} + {}): {}", userAId, userBId, e.getMessage());
             return Optional.empty();
         }
     }
@@ -114,10 +113,10 @@ public class RecommendationClient {
     record RecommendationsResponse(String userId, List<ScoredSongId> recommendations) {}
 
     record CrossoverResponse(
-            String userAId,
-            String userBId,
+            String userId1,
+            String userId2,
             Integer overlapCount,
-            List<ScoredSongId> recommendations
+            List<ScoredSongId> results
     ) {}
 
     public record CrossoverResult(List<ScoredSongId> recommendations, int overlapCount) {}
