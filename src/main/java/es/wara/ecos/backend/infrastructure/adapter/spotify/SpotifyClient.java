@@ -334,6 +334,41 @@ public class SpotifyClient implements SpotifyPlaylistPort {
         }
     }
 
+    /**
+     * Sube una imagen de portada JPEG a una playlist de Spotify.
+     * <p>
+     * El body de la petición es el Base64 puro de los bytes JPEG — no JSON.
+     * Spotify devuelve 202 si acepta la imagen (el procesamiento es asíncrono).
+     * El fallo es silencioso: si Spotify rechaza la imagen, la playlist sigue siendo válida.
+     * </p>
+     *
+     * @param userToken         access token del usuario (Authorization Code Flow)
+     * @param spotifyPlaylistId identificador de la playlist en Spotify
+     * @param jpegBytes         bytes de la imagen JPEG (máx. 256 KB)
+     */
+    @Override
+    public void uploadPlaylistCover(String userToken, String spotifyPlaylistId, byte[] jpegBytes) {
+        if (jpegBytes == null || jpegBytes.length == 0) return;
+
+        java.net.URI uri = java.net.URI.create(API_BASE_URL + "/playlists/" + spotifyPlaylistId + "/images");
+        log.info("Subiendo portada a playlist {} en {} API ({} bytes)", spotifyPlaylistId, API_NAME, jpegBytes.length);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(userToken);
+        headers.setContentType(MediaType.IMAGE_JPEG);
+
+        String base64Image = Base64.getEncoder().encodeToString(jpegBytes);
+        HttpEntity<String> entity = new HttpEntity<>(base64Image, headers);
+
+        try {
+            restTemplate.exchange(uri, HttpMethod.PUT, entity, Void.class);
+            log.info("✓ Portada subida a playlist {} en {} API", spotifyPlaylistId, API_NAME);
+        } catch (HttpClientErrorException e) {
+            log.warn("✗ No se pudo subir portada a playlist {} en {} API: {}",
+                    spotifyPlaylistId, API_NAME, e.getResponseBodyAsString());
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // AUTENTICACIÓN
     // ─────────────────────────────────────────────────────────────────────────

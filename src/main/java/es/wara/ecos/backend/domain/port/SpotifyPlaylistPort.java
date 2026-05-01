@@ -40,4 +40,16 @@ public interface SpotifyPlaylistPort {
      */
     void addTracksToPlaylist(String userToken, String spotifyPlaylistId, List<String> trackUris);
 
+    /**
+     * Sube una imagen de portada a una playlist existente en Spotify.
+     * <p>
+     * No es un error fatal si falla — la playlist ya tiene canciones y es válida sin portada.
+     * </p>
+     *
+     * @param userToken         access token del usuario (Authorization Code Flow)
+     * @param spotifyPlaylistId identificador de la playlist en Spotify
+     * @param jpegBytes         bytes de la imagen en formato JPEG (máx. 256 KB)
+     */
+    void uploadPlaylistCover(String userToken, String spotifyPlaylistId, byte[] jpegBytes);
+
 }
