@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -218,6 +219,7 @@ class PlaylistControllerTest {
         updated.setName("Nuevo nombre");
         when(getPlaylistByIdUseCase.execute(PLAYLIST_ID)).thenReturn(buildPlaylist(null));
         when(playlistRepository.save(any(Playlist.class))).thenReturn(updated);
+        when(playlistRepository.findById(PLAYLIST_ID)).thenReturn(Optional.of(updated));
 
         mockMvc.perform(patch("/v1/playlists/" + PLAYLIST_ID)
                         .contentType(APPLICATION_JSON)

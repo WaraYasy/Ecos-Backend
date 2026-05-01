@@ -138,7 +138,10 @@ public class PlaylistController {
         if (request.description() != null) {
             playlist.setDescription(request.description());
         }
-        return ResponseEntity.ok(PlaylistResponse.from(playlistRepository.save(playlist)));
+        playlistRepository.save(playlist);
+        return ResponseEntity.ok(PlaylistResponse.from(
+                playlistRepository.findById(id).orElseThrow()
+        ));
     }
 
     /**
