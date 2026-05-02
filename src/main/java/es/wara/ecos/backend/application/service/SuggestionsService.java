@@ -4,6 +4,7 @@ import es.wara.ecos.backend.infrastructure.adapter.tmdb.TmdbClient;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiResultDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiSearchResponseDTO;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaArtistRepository;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongTagRepository;
 import es.wara.ecos.backend.infrastructure.seed.SeedTermsProperties;
 import es.wara.ecos.backend.interfaces.rest.dto.SuggestionResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -37,12 +38,15 @@ public class SuggestionsService {
     private final TmdbClient tmdbClient;
     private final SeedTermsProperties terms;
     private final JpaArtistRepository artistRepository;
+    private final JpaSongTagRepository tagRepository;
 
     public SuggestionsService(TmdbClient tmdbClient, SeedTermsProperties terms,
-                               JpaArtistRepository artistRepository) {
+                               JpaArtistRepository artistRepository,
+                               JpaSongTagRepository tagRepository) {
         this.tmdbClient = tmdbClient;
         this.terms = terms;
         this.artistRepository = artistRepository;
+        this.tagRepository = tagRepository;
     }
 
     /**
@@ -79,16 +83,30 @@ public class SuggestionsService {
      * @return lista de estéticas que contienen {@code q} (case-insensitive)
      */
     public List<SuggestionResponse> suggestAesthetics(String q) {
+        String search = q == null ? "" : q.strip();
+        List<String> fromDb = tagRepository.findDistinctTagsByTypeContaining("aesthetic", search);
+        if (!fromDb.isEmpty()) {
+            return fromDb.stream().limit(MAX_SUGGESTIONS)
+                    .map(t -> new SuggestionResponse(t, formatLabel(t)))
+                    .toList();
+        }
         return suggestFromList(terms.getAesthetics(), q);
     }
 
     /**
-     * Sugiere géneros filtrando la lista curada de {@code seed-terms.yml}.
+     * Sugiere géneros desde la BD (tags con type='genre'). Si la BD está vacía, usa seed-terms.yml.
      *
      * @param q texto introducido por el usuario
      * @return lista de géneros que contienen {@code q} (case-insensitive)
      */
     public List<SuggestionResponse> suggestGenres(String q) {
+        String search = q == null ? "" : q.strip();
+        List<String> fromDb = tagRepository.findDistinctTagsByTypeContaining("genre", search);
+        if (!fromDb.isEmpty()) {
+            return fromDb.stream().limit(MAX_SUGGESTIONS)
+                    .map(t -> new SuggestionResponse(t, formatLabel(t)))
+                    .toList();
+        }
         return suggestFromList(terms.getGenres(), q);
     }
 
