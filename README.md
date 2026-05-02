@@ -20,7 +20,7 @@ Este repositorio contiene el **backend Spring Boot** que alimenta la app.
 |---|---|
 | Framework | Spring Boot 4.0.2 · Java 21 |
 | Base de datos | PostgreSQL 16 + extensión `pgvector` |
-| Migraciones | Flyway (V1–V28) |
+| Migraciones | Flyway (V1–V34) |
 | APIs externas | Spotify · Last.fm · TMDb · MusicBrainz |
 | IA / Semántica | Microservicio Python (FastAPI + pgvector + embeddings) |
 | Seguridad | JWT (jjwt 0.12.6) · BCrypt · Spring Security · OAuth2 Spotify |
@@ -175,59 +175,94 @@ Todos los endpoints excepto login, registro, `/v1/auth/spotify` y health requier
 Authorization: Bearer <token>
 ```
 
-Documentación completa: `docs/API_ENDPOINTS.md`
+---
+
+## Arquitectura
+
+El backend sigue la **arquitectura hexagonal (Ports & Adapters)**. El dominio no depende de nada externo; la infraestructura implementa los Ports mediante inversión de dependencia.
+
+```mermaid
+graph LR
+    subgraph interfaces["interfaces/rest"]
+        C[Controllers]
+    end
+
+    subgraph application["application"]
+        UC[Use Cases]
+    end
+
+    subgraph domain["domain"]
+        P[Ports]
+        M[Models]
+    end
+
+    subgraph infrastructure["infrastructure"]
+        DB[(PostgreSQL)]
+        EXT[APIs externas]
+        AI[Micro IA]
+    end
+
+    C --> UC --> P
+    P -.implementa.-> DB
+    P -.implementa.-> EXT
+    P -.implementa.-> AI
+```
 
 ---
 
 ## Búsqueda semántica
 
-El backend integra un **microservicio de IA** (FastAPI + Python) para búsqueda vectorial y recomendaciones personalizadas. La integración es opcional y tolerante a fallos: si el micro no está disponible, los resultados de BD se devuelven sin error.
+El backend integra un **microservicio de IA** para búsqueda vectorial y recomendaciones personalizadas. La integración es tolerante a fallos: si el micro no está disponible, los resultados de BD se devuelven sin error.
 
 | Modo | Parámetro | Descripción |
 |---|---|---|
 | Semántica directa | `enhanced=false` (defecto) | Codifica la query y busca vectores más cercanos |
-| Modo imaginario | `enhanced=true` | Un LLM expande la query a keywords antes de buscar — ideal para frases evocadoras como "canciones tristes" o "música para una boda" |
+| Modo imaginario | `enhanced=true` | Un LLM expande la query a keywords antes de buscar |
 
 ```mermaid
 sequenceDiagram
-    participant C as SearchController
-    participant UC as SearchSongsUseCase
+    participant C as Controller
+    participant UC as UseCase
     participant DB as PostgreSQL
-    participant AI as Microservicio IA
-    participant LLM as LLM (expand query)
+    participant AI as Micro IA
 
     C->>UC: execute(params)
 
-    par SQL y semántico en paralelo
-        UC->>DB: songRepository.search(params)
-        DB-->>UC: Page<Song> (resultados SQL)
+    par en paralelo
+        UC->>DB: search(params)
+        DB-->>UC: resultados SQL
     and
-        alt enhanced=false
-            UC->>AI: GET /search/semantic?q=...
-            AI-->>UC: [uuid, score, ...]
-        else enhanced=true
-            UC->>AI: GET /search/semantic/enhanced?q=...
-            AI->>LLM: expandir query evocadora a keywords
-            LLM-->>AI: keywords expandidas
-            AI-->>UC: [uuid, score, ...] + expandedQuery
-        else micro no disponible / timeout
-            AI-->>UC: [] (lista vacía, sin error)
-        end
+        UC->>AI: GET /search/semantic?q=...
+        AI-->>UC: [uuid, score] ó []
     end
 
-    alt resultados SQL < 5 y cuadrante on-demand (movie / artist / q)
-        UC->>DB: ingestionService.ingest(params)
-        note over DB: fetch Spotify + Last.fm → persiste
-        UC->>DB: songRepository.search(params)
-        DB-->>UC: Page<Song> actualizada
-    end
+    note over UC: merge híbrido: semánticos primero,<br/>solo-BD al final, truncar a pageSize
 
-    note over UC: merge híbrido:<br/>1. semánticos (orden score)<br/>2. solo-BD al final<br/>3. truncar a pageSize
-
-    UC-->>C: Page<Song> final
+    UC-->>C: Page<Song>
 ```
 
-Los resultados del micro se **mezclan con los de BD** (merge híbrido): los matches semánticos aparecen primero ordenados por score, seguidos de los resultados de BD sin match semántico. La consulta SQL y la semántica se ejecutan **en paralelo** (`CompletableFuture`) para minimizar latencia.
+---
+
+## Flujo OAuth con Spotify
+
+```mermaid
+sequenceDiagram
+    actor U as App móvil
+    participant B as Backend
+    participant S as Spotify
+
+    U->>B: GET /v1/auth/spotify/login (JWT)
+    B->>B: genera state UUID → guarda en oauth_states (TTL 10 min)
+    B-->>U: 302 → URL de autorización Spotify
+
+    U->>S: autoriza
+    S->>B: GET /callback/spotify?code=...&state=...
+    B->>B: valida state → borra oauth_states
+    B->>S: POST /token
+    S-->>B: access_token + refresh_token
+    B->>B: cifra AES-256 → guarda en spotify_tokens
+    B-->>U: 200 OK
+```
 
 ---
 
@@ -247,79 +282,10 @@ Los resultados del micro se **mezclan con los de BD** (merge híbrido): los matc
 | Controllers (`@WebMvcTest`) | ~190 |
 | Funcionales de flujo (Testcontainers) | ~43 |
 | Seguridad end-to-end (`SecurityFlowTest`) | 23 |
-| Otros (cliente IA, iTunes, mappers…) | ~4 |
-| **Total** | **370** |
+| Otros (cliente IA, iTunes, mappers…) | ~13 |
+| **Total** | **379** |
 
 Los tests funcionales arrancan contenedores PostgreSQL y Redis reales — requieren Docker Desktop en ejecución. Los tests de seguridad cubren rechazo JWT (firma incorrecta, expirado, alg:none), protección del endpoint de admin por API key, IDOR de usuario y no-crash ante payloads SQL injection.
-
----
-
-## Arquitectura
-
-El backend sigue la **arquitectura hexagonal (Ports & Adapters)**:
-
-```mermaid
-graph TD
-    subgraph interfaces["interfaces/rest"]
-        C[Controllers]
-        DTO[DTOs]
-        EH[GlobalExceptionHandler]
-    end
-
-    subgraph application["application"]
-        UC[Use Cases]
-        SIS[SongIngestionService]
-        MAS[MusicAggregationService]
-    end
-
-    subgraph domain["domain (sin Spring, sin JPA)"]
-        M[Models]
-        P[Ports / interfaces]
-    end
-
-    subgraph infrastructure["infrastructure"]
-        JPA[JPA Repositories]
-        SP[SpotifyAdapter]
-        LF[LastFmAdapter]
-        TM[TMDbAdapter]
-        AI[AI Adapter]
-        JWT[JwtService]
-        CA[Caché Caffeine]
-    end
-
-    C --> UC
-    UC --> P
-    P -.implementa.-> JPA
-    P -.implementa.-> SP
-    P -.implementa.-> LF
-    P -.implementa.-> TM
-    P -.implementa.-> AI
-```
-
-El dominio no depende de nada externo. La infraestructura implementa los Ports del dominio (inversión de dependencia).
-
----
-
-## Flujo OAuth con Spotify
-
-```mermaid
-sequenceDiagram
-    actor U as Usuario (app móvil)
-    participant B as Backend
-    participant S as Spotify
-
-    U->>B: GET /v1/auth/spotify/login (JWT propio)
-    B->>B: genera state UUID → guarda en oauth_states (TTL 10 min)
-    B-->>U: 302 → URL autorización Spotify
-
-    U->>S: autoriza en Spotify
-    S->>B: GET /callback/spotify?code=...&state=...
-    B->>B: valida state (existe y no expirado) → borra oauth_states
-    B->>S: POST /token (code → access_token + refresh_token)
-    S-->>B: tokens
-    B->>B: cifra tokens AES-256 → guarda en spotify_tokens
-    B-->>U: 200 OK (cuenta vinculada)
-```
 
 ---
 
