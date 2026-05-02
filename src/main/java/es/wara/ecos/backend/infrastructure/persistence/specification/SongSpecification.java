@@ -146,14 +146,14 @@ public class SongSpecification {
             // ── Cuadrante 6: Geográfico (artistas de ese país de origen) ─────
             if (params.country() != null && !params.country().isBlank()) {
                 query.distinct(true);
-                String pattern = "%" + params.country().toLowerCase() + "%";
+                String code = params.country().toUpperCase();
                 Subquery<UUID> sub = query.subquery(UUID.class);
                 Root<SongEntity> subRoot = sub.from(SongEntity.class);
                 Join<SongEntity, ArtistEntity> subArtistJoin = subRoot.join("artists");
                 sub.select(subRoot.get("id"));
                 sub.where(cb.and(
                         cb.equal(subRoot.get("id"), root.get("id")),
-                        cb.like(cb.lower(subArtistJoin.get("country")), pattern)
+                        cb.equal(cb.upper(subArtistJoin.get("country")), code)
                 ));
                 predicates.add(cb.exists(sub));
             }

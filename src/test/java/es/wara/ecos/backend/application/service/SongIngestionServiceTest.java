@@ -53,25 +53,25 @@ class SongIngestionServiceTest {
 
     @Test
     void country_callsGetArtistsByCountryThenSearchesSongs() {
-        SearchParams p = SearchParams.builder().country("Spain").pageSize(20).build();
-        when(musicProvider.getArtistNamesByCountry("Spain", 5)).thenReturn(List.of("Rosalía"));
+        SearchParams p = SearchParams.builder().country("ES").pageSize(20).build();
+        when(musicProvider.getArtistNamesByCountry("ES", 5)).thenReturn(List.of("Rosalía"));
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of());
 
         service.ingest(p);
 
-        verify(musicProvider).getArtistNamesByCountry("Spain", 5);
+        verify(musicProvider).getArtistNamesByCountry("ES", 5);
         verify(musicProvider).searchSongs("artist:Rosalía", 20);
     }
 
     @Test
     void country_noArtistsFound_fallsBackToDirectSearch() {
-        SearchParams p = SearchParams.builder().country("Japan").pageSize(20).build();
-        when(musicProvider.getArtistNamesByCountry("Japan", 5)).thenReturn(List.of());
-        when(musicProvider.searchSongs("Japan", 20)).thenReturn(List.of());
+        SearchParams p = SearchParams.builder().country("JP").pageSize(20).build();
+        when(musicProvider.getArtistNamesByCountry("JP", 5)).thenReturn(List.of());
+        when(musicProvider.searchSongs("JP", 20)).thenReturn(List.of());
 
         service.ingest(p);
 
-        verify(musicProvider).searchSongs("Japan", 20);
+        verify(musicProvider).searchSongs("JP", 20);
     }
 
     @Test
@@ -81,8 +81,8 @@ class SongIngestionServiceTest {
         Song s = song("Malamente");
         s.setArtists(new ArrayList<>(List.of(artist)));
 
-        SearchParams p = SearchParams.builder().country("Spain").pageSize(20).build();
-        when(musicProvider.getArtistNamesByCountry("Spain", 5)).thenReturn(List.of("Rosalía"));
+        SearchParams p = SearchParams.builder().country("ES").pageSize(20).build();
+        when(musicProvider.getArtistNamesByCountry("ES", 5)).thenReturn(List.of("Rosalía"));
         when(musicProvider.searchSongs(anyString(), anyInt())).thenReturn(List.of(s));
 
         service.ingest(p);
@@ -90,7 +90,7 @@ class SongIngestionServiceTest {
         verify(songRepository).save(argThat(saved ->
                 saved.getArtists().stream()
                         .filter(a -> "Rosalía".equals(a.getName()))
-                        .anyMatch(a -> "Spain".equals(a.getCountry()))
+                        .anyMatch(a -> "ES".equals(a.getCountry()))
         ));
     }
 

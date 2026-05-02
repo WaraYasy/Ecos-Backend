@@ -105,7 +105,7 @@ public class MusicBrainzClient {
         backoff = @Backoff(delay = 2000, multiplier = 2)
     )
     public List<MusicBrainzArtistDTO> searchArtistsByCountry(String country, int limit) {
-        String query = "area:\"" + country + "\" AND type:person";
+        String query = "country:" + country.toUpperCase() + " AND type:person";
         String url = UriComponentsBuilder.fromUriString(BASE_URL + "/artist")
                 .queryParam("query", query)
                 .queryParam("fmt", "json")
@@ -144,10 +144,12 @@ public class MusicBrainzClient {
             return Optional.empty();
         }
         MusicBrainzArtistDTO artist = response.getArtists().get(0);
-        if (artist.getArea() == null || artist.getArea().getName() == null) {
-            return Optional.empty();
+        var area = artist.getArea();
+        if (area == null) return Optional.empty();
+        if (area.getIso31661Codes() != null && !area.getIso31661Codes().isEmpty()) {
+            return Optional.of(area.getIso31661Codes().get(0));
         }
-        return Optional.of(artist.getArea().getName());
+        return Optional.empty();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
