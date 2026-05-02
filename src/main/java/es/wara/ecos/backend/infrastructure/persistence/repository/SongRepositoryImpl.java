@@ -382,11 +382,12 @@ public class SongRepositoryImpl implements SongRepository {
         if (tags == null || tags.isEmpty()) return;
         List<Object[]> batch = tags.stream()
                 .filter(t -> t.getName() != null && !t.getName().isBlank())
-                .map(t -> new Object[]{ song.getId(), t.getName(), t.getWeight() })
+                .map(t -> new Object[]{ song.getId(), t.getName(), t.getWeight(),
+                        t.getType() != null ? t.getType() : "other" })
                 .toList();
         if (batch.isEmpty()) return;
         jdbc.batchUpdate(
-            "INSERT INTO song_tags (song_id, tag, weight) VALUES (?, ?, ?) ON CONFLICT (song_id, tag) DO NOTHING",
+            "INSERT INTO song_tags (song_id, tag, weight, type) VALUES (?, ?, ?, ?) ON CONFLICT (song_id, tag) DO NOTHING",
             batch
         );
     }
