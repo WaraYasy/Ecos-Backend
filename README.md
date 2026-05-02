@@ -329,5 +329,5 @@ Los tests funcionales arrancan contenedores PostgreSQL y Redis reales — requie
 ---
 
 <div align="center">
-  <sub>MIT © 2026 Wara Yasy Pacheco Arandia</sub>
+  <sub>MIT © 2026</sub>
 </div>
