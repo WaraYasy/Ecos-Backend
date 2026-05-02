@@ -1,8 +1,11 @@
-# ECOS — Backend
-
-[![CI](https://github.com/WaraYasy/Ecos-Backend/actions/workflows/ci.yml/badge.svg)](https://github.com/WaraYasy/Ecos-Backend/actions/workflows/ci.yml)
-
-> Backend de la aplicación móvil **ECOS**: descubrimiento musical inteligente a través de un grafo neuronal interactivo.
+<div align="center">
+  <img src="assets/ecos-brand.svg" alt="ECOS" width="220"/>
+  <br/>
+  <p><em>Descubrimiento musical inteligente a través de un grafo neuronal interactivo</em></p>
+  <a href="https://github.com/WaraYasy/Ecos-Backend/actions/workflows/ci.yml">
+    <img src="https://github.com/WaraYasy/Ecos-Backend/actions/workflows/ci.yml/badge.svg" alt="CI"/>
+  </a>
+</div>
 
 ---
 
@@ -82,7 +85,7 @@ ENCRYPTION_SALT=deadbeefdeadbeef
 # Admin (protege /v1/admin/**)
 ADMIN_API_KEY=clave_secreta_larga
 
-# Microservicio de IA (opcional — sin esta variable la búsqueda semántica se omite)
+# Microservicio de IA (opcional)
 AI_SERVICE_URL=https://tu-micro-ia.railway.app
 AI_SERVICE_API_KEY=tu_api_key_del_micro
 ```
@@ -316,6 +319,6 @@ Los tests funcionales arrancan contenedores PostgreSQL y Redis reales — requie
 
 ---
 
-## Licencia
-
-MIT © 2026 [Wara Yasy Pacheco Arandia](LICENSE)
+<div align="center">
+  <sub>MIT © 2026 Wara Yasy Pacheco Arandia</sub>
+</div>
