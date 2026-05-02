@@ -4,9 +4,9 @@ import es.wara.ecos.backend.infrastructure.adapter.tmdb.TmdbClient;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiResultDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiSearchResponseDTO;
 import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaArtistRepository;
+import es.wara.ecos.backend.infrastructure.persistence.jpa.JpaSongTagRepository;
 import es.wara.ecos.backend.infrastructure.seed.SeedTermsProperties;
 import es.wara.ecos.backend.interfaces.rest.dto.SuggestionResponse;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,6 +17,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -28,6 +29,7 @@ class SuggestionsServiceTest {
     @Mock TmdbClient tmdbClient;
     @Mock SeedTermsProperties terms;
     @Mock JpaArtistRepository artistRepository;
+    @Mock JpaSongTagRepository tagRepository;
     @InjectMocks SuggestionsService service;
 
     // ─── helpers ──────────────────────────────────────────────────────────────
@@ -166,5 +168,68 @@ class SuggestionsServiceTest {
         List<SuggestionResponse> result = service.suggestMovies("serie");
 
         assertThat(result).hasSize(6);
+    }
+
+    // ─── suggestGenres ─────────────────────────────────────────────────────────
+
+    @Test
+    void suggestGenres_bdHasResults_returnsBdTags() {
+        when(tagRepository.findDistinctTagsByTypeContaining("genre", "rock"))
+                .thenReturn(List.of("rock", "indie rock", "classic rock"));
+
+        List<SuggestionResponse> result = service.suggestGenres("rock");
+
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0).value()).isEqualTo("rock");
+        assertThat(result.get(1).value()).isEqualTo("indie rock");
+        verify(terms, never()).getGenres();
+    }
+
+    @Test
+    void suggestGenres_bdEmpty_fallsBackToSeedTerms() {
+        when(tagRepository.findDistinctTagsByTypeContaining(eq("genre"), anyString()))
+                .thenReturn(List.of());
+        when(terms.getGenres()).thenReturn(List.of("rock", "jazz", "pop"));
+
+        List<SuggestionResponse> result = service.suggestGenres("rock");
+
+        assertThat(result).isNotEmpty();
+        verify(terms).getGenres();
+    }
+
+    @Test
+    void suggestGenres_nullQuery_normalizedToEmpty() {
+        when(tagRepository.findDistinctTagsByTypeContaining("genre", ""))
+                .thenReturn(List.of("jazz", "rock"));
+
+        List<SuggestionResponse> result = service.suggestGenres(null);
+
+        assertThat(result).hasSize(2);
+    }
+
+    // ─── suggestAesthetics ─────────────────────────────────────────────────────
+
+    @Test
+    void suggestAesthetics_bdHasResults_returnsBdTags() {
+        when(tagRepository.findDistinctTagsByTypeContaining("aesthetic", "dark"))
+                .thenReturn(List.of("dark academia"));
+
+        List<SuggestionResponse> result = service.suggestAesthetics("dark");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).value()).isEqualTo("dark academia");
+        verify(terms, never()).getAesthetics();
+    }
+
+    @Test
+    void suggestAesthetics_bdEmpty_fallsBackToSeedTerms() {
+        when(tagRepository.findDistinctTagsByTypeContaining(eq("aesthetic"), anyString()))
+                .thenReturn(List.of());
+        when(terms.getAesthetics()).thenReturn(List.of("dark academia", "cottagecore"));
+
+        List<SuggestionResponse> result = service.suggestAesthetics("cot");
+
+        assertThat(result).isNotEmpty();
+        verify(terms).getAesthetics();
     }
 }
