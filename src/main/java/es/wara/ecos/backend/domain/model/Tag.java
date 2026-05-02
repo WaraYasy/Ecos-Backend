@@ -1,6 +1,5 @@
 package es.wara.ecos.backend.domain.model;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -17,11 +16,17 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class Tag {
 
     private String name;
     /** Relevancia de la etiqueta para la canción: 0.0 a 1.0. */
     private BigDecimal weight;
+    /** Tipo del tag: "genre", "aesthetic" u "other". */
+    private String type;
+
+    public Tag(String name, BigDecimal weight) {
+        this.name = name;
+        this.weight = weight;
+    }
 
 }

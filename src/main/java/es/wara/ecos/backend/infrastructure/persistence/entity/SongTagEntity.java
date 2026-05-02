@@ -32,4 +32,7 @@ public class SongTagEntity {
     @Column(precision = 5, scale = 3)
     private BigDecimal weight;
 
+    @Column(length = 20, nullable = false)
+    private String type = "other";
+
 }

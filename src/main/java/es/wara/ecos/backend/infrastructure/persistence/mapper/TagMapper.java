@@ -16,10 +16,11 @@ public class TagMapper {
 
     public Tag toModel(SongTagEntity entity) {
         if (entity == null) return null;
-        return new Tag(
-                entity.getId().getTag(),
-                entity.getWeight()
-        );
+        Tag tag = new Tag();
+        tag.setName(entity.getId().getTag());
+        tag.setWeight(entity.getWeight());
+        tag.setType(entity.getType());
+        return tag;
     }
 
 }
