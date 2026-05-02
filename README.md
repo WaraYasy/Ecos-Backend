@@ -319,6 +319,15 @@ Los tests funcionales arrancan contenedores PostgreSQL y Redis reales — requie
 
 ---
 
+## Repositorios relacionados
+
+| Repositorio | Descripción |
+|---|---|
+| [ecos-frontend](https://github.com/WaraYasy/Ecos-Frontend) | App móvil — interfaz de usuario y grafo interactivo |
+| [ecos-microservicio](https://github.com/WaraYasy/Ecos-Microservicio) | Microservicio — recomendaciones y grafo semántico |
+
+---
+
 <div align="center">
   <sub>MIT © 2026 Wara Yasy Pacheco Arandia</sub>
 </div>
