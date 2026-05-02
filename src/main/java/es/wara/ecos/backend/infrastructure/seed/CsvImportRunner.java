@@ -332,6 +332,7 @@ public class CsvImportRunner {
         tag.setId(id);
         tag.setSong(song);
         tag.setWeight(BigDecimal.ONE);
+        tag.setType("genre");
         songTagRepo.save(tag);
     }
 

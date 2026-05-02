@@ -29,6 +29,7 @@ import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiResultDTO;
 import es.wara.ecos.backend.infrastructure.adapter.tmdb.dto.TMDBMultiSearchResponseDTO;
 import es.wara.ecos.backend.config.CacheConfig;
 import es.wara.ecos.backend.infrastructure.adapter.itunes.ItunesClient;
+import es.wara.ecos.backend.infrastructure.seed.SeedTermsProperties;
 import es.wara.ecos.backend.infrastructure.exception.ExternalApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -79,15 +80,17 @@ public class MusicProviderAdapter implements MusicProvider {
     private final TmdbClient tmdbClient;
     private final MusicBrainzClient musicBrainzClient;
     private final ItunesClient itunesClient;
+    private final SeedTermsProperties seedTerms;
 
     public MusicProviderAdapter(SpotifyClient spotifyClient, LastFmClient lastFmClient,
                                 TmdbClient tmdbClient, MusicBrainzClient musicBrainzClient,
-                                ItunesClient itunesClient) {
+                                ItunesClient itunesClient, SeedTermsProperties seedTerms) {
         this.spotifyClient = spotifyClient;
         this.lastFmClient = lastFmClient;
         this.tmdbClient = tmdbClient;
         this.musicBrainzClient = musicBrainzClient;
         this.itunesClient = itunesClient;
+        this.seedTerms = seedTerms;
     }
 
     /**
@@ -587,13 +590,19 @@ public class MusicProviderAdapter implements MusicProvider {
     /** Convierte un {@link LastFmTagDTO} al modelo de dominio {@link Tag}. */
     private Tag mapToTag(LastFmTagDTO dto) {
         Tag tag = new Tag();
-        // Normalizar nombre: minúsculas y sin espacios al margen
-        tag.setName(dto.getName() != null ? dto.getName().toLowerCase().trim() : "");
-        // Normalizar peso de escala 0-100 a 0.0-1.0
+        String name = dto.getName() != null ? dto.getName().toLowerCase().trim() : "";
+        tag.setName(name);
         tag.setWeight(dto.getCount() != null
                 ? BigDecimal.valueOf(dto.getCount() / 100.0)
                 : BigDecimal.ZERO);
+        tag.setType(classifyTag(name));
         return tag;
+    }
+
+    private String classifyTag(String name) {
+        if (seedTerms.getAesthetics().contains(name)) return "aesthetic";
+        if (seedTerms.getGenres().contains(name)) return "genre";
+        return "other";
     }
 
     /** Convierte Double a BigDecimal de forma segura. */
