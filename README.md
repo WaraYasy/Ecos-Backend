@@ -292,6 +292,24 @@ Los tests funcionales arrancan contenedores PostgreSQL y Redis reales — requie
 
 ---
 
+## Tareas programadas
+
+El backend ejecuta cinco jobs automáticos que mantienen la biblioteca musical actualizada:
+
+| Job | Cuándo | Qué hace |
+|---|---|---|
+| **DatabaseSeeder** | Domingos 3:00h | Busca canciones nuevas en Spotify/Last.fm por géneros, estéticas, décadas y países; persiste las que no existen |
+| **EnrichmentMaintenanceJob** — preview | Diario 2:00h | Rellena `preview_url` vacíos usando iTunes Search API |
+| **EnrichmentMaintenanceJob** — tags | Diario 2:30h | Enriquece `song_tags` con etiquetas de Last.fm; clasifica cada tag como `genre`, `aesthetic` u `other` |
+| **EnrichmentMaintenanceJob** — cover | Diario 3:00h | Rellena `cover_url` de álbumes sin imagen |
+| **EnrichmentMaintenanceJob** — country | Diario 3:30h | Rellena `artists.country` (código ISO 3166-1 alpha-2) usando MusicBrainz |
+| **OAuthStateCleanupScheduler** | Cada hora | Elimina estados OAuth expirados de `oauth_states` |
+| **DbCleanupScheduler** | Diario 3:00h | Limpia registros huérfanos o expirados |
+
+Todos los crons son configurables vía variables de entorno (ver `TAREAS_PROGRAMADAS.md`).
+
+---
+
 ## Variables de entorno
 
 | Variable | Descripción | Requerida |
