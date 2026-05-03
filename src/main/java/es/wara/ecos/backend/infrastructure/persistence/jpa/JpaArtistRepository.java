@@ -32,15 +32,10 @@ public interface JpaArtistRepository extends JpaRepository<ArtistEntity, UUID> {
     /** Devuelve hasta 6 artistas cuyo nombre contiene {@code name} (case-insensitive). */
     List<ArtistEntity> findTop6ByNameContainingIgnoreCase(String name);
 
-    /**
-     * Devuelve hasta 10 países distintos de artistas que contengan {@code q}.
-     * Usa ILIKE con el índice trigrama {@code idx_artists_country_trgm} (migración V32).
-     */
-    @Query(value = "SELECT DISTINCT country FROM artists " +
-                   "WHERE country IS NOT NULL AND country ILIKE CONCAT('%', :q, '%') " +
-                   "ORDER BY country LIMIT 10",
+    /** Devuelve todos los códigos ISO de país distintos de artistas presentes en la BD. */
+    @Query(value = "SELECT DISTINCT country FROM artists WHERE country IS NOT NULL ORDER BY country",
            nativeQuery = true)
-    List<String> findDistinctCountriesContaining(@Param("q") String q);
+    List<String> findAllDistinctCountries();
 
     /** Devuelve artistas sin país asignado para el trabajo de enriquecimiento. */
     @Query("SELECT a FROM ArtistEntity a WHERE a.country IS NULL AND a.name IS NOT NULL")
