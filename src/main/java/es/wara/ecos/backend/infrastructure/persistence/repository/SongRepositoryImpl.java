@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -263,10 +264,27 @@ public class SongRepositoryImpl implements SongRepository {
         PageRequest pageRequest = PageRequest.of(params.page(), params.pageSize());
         org.springframework.data.domain.Page<SongEntity> result = jpa.findAll(spec, pageRequest);
         List<Song> items = new ArrayList<>(result.stream().map(mapper::toModel).toList());
-        if (params.page() == 0) {
+        if (params.q() != null && !params.q().isBlank()) {
+            String q = params.q().toLowerCase();
+            items.sort(Comparator.comparingInt((Song s) -> relevanceScore(s, q)).reversed());
+        } else if (params.page() == 0) {
             Collections.shuffle(items);
         }
         return new Page<>(items, params.page(), params.pageSize(), result.getTotalElements());
+    }
+
+    private int relevanceScore(Song song, String q) {
+        for (es.wara.ecos.backend.domain.model.Artist a : song.getArtists()) {
+            if (a.getName() != null && a.getName().equalsIgnoreCase(q)) return 4;
+        }
+        for (es.wara.ecos.backend.domain.model.Artist a : song.getArtists()) {
+            if (a.getName() != null && a.getName().toLowerCase().startsWith(q)) return 3;
+        }
+        if (song.getTitle() != null && song.getTitle().equalsIgnoreCase(q)) return 2;
+        for (es.wara.ecos.backend.domain.model.Artist a : song.getArtists()) {
+            if (a.getName() != null && a.getName().toLowerCase().contains(q)) return 1;
+        }
+        return 0;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
