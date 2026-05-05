@@ -172,6 +172,62 @@ class SearchControllerTest {
                 .andExpect(jsonPath("$.items[0].title").value("The Sound of Silence"));
     }
 
+    // ─── Validación de parámetros → 400 ──────────────────────────────────────
+
+    @Test
+    void search_invalidMode_returns400() throws Exception {
+        mockMvc.perform(get("/v1/search").param("mode", "diminished"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void search_modeMajor_isAccepted() throws Exception {
+        when(searchSongsUseCase.execute(argThat(p -> p != null && "major".equals(p.mode()))))
+                .thenReturn(pageOf(List.of(buildSong("Here Comes the Sun"))));
+
+        mockMvc.perform(get("/v1/search").param("mode", "major"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void search_modeMinor_isAccepted() throws Exception {
+        when(searchSongsUseCase.execute(argThat(p -> p != null && "minor".equals(p.mode()))))
+                .thenReturn(pageOf(List.of(buildSong("Hurt"))));
+
+        mockMvc.perform(get("/v1/search").param("mode", "minor"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void search_negativeBpmMin_returns400() throws Exception {
+        mockMvc.perform(get("/v1/search").param("bpmMin", "-1"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void search_negativeBpmMax_returns400() throws Exception {
+        mockMvc.perform(get("/v1/search").param("bpmMax", "-10"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void search_pageSizeZero_returns400() throws Exception {
+        mockMvc.perform(get("/v1/search").param("pageSize", "0"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void search_pageSizeAboveMax_returns400() throws Exception {
+        mockMvc.perform(get("/v1/search").param("pageSize", "51"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void search_negativePageNumber_returns400() throws Exception {
+        mockMvc.perform(get("/v1/search").param("page", "-1"))
+                .andExpect(status().isBadRequest());
+    }
+
     // ─── GET /v1/search/suggestions ───────────────────────────────────────────
 
     private SuggestionItem buildItem(String label, String genre, String q) {
