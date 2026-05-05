@@ -63,9 +63,9 @@ public class CsvImportRunner {
 
     private static final int BATCH_SIZE = 200;
 
-    /** Separa colaboraciones del tipo "Artist A feat. Artist B". Solo feat/ft — &, x, with son nombres de bandas. */
+    /** Separa colaboraciones del tipo "Artist A feat. Artist B" o "Artist A;Artist B". Solo feat/ft — &, x, with son nombres de bandas. */
     private static final Pattern FEAT_PATTERN =
-            Pattern.compile("\\s+(?:feat\\.?|ft\\.?)\\s+", Pattern.CASE_INSENSITIVE);
+            Pattern.compile(";|\\s+(?:feat\\.?|ft\\.?)\\s+", Pattern.CASE_INSENSITIVE);
 
     private final JpaArtistRepository    artistRepo;
     private final JpaAlbumRepository     albumRepo;
