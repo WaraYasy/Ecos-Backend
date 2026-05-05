@@ -129,7 +129,9 @@ public class SearchSongsUseCase {
             merged = merged.subList(0, params.pageSize());
         }
 
-        return new Page<>(merged, page.page(), page.pageSize(), page.total());
+        // El total de BD no cuenta los songs añadidos por semántica — corregir al alza
+        long correctedTotal = Math.max(page.total(), merged.size());
+        return new Page<>(merged, page.page(), page.pageSize(), correctedTotal);
     }
 
     /**

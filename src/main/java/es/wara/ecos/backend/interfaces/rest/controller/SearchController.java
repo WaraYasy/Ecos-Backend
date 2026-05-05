@@ -8,6 +8,7 @@ import es.wara.ecos.backend.interfaces.rest.dto.SearchSuggestionResponse;
 import es.wara.ecos.backend.interfaces.rest.dto.SongResponse;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.http.ResponseEntity;
@@ -99,15 +100,15 @@ public class SearchController {
             @RequestParam(required = false) String country,
             @RequestParam(required = false) Boolean instrumental,
             @RequestParam(required = false) String texture,
-            @RequestParam(required = false) String mode,
+            @RequestParam(required = false) @Pattern(regexp = "major|minor", message = "El modo debe ser 'major' o 'minor'") String mode,
             @RequestParam(required = false) @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal energyMin,
             @RequestParam(required = false) @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal energyMax,
             @RequestParam(required = false) @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal valenceMin,
             @RequestParam(required = false) @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal valenceMax,
-            @RequestParam(required = false) @Min(0) BigDecimal bpmMin,
-            @RequestParam(required = false) @Min(0) BigDecimal bpmMax,
-            @RequestParam(defaultValue = "20") int pageSize,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) @DecimalMin("0") BigDecimal bpmMin,
+            @RequestParam(required = false) @DecimalMin("0") BigDecimal bpmMax,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int pageSize,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "false") boolean enhanced
     ) {
         SearchParams params = new SearchParams(
