@@ -57,7 +57,7 @@ public class SpotifyAuthService implements SpotifyAuthPort {
     private static final String TOKEN_URL  = "https://accounts.spotify.com/api/token";
     private static final String AUTH_URL   = "https://accounts.spotify.com/authorize";
     private static final String ME_URL     = "https://api.spotify.com/v1/me";
-    private static final String SCOPES     = "playlist-modify-public playlist-modify-private user-read-private user-read-email";
+    private static final String SCOPES     = "playlist-modify-public playlist-modify-private user-read-private user-read-email ugc-image-upload";
     private static final long   REFRESH_MARGIN_SECONDS = 300;
 
     @Value("${spotify.client.id}")
