@@ -78,13 +78,21 @@ public class SongSpecification {
             }
 
             // ── Cuadrante 1: Texto libre ──────────────────────────────────────
+            // EXISTS subquery para el artista: evita el JOIN directo que causa paginación
+            // en memoria (HHH90003004) cuando hay colecciones y LIMIT/OFFSET simultáneos.
             if (params.q() != null && !params.q().isBlank()) {
-                query.distinct(true);
-                Join<SongEntity, ArtistEntity> artistJoin = root.join("artists", JoinType.LEFT);
                 String pattern = "%" + params.q().toLowerCase() + "%";
+                Subquery<UUID> artistSub = query.subquery(UUID.class);
+                Root<SongEntity> artistSubRoot = artistSub.from(SongEntity.class);
+                Join<SongEntity, ArtistEntity> artistSubJoin = artistSubRoot.join("artists");
+                artistSub.select(artistSubRoot.get("id"));
+                artistSub.where(cb.and(
+                        cb.equal(artistSubRoot.get("id"), root.get("id")),
+                        cb.like(cb.lower(artistSubJoin.get("name")), pattern)
+                ));
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("title")), pattern),
-                        cb.like(cb.lower(artistJoin.get("name")), pattern)
+                        cb.exists(artistSub)
                 ));
             }
 
