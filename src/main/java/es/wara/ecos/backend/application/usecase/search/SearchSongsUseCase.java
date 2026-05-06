@@ -50,14 +50,13 @@ public class SearchSongsUseCase {
     public Page<Song> execute(SearchParams params) {
         log.info("[búsqueda] cuadrantes=[{}] página={}", ingestionService.summarize(params), params.page());
 
-        // Lanzar búsqueda semántica en paralelo con la consulta SQL.
-        // Solo en page=0: el micro no soporta offset, devuelve siempre los mismos IDs
-        // independientemente de la página → mismo resultado en todas las páginas si se activa.
+        // Búsqueda semántica solo en modo enhanced y page=0.
+        // enhanced=false → BD con relevanceScore es suficiente y más rápido.
+        // page>0 → el micro no soporta offset; devolvería los mismos IDs en todas las páginas.
         boolean hasQuery = params.q() != null && !params.q().isBlank();
-        CompletableFuture<List<UUID>> semanticFuture = hasQuery && params.page() == 0
-                ? CompletableFuture.supplyAsync(() -> params.enhanced()
-                        ? semanticSearchProvider.searchEnhanced(params.q(), params.pageSize() * 2)
-                        : semanticSearchProvider.search(params.q(), params.pageSize() * 2))
+        CompletableFuture<List<UUID>> semanticFuture = hasQuery && params.enhanced() && params.page() == 0
+                ? CompletableFuture.supplyAsync(() ->
+                        semanticSearchProvider.searchEnhanced(params.q(), params.pageSize() * 2))
                 : CompletableFuture.completedFuture(List.of());
 
         Page<Song> result = songRepository.search(params);
