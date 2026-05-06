@@ -88,10 +88,10 @@
 		</dependency>
 
 		<!-- Driver JDBC para conectar con PostgreSQL -->
+		<!-- scope compile (no runtime) para poder usar PGConnection/CopyManager en SqlSeedLoader -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
 		</dependency>
 
 		<!-- Migraciones versionadas de base de datos -->
