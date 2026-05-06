@@ -21,9 +21,9 @@ import java.util.concurrent.CompletableFuture;
  * <p><b>Estrategia BD-primero:</b> consulta siempre la base de datos local.
  * Para cuadrantes <b>seed</b> (aesthetic, genre, decade, country, texture)
  * la BD es la única fuente — el {@code DatabaseSeeder} la mantiene poblada.
- * Para cuadrantes <b>on-demand</b> (movie, q, artist), si la BD no tiene
- * resultados se hace un fetch puntual a APIs externas, se persiste y se
- * re-consulta.</p>
+ * Para cuadrantes <b>on-demand</b> (movie, q, artist), si la BD devuelve
+ * cero resultados se hace un fetch puntual a APIs externas, se persiste y se
+ * re-consulta. Con cualquier resultado en BD no se llaman APIs externas.</p>
  *
  * @author Wara Pacheco
  * @version 4.0
@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class SearchSongsUseCase {
 
-    private static final int MIN_RESULTS_THRESHOLD = 5;
+    private static final int MIN_RESULTS_THRESHOLD = 1;
 
     private final SongRepository songRepository;
     private final SongIngestionService ingestionService;
