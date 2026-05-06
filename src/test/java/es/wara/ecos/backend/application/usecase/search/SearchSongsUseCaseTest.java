@@ -56,6 +56,10 @@ class SearchSongsUseCaseTest {
         return SearchParams.builder().q(q).pageSize(20).build();
     }
 
+    private SearchParams withEnhancedQ(String q) {
+        return SearchParams.builder().q(q).pageSize(20).enhanced(true).build();
+    }
+
     // ── BD suficiente → no llama a ingestion ─────────────────────────────────
 
     @Test
@@ -161,7 +165,7 @@ class SearchSongsUseCaseTest {
     // ── Boost semántico ───────────────────────────────────────────────────────
 
     @Test
-    void semanticBoost_movesMatchingIdsToFront() {
+    void semanticBoost_dbResultsPreserveSqlOrder_semanticOnlyAddsExtras() {
         UUID idA = UUID.randomUUID();
         UUID idB = UUID.randomUUID();
         UUID idC = UUID.randomUUID();
@@ -170,19 +174,18 @@ class SearchSongsUseCaseTest {
         Song b = songWithId(idB, "B");
         Song c = songWithId(idC, "C");
 
-        SearchParams p = withQ("dark ambient");
+        SearchParams p = withEnhancedQ("dark ambient");
         when(ingestionService.summarize(p)).thenReturn("q=dark ambient");
-        // BD devuelve A, B, C en ese orden
         when(songRepository.search(p)).thenReturn(pageOf(List.of(a, b, c)));
-        // El micro dice que C e A son las más relevantes (C primero)
-        when(semanticSearchProvider.search(eq("dark ambient"), anyInt()))
+        // El micro confirma C y A pero todos ya están en la página BD
+        when(semanticSearchProvider.searchEnhanced(eq("dark ambient"), anyInt()))
                 .thenReturn(List.of(idC, idA));
 
         Page<Song> result = useCase.execute(p);
 
-        // C debe subir primero (match semántico con mayor score), luego A, luego B
+        // BD va primero; el semántico no reordena resultados ya presentes — orden SQL preservado
         assertThat(result.items()).extracting(Song::getId)
-                .containsExactly(idC, idA, idB);
+                .containsExactly(idA, idB, idC);
     }
 
     @Test
@@ -192,11 +195,11 @@ class SearchSongsUseCaseTest {
         Song a = songWithId(idA, "A");
         Song b = songWithId(idB, "B");
 
-        SearchParams p = withQ("jazz");
+        SearchParams p = withEnhancedQ("jazz");
         when(ingestionService.summarize(p)).thenReturn("q=jazz");
         when(songRepository.search(p)).thenReturn(pageOf(List.of(a, b)));
-        // El micro devuelve un ID que no está en los resultados SQL
-        when(semanticSearchProvider.search(anyString(), anyInt()))
+        // El micro devuelve un ID que no está en BD → se ignora
+        when(semanticSearchProvider.searchEnhanced(anyString(), anyInt()))
                 .thenReturn(List.of(UUID.randomUUID()));
 
         Page<Song> result = useCase.execute(p);
@@ -209,10 +212,10 @@ class SearchSongsUseCaseTest {
         UUID idA = UUID.randomUUID();
         Song a = songWithId(idA, "A");
 
-        SearchParams p = withQ("chill");
+        SearchParams p = withEnhancedQ("chill");
         when(ingestionService.summarize(p)).thenReturn("q=chill");
         when(songRepository.search(p)).thenReturn(pageOf(List.of(a)));
-        when(semanticSearchProvider.search(anyString(), anyInt())).thenReturn(List.of());
+        when(semanticSearchProvider.searchEnhanced(anyString(), anyInt())).thenReturn(List.of());
 
         Page<Song> result = useCase.execute(p);
 
@@ -222,26 +225,26 @@ class SearchSongsUseCaseTest {
     // ── Merge híbrido: IDs semánticos no en página BD ─────────────────────────
 
     @Test
-    void hybridMerge_semanticOnlyId_fetchedFromDbAndPlacedFirst() {
+    void hybridMerge_semanticOnlyId_fetchedFromDbAndAppended() {
         UUID idA = UUID.randomUUID();
         UUID idX = UUID.randomUUID(); // en el micro, no en la página BD
         Song a = songWithId(idA, "A");
         Song x = songWithId(idX, "X");
 
-        SearchParams p = withQ("canciones parecidas a queen");
+        SearchParams p = withEnhancedQ("canciones parecidas a queen");
         when(ingestionService.summarize(p)).thenReturn("q=canciones parecidas a queen");
         when(songRepository.search(p)).thenReturn(pageOf(List.of(a)));
-        // micro devuelve X primero (mayor score), luego A
-        when(semanticSearchProvider.search(anyString(), anyInt()))
+        // micro devuelve X primero, luego A
+        when(semanticSearchProvider.searchEnhanced(anyString(), anyInt()))
                 .thenReturn(List.of(idX, idA));
         // X no estaba en la página, se fetchea en batch
         when(songRepository.findAllById(anyList())).thenReturn(List.of(x));
 
         Page<Song> result = useCase.execute(p);
 
-        // X (semántico con mayor score) debe aparecer primero, luego A (en ambas listas)
+        // BD primero (A ya estaba), luego X como extra semántico
         assertThat(result.items()).extracting(Song::getId)
-                .containsExactly(idX, idA);
+                .containsExactly(idA, idX);
     }
 
     @Test
@@ -250,10 +253,10 @@ class SearchSongsUseCaseTest {
         UUID idX = UUID.randomUUID(); // micro lo sugiere pero no existe en BD
         Song a = songWithId(idA, "A");
 
-        SearchParams p = withQ("ambient");
+        SearchParams p = withEnhancedQ("ambient");
         when(ingestionService.summarize(p)).thenReturn("q=ambient");
         when(songRepository.search(p)).thenReturn(pageOf(List.of(a)));
-        when(semanticSearchProvider.search(anyString(), anyInt()))
+        when(semanticSearchProvider.searchEnhanced(anyString(), anyInt()))
                 .thenReturn(List.of(idX, idA));
         // findAllById devuelve lista vacía (X no existe en BD) — comportamiento por defecto del mock
 
@@ -265,27 +268,27 @@ class SearchSongsUseCaseTest {
 
     @Test
     void hybridMerge_truncatesToPageSize() {
-        // pageSize=2; micro + BD producirían 3, se trunca
-        SearchParams p = SearchParams.builder().q("rock").pageSize(2).build();
+        // pageSize=2; BD da 1, micro añade 2 extras → solo 1 extra cabe
+        SearchParams p = SearchParams.builder().q("rock").pageSize(2).enhanced(true).build();
         UUID idA = UUID.randomUUID();
-        UUID idB = UUID.randomUUID();
         UUID idX = UUID.randomUUID();
+        UUID idY = UUID.randomUUID();
         Song a = songWithId(idA, "A");
-        Song b = songWithId(idB, "B");
         Song x = songWithId(idX, "X");
+        Song y = songWithId(idY, "Y");
 
         when(ingestionService.summarize(p)).thenReturn("q=rock");
-        when(songRepository.search(p)).thenReturn(new Page<>(List.of(a, b), 0, 2, 2));
-        when(semanticSearchProvider.search(anyString(), anyInt()))
-                .thenReturn(List.of(idX, idA));
-        // X no estaba en la página BD, se fetchea en batch
-        when(songRepository.findAllById(anyList())).thenReturn(List.of(x));
+        when(songRepository.search(p)).thenReturn(new Page<>(List.of(a), 0, 2, 1));
+        when(semanticSearchProvider.searchEnhanced(anyString(), anyInt()))
+                .thenReturn(List.of(idX, idY));
+        // X e Y no estaban en la página BD, se fetchean en batch
+        when(songRepository.findAllById(anyList())).thenReturn(List.of(x, y));
 
         Page<Song> result = useCase.execute(p);
 
-        // merged sería [X, A, B] → truncado a 2
+        // BD primero (A), luego X; Y queda fuera porque pageSize=2
         assertThat(result.items()).hasSize(2);
-        assertThat(result.items()).extracting(Song::getId).containsExactly(idX, idA);
+        assertThat(result.items()).extracting(Song::getId).containsExactly(idA, idX);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
