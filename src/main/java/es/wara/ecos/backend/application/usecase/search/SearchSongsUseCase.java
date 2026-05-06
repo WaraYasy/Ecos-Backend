@@ -48,11 +48,13 @@ public class SearchSongsUseCase {
     }
 
     public Page<Song> execute(SearchParams params) {
-        log.info("▶ [búsqueda] cuadrantes=[{}] página={}", ingestionService.summarize(params), params.page());
+        log.info("[búsqueda] cuadrantes=[{}] página={}", ingestionService.summarize(params), params.page());
 
-        // Lanzar búsqueda semántica en paralelo con la consulta SQL (solo cuando hay texto libre)
+        // Lanzar búsqueda semántica en paralelo con la consulta SQL.
+        // Solo en page=0: el micro no soporta offset, devuelve siempre los mismos IDs
+        // independientemente de la página → mismo resultado en todas las páginas si se activa.
         boolean hasQuery = params.q() != null && !params.q().isBlank();
-        CompletableFuture<List<UUID>> semanticFuture = hasQuery
+        CompletableFuture<List<UUID>> semanticFuture = hasQuery && params.page() == 0
                 ? CompletableFuture.supplyAsync(() -> params.enhanced()
                         ? semanticSearchProvider.searchEnhanced(params.q(), params.pageSize() * 2)
                         : semanticSearchProvider.search(params.q(), params.pageSize() * 2))
@@ -68,7 +70,7 @@ public class SearchSongsUseCase {
             log.info("  ✓ re-query tras ingesta → {} items", result.items().size());
         }
 
-        // Merge híbrido: semánticos primero (en orden de score), luego BD, sin duplicados
+        // Merge híbrido: BD primero (matches exactos), semánticos como relleno
         List<UUID> semanticIds = semanticFuture.join();
         if (!semanticIds.isEmpty()) {
             result = mergeWithSemantic(result, semanticIds, params);
@@ -81,56 +83,36 @@ public class SearchSongsUseCase {
     /**
      * Merge híbrido de resultados SQL y semánticos.
      *
-     * <p>Estrategia:
-     * <ol>
-     *   <li>Canciones que el micro devolvió → aparecen primero en orden de score.
-     *       Las que no estaban en la página SQL se fetchean por ID (1 query IN).</li>
-     *   <li>Canciones solo en BD (no en semántico) → al final, en su orden original.</li>
-     *   <li>El resultado se trunca a {@code pageSize}.</li>
-     * </ol>
+     * <p>Estrategia: BD primero (matches exactos, ya ordenados por relevancia),
+     * semánticos solo como relleno para los huecos restantes hasta {@code pageSize}.
+     * Los IDs semánticos no presentes en la página SQL se fetchean en un único IN.</p>
      */
     private Page<Song> mergeWithSemantic(Page<Song> page, List<UUID> semanticIds, SearchParams params) {
-        Map<UUID, Song> dbMap = page.items().stream()
+        Set<UUID> dbIds = page.items().stream()
                 .filter(s -> s.getId() != null)
-                .collect(java.util.stream.Collectors.toMap(Song::getId, s -> s));
+                .map(Song::getId)
+                .collect(java.util.stream.Collectors.toSet());
 
-        Set<UUID> dbIds = dbMap.keySet();
-
-        // IDs semánticos que no están en la página SQL → fetch en batch (1 query IN)
+        // Fetch semánticos que no están ya en la página SQL (1 query IN)
         List<UUID> missingIds = semanticIds.stream()
                 .filter(id -> !dbIds.contains(id))
                 .collect(java.util.stream.Collectors.toList());
 
+        Map<UUID, Song> extraMap = new java.util.LinkedHashMap<>();
         if (!missingIds.isEmpty()) {
             songRepository.findAllById(missingIds)
-                    .forEach(s -> { if (s.getId() != null) dbMap.put(s.getId(), s); });
+                    .forEach(s -> { if (s.getId() != null) extraMap.put(s.getId(), s); });
         }
 
-        // Semánticos en orden de score del micro (incluye los recién fetcheados)
-        List<Song> semantic = semanticIds.stream()
-                .map(dbMap::get)
-                .filter(s -> s != null)
-                .collect(java.util.stream.Collectors.toList());
-
-        Set<UUID> semanticIdSet = semantic.stream()
-                .map(Song::getId)
-                .collect(java.util.stream.Collectors.toSet());
-
-        // BD-only al final
-        List<Song> dbOnly = page.items().stream()
-                .filter(s -> s.getId() == null || !semanticIdSet.contains(s.getId()))
-                .collect(java.util.stream.Collectors.toList());
-
-        List<Song> merged = new ArrayList<>(semantic);
-        merged.addAll(dbOnly);
-
-        // Truncar a pageSize
-        if (merged.size() > params.pageSize()) {
-            merged = merged.subList(0, params.pageSize());
+        // BD primero; semánticos-only a continuación hasta completar pageSize
+        List<Song> merged = new ArrayList<>(page.items());
+        for (UUID id : semanticIds) {
+            if (merged.size() >= params.pageSize()) break;
+            Song s = extraMap.get(id);
+            if (s != null) merged.add(s);
         }
 
-        // El total de BD no cuenta los songs añadidos por semántica — corregir al alza
-        long correctedTotal = Math.max(page.total(), merged.size());
+        long correctedTotal = Math.max(page.total(), (long) semanticIds.size());
         return new Page<>(merged, page.page(), page.pageSize(), correctedTotal);
     }
 
