@@ -140,7 +140,7 @@ public class ExportPlaylistToSpotifyUseCase {
         playlistRepository.save(playlist);
 
         log.info("Playlist {} exportada a Spotify con ID {}", playlistId, spotifyPlaylistId);
-        return playlistRepository.findById(playlistId).orElse(playlist);
+        return playlist;
     }
 
     private String resolveDescription(String language) {
