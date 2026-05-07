@@ -18,6 +18,7 @@ public record UserResponse(
         String email,
         String language,
         boolean spotifyLinked,
+        boolean hasPassword,
         LocalDateTime createdAt,
         String userCode
 ) {
@@ -29,6 +30,7 @@ public record UserResponse(
                 user.getEmail(),
                 user.getLanguage(),
                 user.getProviderId() != null,
+                user.getPasswordHash() != null && !user.getPasswordHash().isBlank(),
                 user.getCreatedAt(),
                 user.getUserCode()
         );

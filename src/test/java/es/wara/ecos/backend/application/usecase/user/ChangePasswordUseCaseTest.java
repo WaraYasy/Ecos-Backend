@@ -70,4 +70,29 @@ class ChangePasswordUseCaseTest {
         verify(userRepository, never()).save(any());
         verify(passwordHasher, never()).matches(any(), any());
     }
+
+    @Test
+    void execute_spotifyUserNoPassword_setsInitialPassword() {
+        User spotifyUser = new User(USER_ID, "wara", "wara@ecos.es", "es", null, null, null, LocalDateTime.now(), null);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(spotifyUser));
+        when(passwordHasher.hash("new123456")).thenReturn("hashed_new");
+        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        useCase.execute(USER_ID, null, "new123456");
+
+        verify(userRepository).save(argThat(u -> "hashed_new".equals(u.getPasswordHash())));
+        verify(passwordHasher, never()).matches(any(), any());
+    }
+
+    @Test
+    void execute_spotifyUserSendsCurrentPassword_throwsIllegalState() {
+        User spotifyUser = new User(USER_ID, "wara", "wara@ecos.es", "es", null, null, null, LocalDateTime.now(), null);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(spotifyUser));
+
+        assertThatThrownBy(() -> useCase.execute(USER_ID, "unexpected", "new123456"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Credenciales incorrectas");
+
+        verify(userRepository, never()).save(any());
+    }
 }

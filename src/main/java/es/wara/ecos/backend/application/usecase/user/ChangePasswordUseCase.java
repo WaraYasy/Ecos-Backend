@@ -33,21 +33,25 @@ public class ChangePasswordUseCase {
      * Cambia la contraseña del usuario tras verificar la contraseña actual.
      *
      * @param userId          identificador del usuario
-     * @param currentPassword contraseña actual en texto plano para verificar identidad
+     * @param currentPassword contraseña actual en texto plano; {@code null} solo si el usuario no tiene contraseña
      * @param newPassword     nueva contraseña en texto plano
      * @throws IllegalArgumentException si el usuario no existe
-     * @throws IllegalStateException    si la contraseña actual es incorrecta
+     * @throws IllegalStateException    si la verificación de identidad falla
      */
     public void execute(UUID userId, String currentPassword, String newPassword) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
 
         if (user.getPasswordHash() == null) {
-            // Usuario autenticado solo con Spotify — no tiene contraseña local
-            throw new IllegalStateException("Credenciales incorrectas");
-        }
-        if (!passwordHasher.matches(currentPassword, user.getPasswordHash())) {
-            throw new IllegalStateException("Credenciales incorrectas");
+            // Usuario Spotify sin contraseña local: permite establecerla por primera vez
+            if (currentPassword != null && !currentPassword.isBlank()) {
+                throw new IllegalStateException("Credenciales incorrectas");
+            }
+        } else {
+            if (currentPassword == null || currentPassword.isBlank()
+                    || !passwordHasher.matches(currentPassword, user.getPasswordHash())) {
+                throw new IllegalStateException("Credenciales incorrectas");
+            }
         }
 
         user.setPasswordHash(passwordHasher.hash(newPassword));
