@@ -2,6 +2,7 @@ package es.wara.ecos.backend.infrastructure.adapter.spotify;
 
 import es.wara.ecos.backend.application.usecase.user.UserCodeGenerator;
 import es.wara.ecos.backend.domain.model.User;
+import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.port.SpotifyAuthPort;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import es.wara.ecos.backend.infrastructure.exception.ApiServerException;
@@ -368,6 +369,26 @@ public class SpotifyAuthService implements SpotifyAuthPort {
         entity.setUpdatedAt(Instant.now());
 
         tokenRepository.save(entity);
+    }
+
+    @Override
+    @Transactional
+    public void unlinkSpotify(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
+
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            throw new ConflictException(
+                    "Establece una contraseña antes de desvincular Spotify, " +
+                    "de lo contrario no podrás acceder a tu cuenta");
+        }
+
+        if (!tokenRepository.existsById(userId)) {
+            throw new IllegalArgumentException("El usuario no tiene una cuenta de Spotify vinculada");
+        }
+
+        tokenRepository.deleteById(userId);
+        log.info("Spotify desvinculado para userId={}", userId);
     }
 
     private HttpHeaders buildBasicAuthHeaders() {

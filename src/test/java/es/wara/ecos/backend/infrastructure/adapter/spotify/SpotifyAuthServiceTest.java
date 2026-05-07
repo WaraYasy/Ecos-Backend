@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import es.wara.ecos.backend.domain.exception.ConflictException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -254,6 +256,43 @@ class SpotifyAuthServiceTest {
 
         assertThat(result).isPresent();
         assertThat(result.get().accountLinked()).isFalse();
+    }
+
+    // ── unlinkSpotify ────────────────────────────────────────────────────────
+
+    @Test
+    void unlinkSpotify_userWithPassword_deletesToken() {
+        User user = existingUser();
+        user.setPasswordHash("$2a$10$hashed");
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(tokenRepository.existsById(USER_ID)).thenReturn(true);
+
+        service.unlinkSpotify(USER_ID);
+
+        verify(tokenRepository).deleteById(USER_ID);
+    }
+
+    @Test
+    void unlinkSpotify_userWithoutPassword_throwsConflictException() {
+        User user = existingUser();
+        user.setPasswordHash(null);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> service.unlinkSpotify(USER_ID))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("contraseña");
+    }
+
+    @Test
+    void unlinkSpotify_notLinked_throwsIllegalArgumentException() {
+        User user = existingUser();
+        user.setPasswordHash("$2a$10$hashed");
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(tokenRepository.existsById(USER_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.unlinkSpotify(USER_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("vinculada");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

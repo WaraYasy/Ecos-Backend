@@ -52,4 +52,17 @@ public interface SpotifyAuthPort {
      * @throws IllegalArgumentException si el usuario no ha vinculado su cuenta
      */
     String getTokenForUser(UUID userId);
+
+    /**
+     * Desvincula la cuenta de Spotify del usuario eliminando su token almacenado.
+     * <p>
+     * Se bloquea con {@code ConflictException} si el usuario no tiene contraseña propia,
+     * ya que quedaría sin forma de autenticarse en ECOS.
+     * </p>
+     *
+     * @param userId identificador del usuario
+     * @throws ConflictException        si el usuario no tiene contraseña y dependería de Spotify para entrar
+     * @throws IllegalArgumentException si el usuario no ha vinculado su cuenta de Spotify
+     */
+    void unlinkSpotify(UUID userId);
 }

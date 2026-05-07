@@ -18,9 +18,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import es.wara.ecos.backend.domain.exception.ConflictException;
+
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -120,6 +124,42 @@ class SpotifyAuthControllerTest {
         mockMvc.perform(get("/callback/spotify")
                         .param("code", "code")
                         .param("state", "bad-state"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+    }
+
+    // ── DELETE /v1/auth/spotify ──────────────────────────────────────────────
+
+    @Test
+    void unlinkSpotify_authenticated_returns204() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
+        doNothing().when(spotifyAuthPort).unlinkSpotify(USER_ID);
+
+        mockMvc.perform(delete("/v1/auth/spotify"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void unlinkSpotify_noPassword_returns409() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
+        doThrow(new ConflictException("Establece una contraseña antes de desvincular Spotify"))
+                .when(spotifyAuthPort).unlinkSpotify(USER_ID);
+
+        mockMvc.perform(delete("/v1/auth/spotify"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("CONFLICT"));
+    }
+
+    @Test
+    void unlinkSpotify_notLinked_returns404() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(USER_ID.toString(), null, List.of()));
+        doThrow(new IllegalArgumentException("El usuario no tiene una cuenta de Spotify vinculada"))
+                .when(spotifyAuthPort).unlinkSpotify(USER_ID);
+
+        mockMvc.perform(delete("/v1/auth/spotify"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
     }

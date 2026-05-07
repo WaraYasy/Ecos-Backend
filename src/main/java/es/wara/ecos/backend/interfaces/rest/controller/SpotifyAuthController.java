@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -68,6 +69,22 @@ public class SpotifyAuthController {
         UUID userId = SecurityUtils.getCurrentUserId();
         String url = spotifyAuthPort.getAuthorizationUrl(userId);
         return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    /**
+     * Desvincula la cuenta de Spotify del usuario autenticado.
+     * <p>
+     * Se rechaza con {@code 409 Conflict} si el usuario no tiene contraseña propia,
+     * ya que quedaría sin forma de autenticarse en ECOS.
+     * </p>
+     *
+     * @return {@code 204 No Content} si la desvinculación fue exitosa
+     */
+    @DeleteMapping("/v1/auth/spotify")
+    public ResponseEntity<Void> unlinkSpotify() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        spotifyAuthPort.unlinkSpotify(userId);
+        return ResponseEntity.noContent().build();
     }
 
     /**
