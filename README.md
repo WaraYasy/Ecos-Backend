@@ -219,8 +219,8 @@ El backend integra un **microservicio de IA** para búsqueda vectorial y recomen
 
 | Modo | Parámetro | Descripción |
 |---|---|---|
-| Semántica directa | `enhanced=false` (defecto) | Codifica la query y busca vectores más cercanos |
-| Modo imaginario | `enhanced=true` | Un LLM expande la query a keywords antes de buscar |
+| Búsqueda en BD | `enhanced=false` (defecto) | Búsqueda SQL multidimensional sin semántica |
+| Modo imaginario | `enhanced=true` | LLM expande la query + búsqueda híbrida BD + semántica |
 
 ```mermaid
 sequenceDiagram
@@ -239,7 +239,7 @@ sequenceDiagram
         AI-->>UC: [uuid, score] ó []
     end
 
-    note over UC: merge híbrido: semánticos primero,<br/>solo-BD al final, truncar a pageSize
+    note over UC: merge híbrido: BD primero,<br/>semánticos como relleno hasta pageSize
 
     UC-->>C: Page<Song>
 ```
@@ -286,7 +286,7 @@ sequenceDiagram
 | Funcionales de flujo (Testcontainers) | ~43 |
 | Seguridad end-to-end (`SecurityFlowTest`) | 23 |
 | Otros (cliente IA, iTunes, mappers…) | ~13 |
-| **Total** | **379** |
+| **Total** | **401** |
 
 Los tests funcionales arrancan contenedores PostgreSQL y Redis reales — requieren Docker Desktop en ejecución. Los tests de seguridad cubren rechazo JWT (firma incorrecta, expirado, alg:none), protección del endpoint de admin por API key, IDOR de usuario y no-crash ante payloads SQL injection.
 
