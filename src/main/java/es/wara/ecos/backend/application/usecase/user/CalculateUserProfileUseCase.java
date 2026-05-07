@@ -74,7 +74,20 @@ public class CalculateUserProfileUseCase {
         }
         sw.stop();
 
-        // Intentar micro primero
+        // Sin sesiones no hay perfil real que calcular ni que pedir al micro
+        sw.start("fetchSessions");
+        List<ExplorationSession> sessions = sessionRepository.findByUserId(userId);
+        sw.stop();
+        log.debug("CalculateUserProfile: {} sesiones cargadas para userId={} → {}ms",
+                sessions.size(), userId, sw.getLastTaskTimeMillis());
+
+        if (sessions.isEmpty()) {
+            log.debug("CalculateUserProfile: usuario sin sesiones, devolviendo perfil vacío userId={}", userId);
+            return new MusicProfile(userId, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                    Collections.emptyMap(), Collections.emptyList());
+        }
+
+        // Intentar micro primero (solo si hay sesiones)
         sw.start("microProfile");
         var microProfile = profileClient.getProfile(userId);
         sw.stop();
@@ -88,12 +101,6 @@ public class CalculateUserProfileUseCase {
 
         // Fallback: cálculo local desde sesiones
         log.debug("CalculateUserProfile: micro no disponible, calculando localmente userId={}", userId);
-
-        sw.start("fetchSessions");
-        List<ExplorationSession> sessions = sessionRepository.findByUserId(userId);
-        sw.stop();
-        log.debug("CalculateUserProfile: {} sesiones cargadas para userId={} → {}ms",
-                sessions.size(), userId, sw.getLastTaskTimeMillis());
 
         sw.start("collectSongs");
         List<Song> songs = collectSongsFromSessions(sessions);
