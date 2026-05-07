@@ -96,13 +96,16 @@ public class ExpandGraphUseCase {
         }
         String artist = (target.getArtists() != null && !target.getArtists().isEmpty())
                 ? target.getArtists().get(0).getName() : "";
-        return musicProvider.getSimilarSongs(artist, target.getTitle(), limit)
+        List<String> spotifyIds = musicProvider.getSimilarSongs(artist, target.getTitle(), limit)
                 .stream()
                 .map(Song::getSpotifyId)
                 .filter(Objects::nonNull)
-                .map(songRepository::findBySpotifyId)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .toList();
+        Map<String, Song> bySid = songRepository.findAllBySpotifyIdIn(spotifyIds).stream()
+                .collect(Collectors.toMap(Song::getSpotifyId, s -> s));
+        return spotifyIds.stream()
+                .map(bySid::get)
+                .filter(Objects::nonNull)
                 .map(Song::getId)
                 .filter(id -> !excluded.contains(id))
                 .toList();

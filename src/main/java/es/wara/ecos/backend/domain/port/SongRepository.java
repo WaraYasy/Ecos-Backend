@@ -43,6 +43,15 @@ public interface SongRepository {
     Optional<Song> findBySpotifyId(String spotifyId);
 
     /**
+     * Busca múltiples canciones por sus spotifyIds en una sola query IN.
+     * Usar en lugar de N llamadas a {@link #findBySpotifyId} para evitar el problema N+1.
+     *
+     * @param spotifyIds lista de spotifyIds a buscar
+     * @return lista de canciones encontradas (preserva solo las existentes en BD)
+     */
+    List<Song> findAllBySpotifyIdIn(List<String> spotifyIds);
+
+    /**
      * Busca una canción por su código ISRC.
      *
      * @param isrc código ISRC de 12 caracteres (ej. USRC17607839)

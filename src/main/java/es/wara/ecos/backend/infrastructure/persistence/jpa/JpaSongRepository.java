@@ -25,6 +25,8 @@ public interface JpaSongRepository extends JpaRepository<SongEntity, UUID>,
 
     Optional<SongEntity> findBySpotifyId(String spotifyId);
 
+    List<SongEntity> findAllBySpotifyIdIn(List<String> spotifyIds);
+
     Optional<SongEntity> findByIsrc(String isrc);
 
     List<SongEntity> findByTitleContainingIgnoreCase(String title);

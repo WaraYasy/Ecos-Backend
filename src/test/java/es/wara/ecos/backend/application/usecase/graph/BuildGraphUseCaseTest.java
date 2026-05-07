@@ -92,11 +92,9 @@ class BuildGraphUseCaseTest {
         when(embeddingRepository.findBySongId(ROOT_ID)).thenReturn(Optional.empty());
         when(musicProvider.getSimilarSongs(anyString(), anyString(), anyInt()))
                 .thenReturn(List.of(apiSong1, apiSong2));
-        when(songRepository.findBySpotifyId("spotify-cand1")).thenReturn(Optional.of(cand1));
-        when(songRepository.findBySpotifyId("spotify-cand2")).thenReturn(Optional.of(cand2));
+        when(songRepository.findAllBySpotifyIdIn(anyList())).thenReturn(List.of(cand1, cand2));
         when(songRepository.findAllById(anyList())).thenReturn(List.of(cand1, cand2));
-        when(embeddingRepository.findBySongId(CAND1_ID)).thenReturn(Optional.empty());
-        when(embeddingRepository.findBySongId(CAND2_ID)).thenReturn(Optional.empty());
+        when(embeddingRepository.findAllBySongIds(anyList())).thenReturn(List.of());
 
         GraphResponse result = useCase.execute(ROOT_ID, 8);
 
@@ -117,7 +115,7 @@ class BuildGraphUseCaseTest {
         when(embeddingRepository.findNearestNeighbors(any(), anyInt(), anyList()))
                 .thenReturn(List.of(CAND1_ID));
         when(songRepository.findAllById(anyList())).thenReturn(List.of(cand1));
-        when(embeddingRepository.findBySongId(CAND1_ID)).thenReturn(Optional.empty());
+        when(embeddingRepository.findAllBySongIds(anyList())).thenReturn(List.of());
 
         GraphResponse result = useCase.execute(ROOT_ID, 8);
 
@@ -148,9 +146,9 @@ class BuildGraphUseCaseTest {
         when(songRepository.findById(ROOT_ID)).thenReturn(Optional.of(root));
         when(embeddingRepository.findBySongId(ROOT_ID)).thenReturn(Optional.empty());
         when(musicProvider.getSimilarSongs(anyString(), anyString(), anyInt())).thenReturn(List.of(apiSong1));
-        when(songRepository.findBySpotifyId("spotify-cand1")).thenReturn(Optional.of(cand1));
+        when(songRepository.findAllBySpotifyIdIn(anyList())).thenReturn(List.of(cand1));
         when(songRepository.findAllById(anyList())).thenReturn(List.of(cand1));
-        when(embeddingRepository.findBySongId(CAND1_ID)).thenReturn(Optional.empty());
+        when(embeddingRepository.findAllBySongIds(anyList())).thenReturn(List.of());
 
         GraphResponse result = useCase.execute(ROOT_ID, 8);
 
