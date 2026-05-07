@@ -34,6 +34,14 @@ public class SongEmbeddingRepositoryImpl implements SongEmbeddingRepository {
     }
 
     @Override
+    public List<SongEmbedding> findAllBySongIds(List<UUID> songIds) {
+        if (songIds == null || songIds.isEmpty()) return List.of();
+        return jpa.findAllById(songIds).stream()
+                .map(mapper::toModel)
+                .toList();
+    }
+
+    @Override
     public void save(SongEmbedding embedding) {
         jpa.save(mapper.toEntity(embedding));
     }

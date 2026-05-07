@@ -31,6 +31,15 @@ public interface SongEmbeddingRepository {
     void save(SongEmbedding embedding);
 
     /**
+     * Recupera los embeddings de múltiples canciones en una sola query IN.
+     * Usar en lugar de N llamadas a {@link #findBySongId} para evitar el problema N+1.
+     *
+     * @param songIds lista de IDs de canciones a buscar
+     * @return lista de embeddings encontrados (puede ser menor que songIds si alguno no existe)
+     */
+    List<SongEmbedding> findAllBySongIds(List<UUID> songIds);
+
+    /**
      * Busca las canciones cuyos embeddings son más cercanos al vector dado (similitud coseno).
      *
      * @param queryVector vector de consulta de 384 dimensiones

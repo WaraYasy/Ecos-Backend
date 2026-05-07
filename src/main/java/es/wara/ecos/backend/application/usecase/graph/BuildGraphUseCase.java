@@ -89,15 +89,18 @@ public class BuildGraphUseCase {
                     rootEmbedding, limit, List.of(root.getId()));
             if (!semantic.isEmpty()) return semantic;
         }
-        // Fallback: API externa → filtrar a canciones ya persistidas en nuestra BD
+        // Fallback: API externa → filtrar a canciones ya persistidas en nuestra BD (batch)
         String artist = firstArtistName(root);
-        return musicProvider.getSimilarSongs(artist, root.getTitle(), limit)
+        List<String> spotifyIds = musicProvider.getSimilarSongs(artist, root.getTitle(), limit)
                 .stream()
                 .map(Song::getSpotifyId)
                 .filter(Objects::nonNull)
-                .map(songRepository::findBySpotifyId)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .toList();
+        Map<String, Song> bySid = songRepository.findAllBySpotifyIdIn(spotifyIds).stream()
+                .collect(Collectors.toMap(Song::getSpotifyId, s -> s));
+        return spotifyIds.stream()
+                .map(bySid::get)
+                .filter(Objects::nonNull)
                 .map(Song::getId)
                 .filter(id -> !id.equals(root.getId()))
                 .toList();
@@ -107,12 +110,13 @@ public class BuildGraphUseCase {
                                    List<UUID> candidateIds, int limit) {
         Map<UUID, Song> byId = songRepository.findAllById(candidateIds).stream()
                 .collect(Collectors.toMap(Song::getId, s -> s));
+        Map<UUID, float[]> embeddingMap = embeddingRepository.findAllBySongIds(candidateIds).stream()
+                .collect(Collectors.toMap(SongEmbedding::getSongId, SongEmbedding::getEmbedding));
         return candidateIds.stream()
                 .map(byId::get)
                 .filter(Objects::nonNull)
                 .map(candidate -> {
-                    float[] candEmb = embeddingRepository.findBySongId(candidate.getId())
-                            .map(SongEmbedding::getEmbedding).orElse(null);
+                    float[] candEmb = embeddingMap.get(candidate.getId());
                     float sim = similarityService.compute(root, candidate, rootEmbedding, candEmb);
                     return new ScoredSong(candidate, candEmb, sim);
                 })
