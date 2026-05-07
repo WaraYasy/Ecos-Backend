@@ -2,6 +2,7 @@ package es.wara.ecos.backend.application.usecase.playlist;
 
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.Playlist;
+import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.when;
 class RemoveSongFromPlaylistUseCaseTest {
 
     @Mock PlaylistRepository playlistRepository;
+    @Mock CalculateUserProfileUseCase calculateUserProfileUseCase;
     @InjectMocks RemoveSongFromPlaylistUseCase useCase;
 
     private static final UUID OWNER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000001");

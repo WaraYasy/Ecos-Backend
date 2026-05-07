@@ -5,7 +5,6 @@ import es.wara.ecos.backend.application.usecase.session.CreatePlaylistFromSessio
 import es.wara.ecos.backend.application.usecase.session.DeleteSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionByIdUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase;
-import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase;
 import es.wara.ecos.backend.domain.exception.ConflictException;
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.ExplorationSession;
@@ -52,7 +51,6 @@ class SessionControllerTest {
     @MockitoBean DeleteSessionUseCase deleteSessionUseCase;
     @MockitoBean GetSessionByIdUseCase getSessionByIdUseCase;
     @MockitoBean GetSessionHistoryUseCase getSessionHistoryUseCase;
-    @MockitoBean CalculateUserProfileUseCase calculateUserProfileUseCase;
 
     private static final UUID USER_ID    = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");

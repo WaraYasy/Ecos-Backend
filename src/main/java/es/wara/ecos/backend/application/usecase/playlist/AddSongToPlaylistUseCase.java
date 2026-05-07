@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.application.usecase.playlist;
 
+import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase;
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
@@ -21,10 +22,14 @@ public class AddSongToPlaylistUseCase {
 
     private final PlaylistRepository playlistRepository;
     private final SongRepository songRepository;
+    private final CalculateUserProfileUseCase calculateUserProfileUseCase;
 
-    public AddSongToPlaylistUseCase(PlaylistRepository playlistRepository, SongRepository songRepository) {
+    public AddSongToPlaylistUseCase(PlaylistRepository playlistRepository,
+                                    SongRepository songRepository,
+                                    CalculateUserProfileUseCase calculateUserProfileUseCase) {
         this.playlistRepository = playlistRepository;
         this.songRepository = songRepository;
+        this.calculateUserProfileUseCase = calculateUserProfileUseCase;
     }
 
     /**
@@ -49,6 +54,7 @@ public class AddSongToPlaylistUseCase {
 
         // La posición se calcula de forma atómica en la BD (MAX+1 en el INSERT)
         playlistRepository.addSong(playlistId, songId);
+        calculateUserProfileUseCase.executeAsync(currentUserId);
     }
 
 }

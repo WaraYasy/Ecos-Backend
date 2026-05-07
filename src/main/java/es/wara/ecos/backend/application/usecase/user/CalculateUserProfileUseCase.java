@@ -1,9 +1,9 @@
 package es.wara.ecos.backend.application.usecase.user;
 
-import es.wara.ecos.backend.domain.model.ExplorationSession;
 import es.wara.ecos.backend.domain.model.MusicProfile;
+import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.model.Song;
-import es.wara.ecos.backend.domain.port.SessionRepository;
+import es.wara.ecos.backend.domain.port.PlaylistRepository;
 import es.wara.ecos.backend.domain.port.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,15 +23,16 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Caso de uso para calcular el perfil musical de un usuario a partir de su historial
- * de sesiones de exploración.
+ * Caso de uso para calcular el perfil musical de un usuario a partir de las canciones
+ * de sus playlists — refleja elecciones explícitas del usuario, no el grafo de exploración.
  * <p>
  * Calcula: energía media, riqueza armónica (diversidad de tonalidades), eclecticidad
  * (diversidad de géneros), décadas favoritas y top 5 géneros.
+ * El perfil persiste hasta que el usuario modifica una playlist (añade o quita canciones).
  * </p>
  *
  * @author Wara Pacheco
- * @version 1.0
+ * @version 2.0
  * @since 1.0.0
  */
 @Slf4j
@@ -39,18 +40,18 @@ import java.util.stream.Collectors;
 public class CalculateUserProfileUseCase {
 
     private final UserRepository userRepository;
-    private final SessionRepository sessionRepository;
+    private final PlaylistRepository playlistRepository;
     private final ProfileClient profileClient;
     private final JpaUserProfileRepository userProfileRepository;
     private final ObjectMapper objectMapper;
 
     public CalculateUserProfileUseCase(UserRepository userRepository,
-                                       SessionRepository sessionRepository,
+                                       PlaylistRepository playlistRepository,
                                        ProfileClient profileClient,
                                        JpaUserProfileRepository userProfileRepository,
                                        ObjectMapper objectMapper) {
         this.userRepository        = userRepository;
-        this.sessionRepository     = sessionRepository;
+        this.playlistRepository    = playlistRepository;
         this.profileClient         = profileClient;
         this.userProfileRepository = userProfileRepository;
         this.objectMapper          = objectMapper;
@@ -74,15 +75,15 @@ public class CalculateUserProfileUseCase {
         }
         sw.stop();
 
-        // Sin sesiones no hay perfil real que calcular ni que pedir al micro
-        sw.start("fetchSessions");
-        List<ExplorationSession> sessions = sessionRepository.findByUserId(userId);
+        // Sin canciones en playlists no hay perfil real que calcular ni que pedir al micro
+        sw.start("fetchPlaylists");
+        List<Playlist> playlists = playlistRepository.findByUserId(userId);
         sw.stop();
-        log.debug("CalculateUserProfile: {} sesiones cargadas para userId={} → {}ms",
-                sessions.size(), userId, sw.getLastTaskTimeMillis());
+        log.debug("CalculateUserProfile: {} playlists cargadas para userId={} → {}ms",
+                playlists.size(), userId, sw.getLastTaskTimeMillis());
 
-        if (sessions.isEmpty()) {
-            log.debug("CalculateUserProfile: usuario sin sesiones, devolviendo perfil vacío userId={}", userId);
+        if (playlists.isEmpty()) {
+            log.debug("CalculateUserProfile: usuario sin playlists, devolviendo perfil vacío userId={}", userId);
             return new MusicProfile(userId, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                     Collections.emptyMap(), Collections.emptyList());
         }
@@ -103,7 +104,7 @@ public class CalculateUserProfileUseCase {
         log.debug("CalculateUserProfile: micro no disponible, calculando localmente userId={}", userId);
 
         sw.start("collectSongs");
-        List<Song> songs = collectSongsFromSessions(sessions);
+        List<Song> songs = collectSongsFromPlaylists(playlists);
         sw.stop();
         log.debug("CalculateUserProfile: {} canciones únicas extraídas → {}ms",
                 songs.size(), sw.getLastTaskTimeMillis());
@@ -151,12 +152,11 @@ public class CalculateUserProfileUseCase {
         }
     }
 
-    /** Extrae todas las canciones únicas de las sesiones del usuario. */
-    private List<Song> collectSongsFromSessions(List<ExplorationSession> sessions) {
-        return sessions.stream()
-                .filter(s -> s.getNodes() != null)
-                .flatMap(s -> s.getNodes().stream())
-                .map(node -> node.getSong())
+    /** Extrae todas las canciones únicas de las playlists del usuario. */
+    private List<Song> collectSongsFromPlaylists(List<Playlist> playlists) {
+        return playlists.stream()
+                .filter(p -> p.getSongs() != null)
+                .flatMap(p -> p.getSongs().stream())
                 .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());

@@ -1,5 +1,6 @@
 package es.wara.ecos.backend.application.usecase.playlist;
 
+import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase;
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.Playlist;
 import es.wara.ecos.backend.domain.port.PlaylistRepository;
@@ -18,9 +19,12 @@ import java.util.UUID;
 public class RemoveSongFromPlaylistUseCase {
 
     private final PlaylistRepository playlistRepository;
+    private final CalculateUserProfileUseCase calculateUserProfileUseCase;
 
-    public RemoveSongFromPlaylistUseCase(PlaylistRepository playlistRepository) {
+    public RemoveSongFromPlaylistUseCase(PlaylistRepository playlistRepository,
+                                         CalculateUserProfileUseCase calculateUserProfileUseCase) {
         this.playlistRepository = playlistRepository;
+        this.calculateUserProfileUseCase = calculateUserProfileUseCase;
     }
 
     /**
@@ -39,6 +43,7 @@ public class RemoveSongFromPlaylistUseCase {
             throw new ForbiddenException("No tienes permiso para modificar esta playlist");
         }
         playlistRepository.removeSong(playlistId, songId);
+        calculateUserProfileUseCase.executeAsync(currentUserId);
     }
 
 }

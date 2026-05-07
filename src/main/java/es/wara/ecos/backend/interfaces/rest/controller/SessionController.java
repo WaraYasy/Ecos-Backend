@@ -5,7 +5,6 @@ import es.wara.ecos.backend.application.usecase.session.CreatePlaylistFromSessio
 import es.wara.ecos.backend.application.usecase.session.DeleteSessionUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionByIdUseCase;
 import es.wara.ecos.backend.application.usecase.session.GetSessionHistoryUseCase;
-import es.wara.ecos.backend.application.usecase.user.CalculateUserProfileUseCase;
 import es.wara.ecos.backend.domain.exception.ForbiddenException;
 import es.wara.ecos.backend.domain.model.ExplorationSession;
 import es.wara.ecos.backend.domain.model.Playlist;
@@ -44,26 +43,23 @@ public class SessionController {
     private final DeleteSessionUseCase deleteSessionUseCase;
     private final GetSessionByIdUseCase getSessionByIdUseCase;
     private final GetSessionHistoryUseCase getSessionHistoryUseCase;
-    private final CalculateUserProfileUseCase calculateUserProfileUseCase;
 
     public SessionController(
             CreateExplorationSessionUseCase createSessionUseCase,
             CreatePlaylistFromSessionUseCase createPlaylistFromSessionUseCase,
             DeleteSessionUseCase deleteSessionUseCase,
             GetSessionByIdUseCase getSessionByIdUseCase,
-            GetSessionHistoryUseCase getSessionHistoryUseCase,
-            CalculateUserProfileUseCase calculateUserProfileUseCase
+            GetSessionHistoryUseCase getSessionHistoryUseCase
     ) {
         this.createSessionUseCase = createSessionUseCase;
         this.createPlaylistFromSessionUseCase = createPlaylistFromSessionUseCase;
         this.deleteSessionUseCase = deleteSessionUseCase;
         this.getSessionByIdUseCase = getSessionByIdUseCase;
         this.getSessionHistoryUseCase = getSessionHistoryUseCase;
-        this.calculateUserProfileUseCase = calculateUserProfileUseCase;
     }
 
     /**
-     * Guarda una sesión de exploración y dispara el recálculo asíncrono del perfil musical.
+     * Guarda una sesión de exploración.
      *
      * @param request datos de la sesión (canción inicial, lista ordenada, nombre opcional)
      * @return {@code 201 Created} con la sesión persistida
@@ -73,7 +69,6 @@ public class SessionController {
         UUID userId = SecurityUtils.getCurrentUserId();
         ExplorationSession session = createSessionUseCase.execute(
                 userId, request.startSongId(), request.songIds(), request.name());
-        calculateUserProfileUseCase.executeAsync(userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(SessionResponse.from(session));
     }
 
