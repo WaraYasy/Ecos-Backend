@@ -20,6 +20,7 @@ public interface JpaSongTagRepository extends JpaRepository<SongTagEntity, SongT
 
     List<SongTagEntity> findById_SongId(UUID songId);
 
+    /** Busca tags distintos de un tipo dado que contengan la cadena {@code q} (case-insensitive), ordenados alfabéticamente. Usado para autocompletado. */
     @Query("SELECT DISTINCT t.id.tag FROM SongTagEntity t WHERE t.type = :type AND LOWER(t.id.tag) LIKE LOWER(CONCAT('%', :q, '%')) ORDER BY t.id.tag")
     List<String> findDistinctTagsByTypeContaining(@Param("type") String type, @Param("q") String q);
 

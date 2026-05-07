@@ -18,6 +18,10 @@ import org.springframework.security.crypto.encrypt.TextEncryptor;
 @Configuration
 public class EncryptionConfig {
 
+    /**
+     * Bean de cifrado AES-256-GCM. La clave se lee de {@code ENCRYPTION_KEY}
+     * y el salt (hex de 16 chars) de {@code ENCRYPTION_SALT}.
+     */
     @Bean
     public TextEncryptor textEncryptor(
             @Value("${encryption.key}") String key,

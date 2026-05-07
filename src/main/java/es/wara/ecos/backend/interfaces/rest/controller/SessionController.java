@@ -77,6 +77,11 @@ public class SessionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(SessionResponse.from(session));
     }
 
+    /**
+     * Devuelve el historial de sesiones del usuario autenticado.
+     *
+     * @return {@code 200 OK} con la lista de sesiones guardadas (puede ser vacía)
+     */
     @GetMapping
     public ResponseEntity<List<SessionResponse>> getByUser() {
         UUID userId = SecurityUtils.getCurrentUserId();
@@ -85,6 +90,12 @@ public class SessionController {
         return ResponseEntity.ok(sessions);
     }
 
+    /**
+     * Recupera una sesión por su ID. Solo el propietario puede verla.
+     *
+     * @param id identificador de la sesión
+     * @return {@code 200 OK} con la sesión; {@code 403} si el usuario no es el propietario
+     */
     @GetMapping("/{id}")
     public ResponseEntity<SessionResponse> getById(@PathVariable UUID id) {
         ExplorationSession session = getSessionByIdUseCase.execute(id);
@@ -94,6 +105,12 @@ public class SessionController {
         return ResponseEntity.ok(SessionResponse.from(session));
     }
 
+    /**
+     * Elimina una sesión de exploración. Solo el propietario puede borrarla.
+     *
+     * @param id identificador de la sesión a eliminar
+     * @return {@code 204 No Content}
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         UUID userId = SecurityUtils.getCurrentUserId();

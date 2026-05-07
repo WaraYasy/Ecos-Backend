@@ -87,6 +87,10 @@ public class DbCleanupScheduler {
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
+    /**
+     * Punto de entrada del pipeline de limpieza nocturno (por defecto diario a las 3:00h).
+     * Ejecuta las 5 fases en orden y escribe el informe en {@code /data/cleanup-YYYY-MM-DD.log}.
+     */
     @Scheduled(cron = "${cleanup.scheduler.cron:0 0 3 * * *}")
     public void runCleanup() {
         log.info("[Cleanup] === Iniciando pipeline de limpieza ===");
@@ -118,6 +122,12 @@ public class DbCleanupScheduler {
 
     // ── Fase 1: Fijar artistas de álbumes ─────────────────────────────────────
 
+    /**
+     * Fase 1: asigna el artista a los álbumes que no lo tienen,
+     * consultando Deezer o inferiendo el artista desde las canciones asociadas.
+     *
+     * @return resumen con el número de álbumes corregidos y canciones vinculadas
+     */
     @Transactional
     public String fixAlbumArtists() {
         List<AlbumEntity> albums = albumRepo.findByArtistIsNull();
@@ -170,6 +180,12 @@ public class DbCleanupScheduler {
 
     // ── Fase 2: Vincular canciones sin álbum ──────────────────────────────────
 
+    /**
+     * Fase 2: busca un álbum existente para las canciones sin álbum o crea uno nuevo
+     * consultando iTunes Search API; vincula la canción al álbum encontrado.
+     *
+     * @return resumen con canciones vinculadas y álbumes nuevos creados
+     */
     @Transactional
     public String linkOrphanSongs() {
         List<SongEntity> orphans = songRepo.findWithoutAlbum();
@@ -234,6 +250,12 @@ public class DbCleanupScheduler {
 
     // ── Fase 3: Eliminar álbumes vacíos ───────────────────────────────────────
 
+    /**
+     * Fase 3: elimina los álbumes que no tienen ninguna canción asociada
+     * (huérfanos que quedaron tras la vinculación de la fase 2 o importaciones fallidas).
+     *
+     * @return resumen con el número de álbumes eliminados
+     */
     @Transactional
     public String removeEmptyAlbums() {
         List<AlbumEntity> empty = albumRepo.findEmpty();
@@ -246,6 +268,13 @@ public class DbCleanupScheduler {
 
     // ── Fase 4: Deduplicar canciones ──────────────────────────────────────────
 
+    /**
+     * Fase 4: detecta canciones duplicadas (mismo título normalizado + artista principal)
+     * y fusiona los duplicados en el que tenga más datos completos (preview → album → spotifyId).
+     * Reasigna playlists, tags, artistas y relaciones antes de borrar el duplicado.
+     *
+     * @return resumen con grupos fusionados y canciones eliminadas
+     */
     @Transactional
     public String deduplicateSongs() {
         // Usamos una subquery para obtener UN solo artista por canción (el menor UUID).
@@ -326,6 +355,13 @@ public class DbCleanupScheduler {
     private record MediaRow(UUID songId, String title, String artistName,
                             UUID albumId, String albumCover, String previewUrl) {}
 
+    /**
+     * Fase 5: rellena {@code preview_url} y {@code cover_url} vacíos consultando iTunes Search API.
+     * Procesa en lotes con un delay configurable ({@code cleanup.scheduler.itunes.delay-ms})
+     * para respetar el rate limit de iTunes (aprox. 20 req/s).
+     *
+     * @return resumen con previews y covers rellenados
+     */
     @Transactional
     public String fillMedia() {
         // DISTINCT ON (s.id) evita filas duplicadas cuando una canción tiene varios artistas.

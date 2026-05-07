@@ -18,6 +18,11 @@ public final class UserCodeGenerator {
 
     private UserCodeGenerator() {}
 
+    /**
+     * Genera un código de usuario único en formato {@code ECO-XXXX-XXXX}.
+     *
+     * @return código generado aleatoriamente listo para mostrar al usuario
+     */
     public static String generate() {
         return "ECO-" + segment() + "-" + segment();
     }

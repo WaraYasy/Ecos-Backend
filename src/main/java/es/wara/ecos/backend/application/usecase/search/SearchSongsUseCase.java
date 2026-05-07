@@ -47,6 +47,12 @@ public class SearchSongsUseCase {
         this.semanticSearchProvider = semanticSearchProvider;
     }
 
+    /**
+     * Ejecuta la búsqueda multidimensional según los parámetros recibidos.
+     *
+     * @param params parámetros de búsqueda con cuadrantes activos, paginación y modo enhanced
+     * @return página de canciones encontradas (puede ser vacía, nunca null)
+     */
     public Page<Song> execute(SearchParams params) {
         log.info("[búsqueda] cuadrantes=[{}] página={}", ingestionService.summarize(params), params.page());
 

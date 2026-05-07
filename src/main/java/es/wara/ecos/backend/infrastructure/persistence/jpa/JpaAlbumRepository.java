@@ -25,6 +25,7 @@ public interface JpaAlbumRepository extends JpaRepository<AlbumEntity, UUID> {
 
     Optional<AlbumEntity> findFirstByTitleIgnoreCase(String title);
 
+    /** Devuelve álbumes sin ninguna canción asociada; usados por el job de limpieza de BD. */
     @Query("SELECT a FROM AlbumEntity a WHERE NOT EXISTS (SELECT s FROM SongEntity s WHERE s.album = a)")
     List<AlbumEntity> findEmpty();
 

@@ -48,6 +48,10 @@ public class DatabaseSeeder implements ApplicationRunner {
         this.terms = terms;
     }
 
+    /**
+     * Seed inicial al arrancar: si la BD tiene menos de {@code seed.minSongs} canciones,
+     * lanza el proceso de siembra en un hilo virtual para no bloquear el arranque.
+     */
     @Override
     public void run(ApplicationArguments args) {
         if (!terms.isEnabled()) return;
@@ -63,6 +67,10 @@ public class DatabaseSeeder implements ApplicationRunner {
         Thread.ofVirtual().name("db-seeder-init").start(this::runSeed);
     }
 
+    /**
+     * Refresco semanal de tendencias (por defecto domingos a las 3:00h).
+     * Resiembra todos los cuadrantes de forma idempotente — las canciones ya existentes no se duplican.
+     */
     @Scheduled(cron = "${seed.cron:0 0 3 * * SUN}")
     public void refreshTrends() {
         if (!terms.isEnabled()) {

@@ -19,9 +19,11 @@ import java.util.UUID;
  */
 public interface JpaPlaylistSongRepository extends JpaRepository<PlaylistSongEntity, PlaylistSongId> {
 
+    /** Carga las canciones de una playlist con sus datos completos (LEFT JOIN FETCH), ordenadas por posición. */
     @Query("SELECT ps FROM PlaylistSongEntity ps LEFT JOIN FETCH ps.song WHERE ps.id.playlistId = :playlistId ORDER BY ps.position ASC")
     List<PlaylistSongEntity> findById_PlaylistIdOrderByPosition(@Param("playlistId") UUID playlistId);
 
+    /** Carga en bloque las canciones de múltiples playlists; evita N+1 al listar todas las playlists de un usuario. */
     @Query("SELECT ps FROM PlaylistSongEntity ps LEFT JOIN FETCH ps.song WHERE ps.id.playlistId IN :playlistIds ORDER BY ps.position ASC")
     List<PlaylistSongEntity> findByPlaylistIdIn(@Param("playlistIds") List<UUID> playlistIds);
 

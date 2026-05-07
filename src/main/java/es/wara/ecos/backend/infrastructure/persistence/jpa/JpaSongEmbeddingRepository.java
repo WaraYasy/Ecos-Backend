@@ -41,6 +41,14 @@ public interface JpaSongEmbeddingRepository extends JpaRepository<SongEmbeddingE
             @Param("limit") int limit
     );
 
+    /**
+     * Versión sin exclusiones — usada cuando {@code excludeIds} está vacío para
+     * evitar el SQL inválido que genera {@code NOT IN ()} en PostgreSQL.
+     *
+     * @param queryVector vector de consulta en formato "[v1,v2,...,v384]"
+     * @param limit       número máximo de resultados
+     * @return lista de song_id ordenados por distancia coseno ascendente
+     */
     @Query(value = """
             SELECT song_id
             FROM song_embeddings
