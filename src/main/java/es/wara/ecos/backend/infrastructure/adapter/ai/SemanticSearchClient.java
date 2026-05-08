@@ -5,6 +5,7 @@ import es.wara.ecos.backend.domain.port.SemanticSearchProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -76,6 +77,19 @@ public class SemanticSearchClient implements SemanticSearchProvider {
                         })
                         .filter(id -> id != null)
                         .collect(Collectors.toList());
+            }
+            return List.of();
+        } catch (HttpClientErrorException e) {
+            String requestId = e.getResponseHeaders() != null
+                    ? e.getResponseHeaders().getFirst("X-Request-ID") : null;
+            if (e.getStatusCode().value() == 429) {
+                String retryAfter = e.getResponseHeaders() != null
+                        ? e.getResponseHeaders().getFirst("Retry-After") : null;
+                log.warn("Búsqueda semántica ({}): 429 — Retry-After={}s [X-Request-ID={}]",
+                        path, retryAfter, requestId);
+            } else {
+                log.debug("Búsqueda semántica ({}) error {} para '{}' [X-Request-ID={}]",
+                        path, e.getStatusCode().value(), query, requestId);
             }
             return List.of();
         } catch (RestClientException e) {

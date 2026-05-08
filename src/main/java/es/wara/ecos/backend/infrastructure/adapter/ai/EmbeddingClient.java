@@ -5,6 +5,7 @@ import es.wara.ecos.backend.domain.port.EmbeddingProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -68,31 +69,54 @@ public class EmbeddingClient implements EmbeddingProvider {
             return Optional.empty();
         }
 
-        try {
-            HttpHeaders headers = buildHeaders();
-            Map<String, String> body = Map.of(
-                    "songId", songId.toString(),
-                    "text",   text
-            );
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(
+                Map.of("songId", songId.toString(), "text", text), buildHeaders());
+        String url = properties.getUrl() + EMBEDDINGS_SONG_PATH;
 
-            ResponseEntity<EmbeddingResponse> response = restTemplate.exchange(
-                    properties.getUrl() + EMBEDDINGS_SONG_PATH,
-                    HttpMethod.POST,
-                    new HttpEntity<>(body, headers),
-                    EmbeddingResponse.class
-            );
+        for (int attempt = 0; attempt <= 1; attempt++) {
+            try {
+                ResponseEntity<EmbeddingResponse> response = restTemplate.exchange(
+                        url, HttpMethod.POST, request, EmbeddingResponse.class);
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return Optional.ofNullable(response.getBody().toFloatArray());
+                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                    return Optional.ofNullable(response.getBody().toFloatArray());
+                }
+
+                String requestId = response.getHeaders().getFirst("X-Request-ID");
+                log.warn("Micro IA devolvió {} para embedding de {} [X-Request-ID={}]",
+                        response.getStatusCode(), songId, requestId);
+                return Optional.empty();
+
+            } catch (HttpClientErrorException.TooManyRequests e) {
+                String requestId   = extractHeader(e, "X-Request-ID");
+                String retryAfter  = extractHeader(e, "Retry-After");
+                if (attempt == 0) {
+                    long waitMs = parseRetryAfterMs(retryAfter);
+                    log.warn("Micro IA: 429 para embedding de {} — reintentando en {}s [X-Request-ID={}]",
+                            songId, waitMs / 1000, requestId);
+                    try { Thread.sleep(waitMs); }
+                    catch (InterruptedException ie) { Thread.currentThread().interrupt(); return Optional.empty(); }
+                } else {
+                    log.warn("Micro IA: 429 persistente para embedding de {} [X-Request-ID={}]", songId, requestId);
+                    return Optional.empty();
+                }
+
+            } catch (RestClientException e) {
+                log.warn("Error llamando al micro IA para embedding de {}: {}", songId, e.getMessage());
+                return Optional.empty();
             }
-
-            log.warn("Micro IA devolvió {} para embedding de {}", response.getStatusCode(), songId);
-            return Optional.empty();
-
-        } catch (RestClientException e) {
-            log.warn("Error llamando al micro IA para embedding de {}: {}", songId, e.getMessage());
-            return Optional.empty();
         }
+        return Optional.empty();
+    }
+
+    private String extractHeader(HttpClientErrorException e, String header) {
+        return e.getResponseHeaders() != null ? e.getResponseHeaders().getFirst(header) : null;
+    }
+
+    private long parseRetryAfterMs(String retryAfter) {
+        if (retryAfter == null) return 10_000L;
+        try { return Long.parseLong(retryAfter.trim()) * 1000L; }
+        catch (NumberFormatException e) { return 10_000L; }
     }
 
     private HttpHeaders buildHeaders() {
