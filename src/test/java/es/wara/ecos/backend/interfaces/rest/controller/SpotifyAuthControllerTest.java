@@ -117,15 +117,26 @@ class SpotifyAuthControllerTest {
     }
 
     @Test
-    void callback_invalidOrExpiredState_returns404() throws Exception {
+    void callback_invalidOrExpiredState_returnsHtmlErrorPage() throws Exception {
         doThrow(new IllegalArgumentException("Estado OAuth inválido o expirado"))
                 .when(spotifyAuthPort).exchangeCodeForToken("code", "bad-state");
 
         mockMvc.perform(get("/callback/spotify")
                         .param("code", "code")
                         .param("state", "bad-state"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(org.springframework.http.MediaType.TEXT_HTML))
+                .andExpect(content().string(containsString("Estado OAuth inv")));
+    }
+
+    @Test
+    void callback_userDeniedAccess_returnsHtmlErrorPage() throws Exception {
+        mockMvc.perform(get("/callback/spotify")
+                        .param("error", "access_denied")
+                        .param("state", "some-state"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(org.springframework.http.MediaType.TEXT_HTML))
+                .andExpect(content().string(containsString("Cancelaste")));
     }
 
     // ── DELETE /v1/auth/spotify ──────────────────────────────────────────────
