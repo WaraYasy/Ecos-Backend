@@ -347,5 +347,5 @@ Todos los crons son configurables vía variables de entorno (ver `TAREAS_PROGRAM
 ---
 
 <div align="center">
-  <sub>MIT © 2026</sub>
+  <sub>MIT © 2026 ✨</sub>
 </div>
